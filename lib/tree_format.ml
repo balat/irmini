@@ -89,7 +89,9 @@ module Git : SHA1 = struct
   let bytes_of_node = Git.Tree.to_string
 
   let node_of_bytes s : (node, [> `Msg of string ]) result =
-    match Git.Tree.of_string s with Ok n -> Ok n | Error (`Msg m) -> Error (`Msg m)
+    match Git.Tree.of_string s with
+    | Ok n -> Ok n
+    | Error (`Msg m) -> Error (`Msg m)
 
   let hash_node node = sha1_of_git_hash (Git.Tree.digest node)
 
@@ -98,10 +100,7 @@ module Git : SHA1 = struct
 
   let hash_to_bytes = Hash.to_bytes
   let hash_to_hex = Hash.to_hex
-
-  let hash_of_hex s : (hash, [> `Msg of string ]) result =
-    Hash.sha1_of_hex s
-
+  let hash_of_hex s : (hash, [> `Msg of string ]) result = Hash.sha1_of_hex s
   let hash_equal = Hash.equal
   let hash_compare = Hash.compare
 
@@ -115,8 +114,7 @@ module Git : SHA1 = struct
     in
     Git.Commit.make ~tree:(git_hash_of_sha1 tree)
       ~parents:(List.map git_hash_of_sha1 parents)
-      ~author:(user_of_string author)
-      ~committer:(user_of_string committer)
+      ~author:(user_of_string author) ~committer:(user_of_string committer)
       (Some message)
 
   let commit_tree c = sha1_of_git_hash (Git.Commit.tree c)
@@ -204,13 +202,12 @@ module Mst : SHA256 = struct
       | `Node h -> (cid_of_sha256 h, None)
       (* TODO: Handle subtree pointers *)
     in
-    let _ = t in (* suppress unused warning *)
+    let _ = t in
+    (* suppress unused warning *)
     let entries = List.filter (fun (k, _) -> k <> name) entries in
     let entries =
       (name, (v, None))
-      :: List.map
-           (fun (k, (e : Atp.Mst.Raw.entry)) -> (k, (e.v, e.t)))
-           entries
+      :: List.map (fun (k, (e : Atp.Mst.Raw.entry)) -> (k, (e.v, e.t))) entries
     in
     let compressed = compress_keys entries in
     { node with e = compressed }
@@ -227,7 +224,8 @@ module Mst : SHA256 = struct
   let list (node : node) =
     let entries = decompress_keys node.e in
     List.map
-      (fun (key, (e : Atp.Mst.Raw.entry)) -> (key, `Contents (sha256_of_cid e.v)))
+      (fun (key, (e : Atp.Mst.Raw.entry)) ->
+        (key, `Contents (sha256_of_cid e.v)))
       entries
 
   let bytes_of_node node = Atp.Mst.Raw.encode_bytes node
@@ -241,13 +239,9 @@ module Mst : SHA256 = struct
     Hash.sha256 data
 
   let hash_contents data = Hash.sha256 data
-
   let hash_to_bytes = Hash.to_bytes
   let hash_to_hex = Hash.to_hex
-
-  let hash_of_hex s : (hash, [> `Msg of string ]) result =
-    Hash.sha256_of_hex s
-
+  let hash_of_hex s : (hash, [> `Msg of string ]) result = Hash.sha256_of_hex s
   let hash_equal = Hash.equal
   let hash_compare = Hash.compare
 
@@ -282,9 +276,7 @@ module Mst : SHA256 = struct
             | _ -> ""
           in
           let get_int64 key =
-            match List.assoc_opt key fields with
-            | Some (`Int i) -> i
-            | _ -> 0L
+            match List.assoc_opt key fields with Some (`Int i) -> i | _ -> 0L
           in
           let get_link key =
             match List.assoc_opt key fields with
@@ -318,7 +310,8 @@ module Mst : SHA256 = struct
           ("author", `String c.author);
           ("committer", `String c.committer);
           ("message", `String c.message);
-          ("parents", `List (List.map (fun h -> `Link (cid_of_sha256 h)) c.parents));
+          ( "parents",
+            `List (List.map (fun h -> `Link (cid_of_sha256 h)) c.parents) );
           ("timestamp", `Int c.timestamp);
           ("tree", `Link (cid_of_sha256 c.tree));
         ]

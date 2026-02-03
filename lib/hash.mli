@@ -43,8 +43,9 @@ val to_bytes : _ t -> string
 val to_hex : _ t -> string
 (** [to_hex h] returns the hexadecimal representation of the hash. *)
 
-type existential = Ex : _ t -> existential
-(** Type-erased hash returned when algorithm is only known at runtime. *)
+type existential =
+  | Ex : _ t -> existential
+      (** Type-erased hash returned when algorithm is only known at runtime. *)
 
 val of_hex : algorithm -> string -> (existential, [> `Msg of string ]) result
 (** [of_hex algo hex] parses a hexadecimal hash string. *)

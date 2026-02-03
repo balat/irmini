@@ -171,8 +171,8 @@ let init_git ~sw:_ ~fs ~path =
 
   import_git ~sw:() ~fs ~git_dir
 
-let read_object ~sw:_ ~fs ~git_dir hash
-    : (string * string, [> `Msg of string ]) result =
+let read_object ~sw:_ ~fs ~git_dir hash :
+    (string * string, [> `Msg of string ]) result =
   let git_hash = git_hash_of_sha1 hash in
   match read_loose_object ~fs git_dir git_hash with
   | Ok value ->
@@ -210,7 +210,7 @@ let read_pack_index ~sw:_ ~fs:_ ~path:_ =
   (* TODO: Implement pack index reading *)
   []
 
-let read_from_pack ~sw:_ ~fs:_ ~pack:_ ~offset:_
-    : (string * string, [> `Msg of string ]) result =
+let read_from_pack ~sw:_ ~fs:_ ~pack:_ ~offset:_ :
+    (string * string, [> `Msg of string ]) result =
   (* TODO: Implement pack file reading *)
   Error (`Msg "pack file reading not yet implemented")
