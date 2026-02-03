@@ -77,12 +77,15 @@ let test_tree_nested () =
 let test_memory_backend () =
   let backend = Backend.Memory.create_sha1 () in
   let data = "test content" in
-  let hash = backend.write data in
+  let hash = Hash.sha1 data in
+  backend.write hash data;
   Alcotest.(check (option string)) "read back" (Some data) (backend.read hash)
 
 let test_backend_refs () =
   let backend = Backend.Memory.create_sha1 () in
-  let hash = backend.write "content" in
+  let data = "content" in
+  let hash = Hash.sha1 data in
+  backend.write hash data;
   backend.set_ref "refs/heads/main" hash;
   Alcotest.(check bool)
     "ref exists" true
@@ -93,8 +96,10 @@ let test_backend_refs () =
 
 let test_backend_test_and_set () =
   let backend = Backend.Memory.create_sha1 () in
-  let h1 = backend.write "content1" in
-  let h2 = backend.write "content2" in
+  let h1 = Hash.sha1 "content1" in
+  let h2 = Hash.sha1 "content2" in
+  backend.write h1 "content1";
+  backend.write h2 "content2";
   backend.set_ref "ref" h1;
 
   (* Should fail with wrong test value *)
@@ -130,26 +135,24 @@ let test_store_branches () =
 
 (* Tree format tests *)
 let test_git_tree_format () =
-  let node = Tree_format.Git.empty_node in
-  Alcotest.(check bool) "empty is empty" true (Tree_format.Git.is_empty node);
+  let node = Codec.Git.empty_node in
+  Alcotest.(check bool) "empty is empty" true (Codec.Git.is_empty node);
   let h = Hash.sha1 "content" in
-  let node = Tree_format.Git.add node "file.txt" (`Contents h) in
-  Alcotest.(check bool)
-    "not empty after add" false
-    (Tree_format.Git.is_empty node);
-  match Tree_format.Git.find node "file.txt" with
+  let node = Codec.Git.add node "file.txt" (`Contents h) in
+  Alcotest.(check bool) "not empty after add" false (Codec.Git.is_empty node);
+  match Codec.Git.find node "file.txt" with
   | Some (`Contents h') ->
       Alcotest.(check bool) "find matches" true (Hash.equal h h')
   | _ -> Alcotest.fail "entry not found"
 
 let test_git_tree_serialization () =
   let h = Hash.sha1 "content" in
-  let node = Tree_format.Git.empty_node in
-  let node = Tree_format.Git.add node "file.txt" (`Contents h) in
-  let bytes = Tree_format.Git.bytes_of_node node in
-  match Tree_format.Git.node_of_bytes bytes with
+  let node = Codec.Git.empty_node in
+  let node = Codec.Git.add node "file.txt" (`Contents h) in
+  let bytes = Codec.Git.bytes_of_node node in
+  match Codec.Git.node_of_bytes bytes with
   | Ok node' ->
-      let entries = Tree_format.Git.list node' in
+      let entries = Codec.Git.list node' in
       Alcotest.(check int) "one entry" 1 (List.length entries)
   | Error (`Msg msg) -> Alcotest.fail msg
 
@@ -193,17 +196,17 @@ let tree_format_tests =
 
 (* Link tests *)
 let test_link_v_get () =
-  let s = Link.Mst.mem () in
+  let s = Link.Mst.v () in
   let l = Link.v s 42 in
-  Alcotest.(check int) "get (v x) = x" 42 (Link.get l)
+  Alcotest.(check int) "get (v s x) = x" 42 (Link.get l)
 
 let test_link_is_val () =
-  let s = Link.Mst.mem () in
+  let s = Link.Mst.v () in
   let l = Link.v s "hello" in
   Alcotest.(check bool) "in-memory is_val" true (Link.is_val l)
 
 let test_link_equal () =
-  let s = Link.Mst.mem () in
+  let s = Link.Mst.v () in
   let l0 = Link.v s [ 1; 2; 3 ] in
   let l1 = Link.v s [ 1; 2; 3 ] in
   let l2 = Link.v s [ 1; 2; 4 ] in
@@ -211,29 +214,28 @@ let test_link_equal () =
   Alcotest.(check bool) "diff value not equal" false (Link.equal l0 l2)
 
 let test_link_address () =
-  let s = Link.Mst.mem () in
+  let s = Link.Mst.v () in
   let l0 = Link.v s "test" in
   let l1 = Link.v s "test" in
   Alcotest.(check bool) "same address" true (Link.address l0 = Link.address l1)
 
 let test_link_pp () =
-  let s = Link.Mst.mem () in
+  let s = Link.Mst.v () in
   let l = Link.v s "test" in
   let _ = Link.address l in
   (* force address computation *)
   let str = Format.asprintf "%a" Link.pp l in
   Alcotest.(check int) "pp is 7 chars" 7 (String.length str)
 
-let test_link_root () =
-  let s = Link.Mst.mem () in
-  Alcotest.(check (option int)) "initially none" None (Link.root s);
-  Link.set_root s 42;
-  Alcotest.(check (option int)) "after set" (Some 42) (Link.root s);
-  Link.set_root s 100;
-  Alcotest.(check (option int)) "after second set" (Some 100) (Link.root s)
+let test_link_read_write () =
+  let s : int Link.store = Link.Mst.v () in
+  Link.write s 42;
+  Alcotest.(check int) "after write" 42 (Link.read s);
+  Link.write s 100;
+  Alcotest.(check int) "after second write" 100 (Link.read s)
 
 let test_link_is_open () =
-  let s = Link.Mst.mem () in
+  let s = Link.Mst.v () in
   Alcotest.(check bool) "initially open" true (Link.is_open s);
   Link.close s;
   Alcotest.(check bool) "closed after close" false (Link.is_open s)
@@ -243,10 +245,10 @@ type test_tree = test_node Link.t
 and test_node = TEmpty | TNode of { l : test_tree; x : int; r : test_tree }
 
 let test_link_tree () =
-  let _s = Link.Mst.mem () in
-  let empty = Link.v TEmpty in
-  let leaf x = Link.v (TNode { l = empty; x; r = empty }) in
-  let node l x r = Link.v (TNode { l; x; r }) in
+  let s = Link.Mst.v () in
+  let empty = Link.v s TEmpty in
+  let leaf x = Link.v s (TNode { l = empty; x; r = empty }) in
+  let node l x r = Link.v s (TNode { l; x; r }) in
   let t = node (leaf 1) 2 (leaf 3) in
   match Link.get t with
   | TEmpty -> Alcotest.fail "expected node"
@@ -263,11 +265,97 @@ let link_tests =
     Alcotest.test_case "v/get" `Quick test_link_v_get;
     Alcotest.test_case "is_val" `Quick test_link_is_val;
     Alcotest.test_case "equal" `Quick test_link_equal;
-    Alcotest.test_case "hash" `Quick test_link_hash;
+    Alcotest.test_case "address" `Quick test_link_address;
     Alcotest.test_case "pp" `Quick test_link_pp;
-    Alcotest.test_case "root" `Quick test_link_root;
+    Alcotest.test_case "read/write" `Quick test_link_read_write;
     Alcotest.test_case "is_open" `Quick test_link_is_open;
     Alcotest.test_case "tree" `Quick test_link_tree;
+  ]
+
+(* Proof tests *)
+let test_proof_produce_verify () =
+  let backend = Backend.Memory.create_sha1 () in
+  (* Build a tree: foo/bar = "hello", foo/baz = "world" *)
+  let tree = Tree.Git.empty () in
+  let tree = Tree.Git.add tree [ "foo"; "bar" ] "hello" in
+  let tree = Tree.Git.add tree [ "foo"; "baz" ] "world" in
+  let root_hash = Tree.Git.hash tree ~backend in
+  (* Produce a proof that only accesses foo/bar *)
+  let proof, result =
+    Proof.Git.produce backend root_hash (fun t ->
+        let v = Proof.Git.Tree.find t [ "foo"; "bar" ] in
+        (t, v))
+  in
+  Alcotest.(check (option string)) "found value" (Some "hello") result;
+  (* Verify the proof *)
+  match
+    Proof.Git.verify proof (fun t ->
+        let v = Proof.Git.Tree.find t [ "foo"; "bar" ] in
+        (t, v))
+  with
+  | Ok (_, v) ->
+      Alcotest.(check (option string)) "verified value" (Some "hello") v
+  | Error (`Proof_mismatch msg) -> Alcotest.fail ("proof mismatch: " ^ msg)
+
+let test_proof_blinded () =
+  let backend = Backend.Memory.create_sha1 () in
+  let tree = Tree.Git.empty () in
+  let tree = Tree.Git.add tree [ "a" ] "1" in
+  let tree = Tree.Git.add tree [ "b" ] "2" in
+  let root_hash = Tree.Git.hash tree ~backend in
+  (* Only access "a", "b" should be blinded *)
+  let proof, _ =
+    Proof.Git.produce backend root_hash (fun t ->
+        let _ = Proof.Git.Tree.find t [ "a" ] in
+        (t, ()))
+  in
+  (* Check proof state has blinded nodes *)
+  let state = Proof.state proof in
+  match state with
+  | Proof.Node entries ->
+      let has_a =
+        List.exists
+          (fun (k, v) ->
+            k = "a" && match v with Proof.Contents "1" -> true | _ -> false)
+          entries
+      in
+      let has_blinded_b =
+        List.exists
+          (fun (k, v) ->
+            k = "b"
+            && match v with Proof.Blinded_contents _ -> true | _ -> false)
+          entries
+      in
+      Alcotest.(check bool) "has a" true has_a;
+      Alcotest.(check bool) "b is blinded" true has_blinded_b
+  | _ -> Alcotest.fail "expected Node"
+
+let test_proof_mst () =
+  let backend = Backend.Memory.create_sha256 () in
+  let tree = Tree.Mst.empty () in
+  let tree = Tree.Mst.add tree [ "key1" ] "value1" in
+  let tree = Tree.Mst.add tree [ "key2" ] "value2" in
+  let root_hash = Tree.Mst.hash tree ~backend in
+  let proof, result =
+    Proof.Mst.produce backend root_hash (fun t ->
+        let v = Proof.Mst.Tree.find t [ "key1" ] in
+        (t, v))
+  in
+  Alcotest.(check (option string)) "found value" (Some "value1") result;
+  match
+    Proof.Mst.verify proof (fun t ->
+        let v = Proof.Mst.Tree.find t [ "key1" ] in
+        (t, v))
+  with
+  | Ok (_, v) ->
+      Alcotest.(check (option string)) "verified value" (Some "value1") v
+  | Error (`Proof_mismatch msg) -> Alcotest.fail ("proof mismatch: " ^ msg)
+
+let proof_tests =
+  [
+    Alcotest.test_case "produce/verify" `Quick test_proof_produce_verify;
+    Alcotest.test_case "blinded nodes" `Quick test_proof_blinded;
+    Alcotest.test_case "mst proofs" `Quick test_proof_mst;
   ]
 
 let () =
@@ -277,6 +365,7 @@ let () =
       ("Tree", tree_tests);
       ("Backend", backend_tests);
       ("Store", store_tests);
-      ("Tree_format", tree_format_tests);
+      ("Codec", tree_format_tests);
       ("Link", link_tests);
+      ("Proof", proof_tests);
     ]

@@ -29,7 +29,7 @@ Content-addressable storage for OCaml.
 ## Design Principles
 
 1. **One functor, used once.** The `Make` functor takes a format. Pre-instantiated as `Git` and `Mst`.
-2. **One module, one concern.** Hash in `Hash`. Node encoding in `Tree_format`. Storage in `Backend`.
+2. **One module, one concern.** Hash in `Hash`. Node encoding in `Codec`. Storage in `Backend`.
 3. **Explicit is better than implicit.** No magic, no hidden state.
 4. **Consistent error handling.** All fallible operations return `result`.
 
@@ -74,7 +74,7 @@ Irmin.Store.Git.set_head store ~branch:"main" commit
 ```
 Irmin
 ├── Hash          # Phantom-typed SHA-1/SHA-256
-├── Tree_format   # Format.S signature + Git/Mst implementations
+├── Codec   # Format.S signature + Git/Mst implementations
 ├── Backend       # KV storage (Memory, Git, layered, cached)
 ├── Tree          # Lazy tree with delayed writes
 ├── Commit        # Commit operations

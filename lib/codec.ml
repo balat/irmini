@@ -109,8 +109,18 @@ module Git : SHA1 = struct
 
   let commit_make ~tree ~parents ~author ~committer ~message ~timestamp =
     let user_of_string s =
-      (* Parse "Name <email>" format, or use as-is *)
-      Git.User.make ~name:s ~email:"" ~date:timestamp ()
+      (* Parse "Name <email>" format *)
+      match String.index_opt s '<' with
+      | None -> Git.User.make ~name:s ~email:"" ~date:timestamp ()
+      | Some i ->
+          let name = String.trim (String.sub s 0 i) in
+          let rest = String.sub s (i + 1) (String.length s - i - 1) in
+          let email =
+            match String.index_opt rest '>' with
+            | None -> rest
+            | Some j -> String.sub rest 0 j
+          in
+          Git.User.make ~name ~email ~date:timestamp ()
     in
     Git.Commit.make ~tree:(git_hash_of_sha1 tree)
       ~parents:(List.map git_hash_of_sha1 parents)
@@ -119,8 +129,14 @@ module Git : SHA1 = struct
 
   let commit_tree c = sha1_of_git_hash (Git.Commit.tree c)
   let commit_parents c = List.map sha1_of_git_hash (Git.Commit.parents c)
-  let commit_author c = Git.User.name (Git.Commit.author c)
-  let commit_committer c = Git.User.name (Git.Commit.committer c)
+
+  let user_to_string u =
+    let name = Git.User.name u in
+    let email = Git.User.email u in
+    if email = "" then name else Printf.sprintf "%s <%s>" name email
+
+  let commit_author c = user_to_string (Git.Commit.author c)
+  let commit_committer c = user_to_string (Git.Commit.committer c)
   let commit_message c = Option.value ~default:"" (Git.Commit.message c)
   let commit_timestamp c = Git.User.date (Git.Commit.author c)
 

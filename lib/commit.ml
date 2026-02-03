@@ -1,6 +1,6 @@
-(** Commit operations delegating to Tree_format. *)
+(** Commit operations delegating to Codec. *)
 
-module Make (F : Tree_format.S) = struct
+module Make (F : Codec.S) = struct
   type hash = F.hash
   type t = F.commit
 
@@ -20,5 +20,5 @@ module Make (F : Tree_format.S) = struct
   let hash = F.commit_hash
 end
 
-module Git = Make (Tree_format.Git)
-module Mst = Make (Tree_format.Mst)
+module Git = Make (Codec.Git)
+module Mst = Make (Codec.Mst)

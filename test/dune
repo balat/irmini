@@ -1,3 +1,18 @@
 (test
  (name test_irmin)
  (libraries irmin alcotest eio_main))
+
+(executable
+ (name mst_proof)
+ (modules mst_proof)
+ (libraries irmin))
+
+(cram
+ (package irmin)
+ (applies_to cli)
+ (deps %{bin:irmin}))
+
+(cram
+ (package irmin)
+ (applies_to proof)
+ (deps mst_proof.exe))

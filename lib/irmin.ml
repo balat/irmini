@@ -42,7 +42,7 @@ module Backend = Backend
     Lazy reads, delayed writes. Like Git's index/staging area. Trees are built
     on top of links for Merkle tree structures. *)
 
-module Tree_format = Tree_format
+module Codec = Codec
 (** Format signatures and implementations (Git, MST, extensible). *)
 
 module Tree = Tree
@@ -59,6 +59,9 @@ module Store = Store
 module Subtree = Subtree
 (** Monorepo subtree operations. *)
 
+module Proof = Proof
+(** Merkle proofs for verified computations. *)
+
 (** {1 Git Interoperability} *)
 
 module Git_interop = Git_interop
@@ -72,6 +75,7 @@ module Git = struct
   module Tree = Tree.Git
   module Store = Store.Git
   module Subtree = Subtree.Git
+  module Proof = Proof.Git
 
   let import = Git_interop.import_git
   let init = Git_interop.init_git
@@ -85,4 +89,5 @@ module Mst = struct
   module Tree = Tree.Mst
   module Store = Store.Mst
   module Subtree = Subtree.Mst
+  module Proof = Proof.Mst
 end

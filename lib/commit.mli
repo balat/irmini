@@ -5,7 +5,7 @@
 
 (** {1 Commit Functor} *)
 
-module Make (F : Tree_format.S) : sig
+module Make (F : Codec.S) : sig
   type t
   (** A commit object. *)
 
@@ -59,8 +59,8 @@ end
 
 (** {1 Pre-instantiated Commits} *)
 
-module Git : module type of Make (Tree_format.Git)
+module Git : module type of Make (Codec.Git)
 (** Git-format commits with SHA-1 hashes. *)
 
-module Mst : module type of Make (Tree_format.Mst)
+module Mst : module type of Make (Codec.Mst)
 (** MST-format commits with SHA-256 hashes. *)

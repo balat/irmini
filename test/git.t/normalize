@@ -1,0 +1,5 @@
+#!/bin/sh
+# Normalize variable output for reproducible tests
+# - Replace hashes with HASH
+# - Strip trailing whitespace
+sed 's/[a-f0-9]\{7,40\}/HASH/g' | sed 's/[[:space:]]*$//'

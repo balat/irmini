@@ -8,8 +8,9 @@
 type 'hash t = {
   read : 'hash -> string option;
       (** [read hash] retrieves the object with the given hash. *)
-  write : string -> 'hash;
-      (** [write data] stores data and returns its hash. *)
+  write : 'hash -> string -> unit;
+      (** [write hash data] stores [data] at [hash]. Caller computes the hash.
+      *)
   exists : 'hash -> bool;  (** [exists hash] checks if an object exists. *)
   get_ref : string -> 'hash option;
       (** [get_ref name] reads a reference (branch/tag). *)
@@ -20,8 +21,8 @@ type 'hash t = {
           its current value matches [test]. *)
   list_refs : unit -> string list;
       (** [list_refs ()] returns all reference names. *)
-  write_batch : string list -> 'hash list;
-      (** [write_batch objects] writes multiple objects efficiently. *)
+  write_batch : ('hash * string) list -> unit;
+      (** [write_batch [(h1, d1); ...]] writes multiple objects efficiently. *)
   flush : unit -> unit;  (** [flush ()] ensures all writes are persisted. *)
   close : unit -> unit;  (** [close ()] releases resources. *)
 }
@@ -29,10 +30,9 @@ type 'hash t = {
 (** {1 Memory Backend} *)
 
 module Memory : sig
-  val create_with_hash :
-    (string -> 'h) -> ('h -> string) -> ('h -> 'h -> bool) -> 'h t
-  (** [create_with_hash hash_fn to_hex equal] creates an in-memory backend with
-      custom hash functions. *)
+  val create_with_hash : ('h -> string) -> ('h -> 'h -> bool) -> 'h t
+  (** [create_with_hash to_hex equal] creates an in-memory backend. Caller
+      computes hashes; backend just stores (hash, data) pairs. *)
 
   val create_sha1 : unit -> Hash.sha1 t
   (** Create an in-memory SHA-1 backend. *)

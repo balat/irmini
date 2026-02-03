@@ -5,7 +5,7 @@
 
 (** {1 Subtree Functor} *)
 
-module Make (F : Tree_format.S) : sig
+module Make (F : Codec.S) : sig
   type hash = F.hash
 
   module Store : module type of Store.Make (F)
@@ -68,8 +68,8 @@ end
 
 (** {1 Pre-instantiated Subtree} *)
 
-module Git : module type of Make (Tree_format.Git)
+module Git : module type of Make (Codec.Git)
 (** Git-format subtree operations. *)
 
-module Mst : module type of Make (Tree_format.Mst)
+module Mst : module type of Make (Codec.Mst)
 (** MST-format subtree operations. *)

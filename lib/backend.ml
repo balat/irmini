@@ -1,12 +1,12 @@
 type 'hash t = {
   read : 'hash -> string option;
-  write : string -> 'hash;
+  write : 'hash -> string -> unit;
   exists : 'hash -> bool;
   get_ref : string -> 'hash option;
   set_ref : string -> 'hash -> unit;
   test_and_set_ref : string -> test:'hash option -> set:'hash option -> bool;
   list_refs : unit -> string list;
-  write_batch : string list -> 'hash list;
+  write_batch : ('hash * string) list -> unit;
   flush : unit -> unit;
   close : unit -> unit;
 }
@@ -19,21 +19,14 @@ module Memory = struct
   type 'hash state = {
     mutable objects : string StringMap.t;
     mutable refs : 'hash StringMap.t;
-    hash_fn : string -> 'hash;
     to_hex : 'hash -> string;
     equal : 'hash -> 'hash -> bool;
   }
 
-  let create_with_hash (type h) (hash_fn : string -> h) (to_hex : h -> string)
-      (equal : h -> h -> bool) : h t =
+  let create_with_hash (type h) (to_hex : h -> string) (equal : h -> h -> bool)
+      : h t =
     let state =
-      {
-        objects = StringMap.empty;
-        refs = StringMap.empty;
-        hash_fn;
-        to_hex;
-        equal;
-      }
+      { objects = StringMap.empty; refs = StringMap.empty; to_hex; equal }
     in
     {
       read =
@@ -41,11 +34,9 @@ module Memory = struct
           let key = state.to_hex h in
           StringMap.find_opt key state.objects);
       write =
-        (fun data ->
-          let h = state.hash_fn data in
+        (fun h data ->
           let key = state.to_hex h in
-          state.objects <- StringMap.add key data state.objects;
-          h);
+          state.objects <- StringMap.add key data state.objects);
       exists =
         (fun h ->
           let key = state.to_hex h in
@@ -71,19 +62,17 @@ module Memory = struct
       list_refs = (fun () -> StringMap.bindings state.refs |> List.map fst);
       write_batch =
         (fun objects ->
-          List.map
-            (fun data ->
-              let h = state.hash_fn data in
+          List.iter
+            (fun (h, data) ->
               let key = state.to_hex h in
-              state.objects <- StringMap.add key data state.objects;
-              h)
+              state.objects <- StringMap.add key data state.objects)
             objects);
       flush = (fun () -> ());
       close = (fun () -> ());
     }
 
-  let create_sha1 () = create_with_hash Hash.sha1 Hash.to_hex Hash.equal
-  let create_sha256 () = create_with_hash Hash.sha256 Hash.to_hex Hash.equal
+  let create_sha1 () = create_with_hash Hash.to_hex Hash.equal
+  let create_sha256 () = create_with_hash Hash.to_hex Hash.equal
 end
 
 (* Simple LRU cache *)
@@ -124,7 +113,7 @@ let readonly (backend : 'h t) : 'h t =
   let fail () = invalid_arg "Backend is read-only" in
   {
     backend with
-    write = (fun _ -> fail ());
+    write = (fun _ _ -> fail ());
     set_ref = (fun _ _ -> fail ());
     test_and_set_ref = (fun _ ~test:_ ~set:_ -> fail ());
     write_batch = (fun _ -> fail ());

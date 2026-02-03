@@ -9,6 +9,15 @@ let git_hash_of_sha1 (h : Hash.sha1) : Git.Hash.t =
 let sha1_of_git_hash (h : Git.Hash.t) : Hash.sha1 =
   Hash.sha1_of_bytes (Git.Hash.to_raw_string h)
 
+(* Detect object type from content.
+   Commits start with "tree ", trees have binary format with mode prefixes. *)
+let detect_object_type data =
+  if String.length data >= 5 && String.sub data 0 5 = "tree " then `Commit
+  else if String.length data >= 2 && data.[0] >= '1' && data.[0] <= '7' then
+    (* Tree entries start with mode like "100644 " or "40000 " *)
+    `Tree
+  else `Blob
+
 (* Create Git backend from a Git.Repository.t *)
 let git_backend (repo : Git.Repository.t) : Hash.sha1 Backend.t =
   {
@@ -19,9 +28,16 @@ let git_backend (repo : Git.Repository.t) : Hash.sha1 Backend.t =
         | Ok value -> Some (Git.Value.to_string_without_header value)
         | Error _ -> None);
     write =
-      (fun data ->
-        let git_hash = Git.Repository.write_blob repo data in
-        sha1_of_git_hash git_hash);
+      (fun _expected_hash data ->
+        (* Detect object type and write with correct Git wrapper *)
+        let value =
+          match detect_object_type data with
+          | `Blob -> Git.Value.blob (Git.Blob.of_string data)
+          | `Tree -> Git.Value.tree (Git.Tree.of_string_exn data)
+          | `Commit -> Git.Value.commit (Git.Commit.of_string_exn data)
+        in
+        let _git_hash = Git.Repository.write repo value in
+        ());
     exists =
       (fun hash ->
         let git_hash = git_hash_of_sha1 hash in
@@ -50,10 +66,16 @@ let git_backend (repo : Git.Repository.t) : Hash.sha1 Backend.t =
     list_refs = (fun () -> Git.Repository.list_refs repo);
     write_batch =
       (fun objects ->
-        List.map
-          (fun data ->
-            let git_hash = Git.Repository.write_blob repo data in
-            sha1_of_git_hash git_hash)
+        List.iter
+          (fun (_expected_hash, data) ->
+            let value =
+              match detect_object_type data with
+              | `Blob -> Git.Value.blob (Git.Blob.of_string data)
+              | `Tree -> Git.Value.tree (Git.Tree.of_string_exn data)
+              | `Commit -> Git.Value.commit (Git.Commit.of_string_exn data)
+            in
+            let _git_hash = Git.Repository.write repo value in
+            ())
           objects);
     flush = (fun () -> ());
     close = (fun () -> ());

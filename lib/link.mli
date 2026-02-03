@@ -21,27 +21,27 @@
 (** {1:types Types} *)
 
 type 'a t
-(** The type for links to ['a] values. Links embed a store reference. *)
+(** The type for links to ['a] values. Links embed their content store. *)
 
-type store
-(** The type for stores. *)
+type 'a store
+(** The type for stores with root of type ['a]. *)
 
 type address
 (** The type for content addresses. Opaque. *)
 
 (** {1:links Links} *)
 
-val v : store -> 'a -> 'a t
-(** [v s x] is a link to [x] using store [s]. *)
+val v : _ store -> 'a -> 'a t
+(** [v s x] is a link to [x], using content store from [s]. *)
 
-val of_address : store -> address -> 'a t
+val of_address : _ store -> address -> 'a t
 (** [of_address s addr] is a link that lazily loads from [addr]. *)
 
 val get : 'a t -> 'a
-(** [get l] is the value linked by [l]. Fetches from store if needed. *)
+(** [get l] is the value linked by [l]. Fetches if needed. *)
 
 val address : 'a t -> address
-(** [address l] is the content address of [l]. Writes to store if needed. *)
+(** [address l] is the content address of [l]. Writes if needed. *)
 
 val equal : 'a t -> 'a t -> bool
 (** [equal l0 l1] is [true] iff [l0] and [l1] have the same address. *)
@@ -54,31 +54,31 @@ val pp : Format.formatter -> 'a t -> unit
 
 (** {1:stores Stores} *)
 
-val root : store -> 'a option
-(** [root s] is the current root of [s]. *)
+val read : 'a store -> 'a
+(** [read s] is the current root of [s]. Raises if no root set. *)
 
-val set_root : store -> 'a -> unit
-(** [set_root s x] sets the root of [s] to [x]. *)
+val write : 'a store -> 'a -> unit
+(** [write s x] sets the root of [s] to [x]. *)
 
-val is_open : store -> bool
+val is_open : _ store -> bool
 (** [is_open s] is [true] if [s] is open. *)
 
-val close : store -> unit
-(** [close s] closes [s]. Further operations return [None] or raise. *)
+val close : _ store -> unit
+(** [close s] closes [s]. Further operations raise. *)
 
 (** {2 Store creation} *)
 
-module Make (_ : Tree_format.S) : sig
-  val mem : unit -> store
-  (** [mem ()] is a new in-memory store. *)
+module Make (_ : Codec.S) : sig
+  val v : unit -> _ store
+  (** [v ()] is a new in-memory store. *)
 end
 
 module Git : sig
-  val mem : unit -> store
-  (** [mem ()] is a new in-memory Git-compatible store (SHA-1). *)
+  val v : unit -> _ store
+  (** [v ()] is a new in-memory Git-compatible store (SHA-1). *)
 end
 
 module Mst : sig
-  val mem : unit -> store
-  (** [mem ()] is a new in-memory MST store (SHA-256, ATProto). *)
+  val v : unit -> _ store
+  (** [v ()] is a new in-memory MST store (SHA-256, ATProto). *)
 end

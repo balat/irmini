@@ -1,0 +1,21 @@
+(executable
+ (name main)
+ (public_name irmin)
+ (libraries irmin atp cmdliner vlog tty eio_main fmt unix)
+ (modules
+  config
+  common
+  cmd_init
+  cmd_get
+  cmd_set
+  cmd_del
+  cmd_list
+  cmd_tree
+  cmd_log
+  cmd_branches
+  cmd_checkout
+  cmd_proof
+  cmd_import
+  cmd_export
+  cmd_info
+  main))

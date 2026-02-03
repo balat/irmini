@@ -4,7 +4,7 @@
 
 (** {1 Store Functor} *)
 
-module Make (F : Tree_format.S) : sig
+module Make (F : Codec.S) : sig
   type t
   (** A store instance. *)
 
@@ -89,8 +89,8 @@ end
 
 (** {1 Pre-instantiated Stores} *)
 
-module Git : module type of Make (Tree_format.Git)
+module Git : module type of Make (Codec.Git)
 (** Git-format store with SHA-1 hashes. *)
 
-module Mst : module type of Make (Tree_format.Mst)
+module Mst : module type of Make (Codec.Mst)
 (** MST-format store with SHA-256 hashes. *)

@@ -1,4 +1,4 @@
-module Make (F : Tree_format.S) = struct
+module Make (F : Codec.S) = struct
   type hash = F.hash
   type path = string list
   type concrete = [ `Contents of string | `Tree of (string * concrete) list ]
@@ -67,9 +67,14 @@ module Make (F : Tree_format.S) = struct
               | Some loaded -> (
                   match F.find loaded name with
                   | None -> None
-                  | Some (`Contents _hash) ->
-                      (* Would need to load contents - for now return None *)
-                      None
+                  | Some (`Contents hash) -> (
+                      (* Load the content blob *)
+                      match node.state with
+                      | Lazy { backend; _ } -> (
+                          match backend.read hash with
+                          | Some data -> navigate (Contents data) rest
+                          | None -> None)
+                      | _ -> None)
                   | Some (`Node hash) -> (
                       match node.state with
                       | Lazy { backend; _ } ->
@@ -229,7 +234,7 @@ module Make (F : Tree_format.S) = struct
     match t with
     | Contents s ->
         let h = F.hash_contents s in
-        let _ = backend.write s in
+        backend.write h s;
         h
     | Node node ->
         (* First, get the base node *)
@@ -254,8 +259,9 @@ module Make (F : Tree_format.S) = struct
             base node.children
         in
         let data = F.bytes_of_node final in
-        let _ = backend.write data in
-        F.hash_node final
+        let h = F.hash_node final in
+        backend.write h data;
+        h
 
   let hash t ~backend = write_tree t ~backend
 
@@ -302,5 +308,5 @@ module Make (F : Tree_format.S) = struct
     to_concrete t1 = to_concrete t2
 end
 
-module Git = Make (Tree_format.Git)
-module Mst = Make (Tree_format.Mst)
+module Git = Make (Codec.Git)
+module Mst = Make (Codec.Mst)

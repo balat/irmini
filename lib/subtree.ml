@@ -1,4 +1,4 @@
-module Make (F : Tree_format.S) = struct
+module Make (F : Codec.S) = struct
   type hash = F.hash
 
   module Store = Store.Make (F)
@@ -22,9 +22,7 @@ module Make (F : Tree_format.S) = struct
 
   (* Split: Extract subtree history into a new store *)
   let split store ~prefix =
-    let backend =
-      Backend.Memory.create_with_hash F.hash_contents F.hash_to_hex F.hash_equal
-    in
+    let backend = Backend.Memory.create_with_hash F.hash_to_hex F.hash_equal in
     let new_store = Store.create ~backend in
 
     (* Walk commits and rewrite those touching prefix *)
@@ -233,5 +231,5 @@ module Make (F : Tree_format.S) = struct
             else `Trees_differ)
 end
 
-module Git = Make (Tree_format.Git)
-module Mst = Make (Tree_format.Mst)
+module Git = Make (Codec.Git)
+module Mst = Make (Codec.Mst)
