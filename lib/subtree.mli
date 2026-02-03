@@ -70,3 +70,6 @@ end
 
 module Git : module type of Make (Tree_format.Git)
 (** Git-format subtree operations. *)
+
+module Mst : module type of Make (Tree_format.Mst)
+(** MST-format subtree operations. *)

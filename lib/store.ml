@@ -35,8 +35,7 @@ module Make (F : Tree_format.S) = struct
     let tree_hash = Tree.hash tree ~backend:t.backend in
     let c = Commit.v ~tree:tree_hash ~parents ~author ~message () in
     let data = Commit.to_bytes c in
-    let _ = t.backend.write data in
-    Commit.hash c
+    t.backend.write data
 
   let head t ~branch = t.backend.get_ref ("refs/heads/" ^ branch)
   let set_head t ~branch h = t.backend.set_ref ("refs/heads/" ^ branch) h

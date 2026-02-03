@@ -232,3 +232,4 @@ module Make (F : Tree_format.S) = struct
 end
 
 module Git = Make (Tree_format.Git)
+module Mst = Make (Tree_format.Mst)
