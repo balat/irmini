@@ -107,12 +107,6 @@ module Lru = struct
 end
 
 let cached (type h) (backend : h t) : h t =
-  let module H = struct
-    type t = h
-
-    let hash = Hashtbl.hash
-    let equal a b = backend.read a = backend.read b
-  end in
   let cache : (h, string) Lru.t = Lru.create 1000 in
   {
     backend with

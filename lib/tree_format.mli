@@ -44,6 +44,54 @@ module type S = sig
 
   val is_empty : node -> bool
   (** [is_empty node] returns true if the node has no entries. *)
+
+  (** {2 Hash Operations} *)
+
+  val hash_to_bytes : hash -> string
+  (** [hash_to_bytes h] returns the raw bytes of [h]. *)
+
+  val hash_to_hex : hash -> string
+  (** [hash_to_hex h] returns the hexadecimal representation of [h]. *)
+
+  val hash_of_hex : string -> (hash, [> `Msg of string ]) result
+  (** [hash_of_hex s] parses a hexadecimal hash string. *)
+
+  val hash_equal : hash -> hash -> bool
+  (** [hash_equal h1 h2] tests hash equality. *)
+
+  val hash_compare : hash -> hash -> int
+  (** [hash_compare h1 h2] compares hashes. *)
+
+  (** {2 Commit Operations} *)
+
+  type commit
+  (** The commit representation. *)
+
+  val commit_make :
+    tree:hash ->
+    parents:hash list ->
+    author:string ->
+    committer:string ->
+    message:string ->
+    timestamp:int64 ->
+    commit
+  (** Create a commit. *)
+
+  val commit_tree : commit -> hash
+  val commit_parents : commit -> hash list
+  val commit_author : commit -> string
+  val commit_committer : commit -> string
+  val commit_message : commit -> string
+  val commit_timestamp : commit -> int64
+
+  val commit_of_bytes : string -> (commit, [> `Msg of string ]) result
+  (** Parse a commit from bytes. *)
+
+  val commit_to_bytes : commit -> string
+  (** Serialize a commit to bytes. *)
+
+  val commit_hash : commit -> hash
+  (** Compute the hash of a commit. *)
 end
 
 (** {1 Hash-Specific Signatures} *)

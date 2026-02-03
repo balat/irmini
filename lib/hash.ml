@@ -78,7 +78,7 @@ let sha256_of_hex hex =
 
 type existential = Ex : _ t -> existential
 
-let of_hex algo hex : (existential, _) result =
+let of_hex algo hex : (existential, [> `Msg of string ]) result =
   match algo with
   | Sha1 -> Result.map (fun h -> Ex h) (sha1_of_hex hex)
   | Sha256 -> Result.map (fun h -> Ex h) (sha256_of_hex hex)

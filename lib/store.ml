@@ -55,8 +55,8 @@ module Make (F : Tree_format.S) = struct
   (* Simple ancestry check - walks parent chain *)
   let is_ancestor t ~ancestor ~descendant =
     let rec walk visited h =
-      if Hash.equal h ancestor then true
-      else if List.exists (Hash.equal h) visited then false
+      if F.hash_equal h ancestor then true
+      else if List.exists (F.hash_equal h) visited then false
       else
         match read_commit t h with
         | None -> false
@@ -64,12 +64,12 @@ module Make (F : Tree_format.S) = struct
             let visited = h :: visited in
             List.exists (walk visited) (Commit.parents c)
     in
-    Hash.equal ancestor descendant || walk [] descendant
+    F.hash_equal ancestor descendant || walk [] descendant
 
   (* Find merge base using simple BFS *)
   let merge_base t h1 h2 =
     let rec ancestors_of h visited =
-      if List.exists (Hash.equal h) visited then visited
+      if List.exists (F.hash_equal h) visited then visited
       else
         match read_commit t h with
         | None -> h :: visited
@@ -81,7 +81,7 @@ module Make (F : Tree_format.S) = struct
     in
     let ancestors1 = ancestors_of h1 [] in
     let rec find_common h =
-      if List.exists (Hash.equal h) ancestors1 then Some h
+      if List.exists (F.hash_equal h) ancestors1 then Some h
       else
         match read_commit t h with
         | None -> None
@@ -92,7 +92,7 @@ module Make (F : Tree_format.S) = struct
 
   let commits_between t ~base ~head =
     let rec count h n =
-      if Hash.equal h base then n
+      if F.hash_equal h base then n
       else
         match read_commit t h with
         | None -> n

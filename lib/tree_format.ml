@@ -12,6 +12,35 @@ module type S = sig
   val remove : node -> string -> node
   val list : node -> (string * [ `Node of hash | `Contents of hash ]) list
   val is_empty : node -> bool
+
+  (* Hash operations *)
+  val hash_to_bytes : hash -> string
+  val hash_to_hex : hash -> string
+  val hash_of_hex : string -> (hash, [> `Msg of string ]) result
+  val hash_equal : hash -> hash -> bool
+  val hash_compare : hash -> hash -> int
+
+  (* Commit operations *)
+  type commit
+
+  val commit_make :
+    tree:hash ->
+    parents:hash list ->
+    author:string ->
+    committer:string ->
+    message:string ->
+    timestamp:int64 ->
+    commit
+
+  val commit_tree : commit -> hash
+  val commit_parents : commit -> hash list
+  val commit_author : commit -> string
+  val commit_committer : commit -> string
+  val commit_message : commit -> string
+  val commit_timestamp : commit -> int64
+  val commit_of_bytes : string -> (commit, [> `Msg of string ]) result
+  val commit_to_bytes : commit -> string
+  val commit_hash : commit -> hash
 end
 
 module type SHA1 = S with type hash = Hash.sha1
@@ -58,11 +87,52 @@ module Git : SHA1 = struct
         (entry.name, kind))
 
   let bytes_of_node = Git.Tree.to_string
-  let node_of_bytes = Git.Tree.of_string
+
+  let node_of_bytes s : (node, [> `Msg of string ]) result =
+    match Git.Tree.of_string s with Ok n -> Ok n | Error (`Msg m) -> Error (`Msg m)
+
   let hash_node node = sha1_of_git_hash (Git.Tree.digest node)
 
   let hash_contents data =
     sha1_of_git_hash (Git.Hash.digest_string ~kind:`Blob data)
+
+  let hash_to_bytes = Hash.to_bytes
+  let hash_to_hex = Hash.to_hex
+
+  let hash_of_hex s : (hash, [> `Msg of string ]) result =
+    Hash.sha1_of_hex s
+
+  let hash_equal = Hash.equal
+  let hash_compare = Hash.compare
+
+  (* Commit operations using ocaml-git *)
+  type commit = Git.Commit.t
+
+  let commit_make ~tree ~parents ~author ~committer ~message ~timestamp =
+    let user_of_string s =
+      (* Parse "Name <email>" format, or use as-is *)
+      Git.User.make ~name:s ~email:"" ~date:timestamp ()
+    in
+    Git.Commit.make ~tree:(git_hash_of_sha1 tree)
+      ~parents:(List.map git_hash_of_sha1 parents)
+      ~author:(user_of_string author)
+      ~committer:(user_of_string committer)
+      (Some message)
+
+  let commit_tree c = sha1_of_git_hash (Git.Commit.tree c)
+  let commit_parents c = List.map sha1_of_git_hash (Git.Commit.parents c)
+  let commit_author c = Git.User.name (Git.Commit.author c)
+  let commit_committer c = Git.User.name (Git.Commit.committer c)
+  let commit_message c = Option.value ~default:"" (Git.Commit.message c)
+  let commit_timestamp c = Git.User.date (Git.Commit.author c)
+
+  let commit_of_bytes s : (commit, [> `Msg of string ]) result =
+    match Git.Commit.of_string s with
+    | Ok c -> Ok c
+    | Error (`Msg m) -> Error (`Msg m)
+
+  let commit_to_bytes = Git.Commit.to_string
+  let commit_hash c = sha1_of_git_hash (Git.Commit.digest c)
 end
 
 (** ATProto Merkle Search Tree format using ocaml-atp.
@@ -134,9 +204,13 @@ module Mst : SHA256 = struct
       | `Node h -> (cid_of_sha256 h, None)
       (* TODO: Handle subtree pointers *)
     in
+    let _ = t in (* suppress unused warning *)
     let entries = List.filter (fun (k, _) -> k <> name) entries in
     let entries =
-      (name, (v, None)) :: List.map (fun (k, e) -> (k, (e.v, e.t))) entries
+      (name, (v, None))
+      :: List.map
+           (fun (k, (e : Atp.Mst.Raw.entry)) -> (k, (e.v, e.t)))
+           entries
     in
     let compressed = compress_keys entries in
     { node with e = compressed }
@@ -144,17 +218,21 @@ module Mst : SHA256 = struct
   let remove (node : node) name =
     let entries = decompress_keys node.e in
     let entries = List.filter (fun (k, _) -> k <> name) entries in
-    let entries = List.map (fun (k, e) -> (k, (e.v, e.t))) entries in
+    let entries =
+      List.map (fun (k, (e : Atp.Mst.Raw.entry)) -> (k, (e.v, e.t))) entries
+    in
     let compressed = compress_keys entries in
     { node with e = compressed }
 
   let list (node : node) =
     let entries = decompress_keys node.e in
-    List.map (fun (key, e) -> (key, `Contents (sha256_of_cid e.v))) entries
+    List.map
+      (fun (key, (e : Atp.Mst.Raw.entry)) -> (key, `Contents (sha256_of_cid e.v)))
+      entries
 
   let bytes_of_node node = Atp.Mst.Raw.encode_bytes node
 
-  let node_of_bytes data =
+  let node_of_bytes data : (node, [> `Msg of string ]) result =
     try Ok (Atp.Mst.Raw.decode_bytes data)
     with _ -> Error (`Msg "failed to decode MST node")
 
@@ -163,4 +241,91 @@ module Mst : SHA256 = struct
     Hash.sha256 data
 
   let hash_contents data = Hash.sha256 data
+
+  let hash_to_bytes = Hash.to_bytes
+  let hash_to_hex = Hash.to_hex
+
+  let hash_of_hex s : (hash, [> `Msg of string ]) result =
+    Hash.sha256_of_hex s
+
+  let hash_equal = Hash.equal
+  let hash_compare = Hash.compare
+
+  (* Commit operations for MST format using DAG-CBOR *)
+  type commit = {
+    tree : hash;
+    parents : hash list;
+    author : string;
+    committer : string;
+    message : string;
+    timestamp : int64;
+  }
+
+  let commit_make ~tree ~parents ~author ~committer ~message ~timestamp =
+    { tree; parents; author; committer; message; timestamp }
+
+  let commit_tree c = c.tree
+  let commit_parents c = c.parents
+  let commit_author c = c.author
+  let commit_committer c = c.committer
+  let commit_message c = c.message
+  let commit_timestamp c = c.timestamp
+
+  let commit_of_bytes s : (commit, [> `Msg of string ]) result =
+    try
+      let v = Atp.Dagcbor.decode_string ~cid_format:`Atproto s in
+      match v with
+      | `Map fields ->
+          let get_string key =
+            match List.assoc_opt key fields with
+            | Some (`String s) -> s
+            | _ -> ""
+          in
+          let get_int64 key =
+            match List.assoc_opt key fields with
+            | Some (`Int i) -> i
+            | _ -> 0L
+          in
+          let get_link key =
+            match List.assoc_opt key fields with
+            | Some (`Link cid) -> sha256_of_cid cid
+            | _ -> Hash.sha256 ""
+          in
+          let get_links key =
+            match List.assoc_opt key fields with
+            | Some (`List links) ->
+                List.filter_map
+                  (function `Link cid -> Some (sha256_of_cid cid) | _ -> None)
+                  links
+            | _ -> []
+          in
+          Ok
+            {
+              tree = get_link "tree";
+              parents = get_links "parents";
+              author = get_string "author";
+              committer = get_string "committer";
+              message = get_string "message";
+              timestamp = get_int64 "timestamp";
+            }
+      | _ -> Error (`Msg "expected map for commit")
+    with Eio.Io _ as e -> Error (`Msg (Printexc.to_string e))
+
+  let commit_to_bytes c =
+    let v : Atp.Dagcbor.value =
+      `Map
+        [
+          ("author", `String c.author);
+          ("committer", `String c.committer);
+          ("message", `String c.message);
+          ("parents", `List (List.map (fun h -> `Link (cid_of_sha256 h)) c.parents));
+          ("timestamp", `Int c.timestamp);
+          ("tree", `Link (cid_of_sha256 c.tree));
+        ]
+    in
+    Atp.Dagcbor.encode_string ~cid_format:`Atproto v
+
+  let commit_hash c =
+    let data = commit_to_bytes c in
+    Hash.sha256 data
 end

@@ -220,7 +220,7 @@ module Make (F : Tree_format.S) = struct
         | None, Some _ -> `Remote_ahead 1
         | Some _, None -> `Local_ahead 1
         | Some lt, Some rt ->
-            if Hash.equal lt rt then `In_sync
+            if F.hash_equal lt rt then `In_sync
             else if
               (* Check ancestry *)
               Store.is_ancestor external_ ~ancestor:rt ~descendant:lt

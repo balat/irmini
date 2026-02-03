@@ -148,28 +148,6 @@ let git_backend ~fs ~git_dir : Hash.sha1 Backend.t =
     close = (fun () -> ());
   }
 
-(** Write a tree value to the git store *)
-let write_tree ~fs ~git_dir (tree : Git.Tree.t) =
-  let value = Git.Value.tree tree in
-  write_loose_object ~fs git_dir value
-
-(** Write a commit value to the git store *)
-let write_commit ~fs ~git_dir (commit : Git.Commit.t) =
-  let value = Git.Value.commit commit in
-  write_loose_object ~fs git_dir value
-
-(** Read a tree from the git store *)
-let read_tree ~fs ~git_dir hash =
-  match read_loose_object ~fs git_dir hash with
-  | Ok (Git.Value.Tree t) -> Some t
-  | _ -> None
-
-(** Read a commit from the git store *)
-let read_commit ~fs ~git_dir hash =
-  match read_loose_object ~fs git_dir hash with
-  | Ok (Git.Value.Commit c) -> Some c
-  | _ -> None
-
 (* Public API *)
 
 let import_git ~sw:_ ~fs ~git_dir =
@@ -193,7 +171,8 @@ let init_git ~sw:_ ~fs ~path =
 
   import_git ~sw:() ~fs ~git_dir
 
-let read_object ~sw:_ ~fs ~git_dir hash =
+let read_object ~sw:_ ~fs ~git_dir hash
+    : (string * string, [> `Msg of string ]) result =
   let git_hash = git_hash_of_sha1 hash in
   match read_loose_object ~fs git_dir git_hash with
   | Ok value ->
@@ -205,7 +184,7 @@ let read_object ~sw:_ ~fs ~git_dir hash =
         | `Tag -> "tag"
       in
       Ok (kind, Git.Value.to_string_without_header value)
-  | Error _ as e -> e
+  | Error (`Msg m) -> Error (`Msg m)
 
 let write_object ~sw:_ ~fs ~git_dir ~typ data =
   let value =
@@ -231,6 +210,7 @@ let read_pack_index ~sw:_ ~fs:_ ~path:_ =
   (* TODO: Implement pack index reading *)
   []
 
-let read_from_pack ~sw:_ ~fs:_ ~pack:_ ~offset:_ =
+let read_from_pack ~sw:_ ~fs:_ ~pack:_ ~offset:_
+    : (string * string, [> `Msg of string ]) result =
   (* TODO: Implement pack file reading *)
   Error (`Msg "pack file reading not yet implemented")
