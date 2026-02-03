@@ -44,16 +44,10 @@ val is_val : 'a t -> bool
 val pp : Format.formatter -> 'a t -> unit
 (** [pp] formats the link's hash. *)
 
-val pp_hash : Format.formatter -> hash -> unit
-(** [pp_hash] formats a hash. *)
-
 (** {1:stores Stores} *)
 
 type store
 (** The type for stores. *)
-
-val mem : unit -> store
-(** [mem ()] is a new in-memory store. *)
 
 val run : store -> (unit -> 'a) -> 'a
 (** [run s f] runs [f] with [s] handling link effects. *)
@@ -69,3 +63,20 @@ val is_open : store -> bool
 
 val close : store -> unit
 (** [close s] closes [s]. Further operations return [None] or raise. *)
+
+(** {2 Store creation} *)
+
+module Make (F : Tree_format.S) : sig
+  val mem : unit -> store
+  (** [mem ()] is a new in-memory store using format [F]. *)
+end
+
+module Git : sig
+  val mem : unit -> store
+  (** [mem ()] is a new in-memory Git-compatible store (SHA-1). *)
+end
+
+module Mst : sig
+  val mem : unit -> store
+  (** [mem ()] is a new in-memory MST store (SHA-256, ATProto). *)
+end
