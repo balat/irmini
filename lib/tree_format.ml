@@ -35,11 +35,9 @@ module Git : SHA1 = struct
   let find node name =
     match Git.Tree.find ~name node with
     | None -> None
-    | Some entry ->
+    | Some entry -> (
         let h = sha1_of_git_hash entry.hash in
-        (match entry.perm with
-        | `Dir -> Some (`Node h)
-        | _ -> Some (`Contents h))
+        match entry.perm with `Dir -> Some (`Node h) | _ -> Some (`Contents h))
 
   let add node name kind =
     let perm, hash =
@@ -55,11 +53,9 @@ module Git : SHA1 = struct
   let list node =
     Git.Tree.to_list node
     |> List.map (fun (entry : Git.Tree.entry) ->
-           let h = sha1_of_git_hash entry.hash in
-           let kind =
-             match entry.perm with `Dir -> `Node h | _ -> `Contents h
-           in
-           (entry.name, kind))
+        let h = sha1_of_git_hash entry.hash in
+        let kind = match entry.perm with `Dir -> `Node h | _ -> `Contents h in
+        (entry.name, kind))
 
   let bytes_of_node = Git.Tree.to_string
   let node_of_bytes = Git.Tree.of_string
@@ -71,9 +67,8 @@ end
 
 (** ATProto Merkle Search Tree format using ocaml-atp.
 
-    MST uses SHA-256 with 2-bit prefix counting for tree depth.
-    Keys are stored sorted with common prefix compression.
-    Encoded as DAG-CBOR. *)
+    MST uses SHA-256 with 2-bit prefix counting for tree depth. Keys are stored
+    sorted with common prefix compression. Encoded as DAG-CBOR. *)
 module Mst : SHA256 = struct
   type hash = Hash.sha256
 
@@ -88,11 +83,11 @@ module Mst : SHA256 = struct
   type node = Atp.Mst.Raw.node
 
   let empty_node : node = { l = None; e = [] }
-
   let is_empty (node : node) = node.l = None && node.e = []
 
   (* Decompress key from entry list *)
-  let decompress_keys (entries : Atp.Mst.Raw.entry list) : (string * Atp.Mst.Raw.entry) list =
+  let decompress_keys (entries : Atp.Mst.Raw.entry list) :
+      (string * Atp.Mst.Raw.entry) list =
     let rec loop prev_key acc = function
       | [] -> List.rev acc
       | (e : Atp.Mst.Raw.entry) :: rest ->
@@ -111,7 +106,9 @@ module Mst : SHA256 = struct
 
   (* Compress keys for serialization *)
   let compress_keys entries =
-    let sorted = List.sort (fun (k1, _) (k2, _) -> String.compare k1 k2) entries in
+    let sorted =
+      List.sort (fun (k1, _) (k2, _) -> String.compare k1 k2) entries
+    in
     let rec loop prev_key acc = function
       | [] -> List.rev acc
       | (key, (v, t)) :: rest ->
@@ -134,10 +131,13 @@ module Mst : SHA256 = struct
     let v, t =
       match kind with
       | `Contents h -> (cid_of_sha256 h, None)
-      | `Node h -> (cid_of_sha256 h, None)  (* TODO: Handle subtree pointers *)
+      | `Node h -> (cid_of_sha256 h, None)
+      (* TODO: Handle subtree pointers *)
     in
     let entries = List.filter (fun (k, _) -> k <> name) entries in
-    let entries = (name, (v, None)) :: List.map (fun (k, e) -> (k, (e.v, e.t))) entries in
+    let entries =
+      (name, (v, None)) :: List.map (fun (k, e) -> (k, (e.v, e.t))) entries
+    in
     let compressed = compress_keys entries in
     { node with e = compressed }
 

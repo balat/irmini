@@ -7,11 +7,10 @@ type _ t =
 type sha1 = [ `Sha1 ] t
 type sha256 = [ `Sha256 ] t
 
-let sha1 data =
-  Sha1_hash (Digestif.SHA1.(to_raw_string (digest_string data)))
+let sha1 data = Sha1_hash Digestif.SHA1.(to_raw_string (digest_string data))
 
 let sha256 data =
-  Sha256_hash (Digestif.SHA256.(to_raw_string (digest_string data)))
+  Sha256_hash Digestif.SHA256.(to_raw_string (digest_string data))
 
 let sha1_of_bytes raw =
   if String.length raw <> 20 then
@@ -31,8 +30,7 @@ let to_hex h =
   let bytes = to_bytes h in
   let buf = Buffer.create (String.length bytes * 2) in
   String.iter
-    (fun c ->
-      Buffer.add_string buf (Printf.sprintf "%02x" (Char.code c)))
+    (fun c -> Buffer.add_string buf (Printf.sprintf "%02x" (Char.code c)))
     bytes;
   Buffer.contents buf
 
@@ -56,7 +54,9 @@ let hex_to_bytes hex =
         | Some h, Some l ->
             Bytes.set bytes (i / 2) (Char.chr ((h lsl 4) lor l));
             loop (i + 2)
-        | _ -> Error (`Msg (Printf.sprintf "invalid hex character at position %d" i))
+        | _ ->
+            Error
+              (`Msg (Printf.sprintf "invalid hex character at position %d" i))
     in
     loop 0
 
@@ -121,7 +121,6 @@ type any = Any : _ t -> any
 let any_algorithm (Any h) = algorithm_of h
 let any_to_bytes (Any h) = to_bytes h
 let any_to_hex (Any h) = to_hex h
-
 let pp fmt h = Format.fprintf fmt "%s" (to_hex h)
 
 let pp_short fmt h =

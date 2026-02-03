@@ -4,14 +4,20 @@ open Irmin
 let test_sha1_hash () =
   let h = Hash.sha1 "hello" in
   let hex = Hash.to_hex h in
-  Alcotest.(check string) "sha1 hex length" (String.make 40 '0') (String.make (String.length hex) '0');
+  Alcotest.(check string)
+    "sha1 hex length" (String.make 40 '0')
+    (String.make (String.length hex) '0');
   Alcotest.(check int) "sha1 bytes length" 20 (String.length (Hash.to_bytes h))
 
 let test_sha256_hash () =
   let h = Hash.sha256 "hello" in
   let hex = Hash.to_hex h in
-  Alcotest.(check string) "sha256 hex length" (String.make 64 '0') (String.make (String.length hex) '0');
-  Alcotest.(check int) "sha256 bytes length" 32 (String.length (Hash.to_bytes h))
+  Alcotest.(check string)
+    "sha256 hex length" (String.make 64 '0')
+    (String.make (String.length hex) '0');
+  Alcotest.(check int)
+    "sha256 bytes length" 32
+    (String.length (Hash.to_bytes h))
 
 let test_hash_roundtrip () =
   let h1 = Hash.sha1 "test data" in
@@ -29,31 +35,43 @@ let test_mst_depth () =
 (* Tree tests *)
 let test_empty_tree () =
   let tree = Tree.Git.empty () in
-  Alcotest.(check (option string)) "find empty" None (Tree.Git.find tree ["foo"])
+  Alcotest.(check (option string))
+    "find empty" None
+    (Tree.Git.find tree [ "foo" ])
 
 let test_tree_add_find () =
   let tree = Tree.Git.empty () in
-  let tree = Tree.Git.add tree ["foo"; "bar"] "content" in
-  Alcotest.(check (option string)) "find added" (Some "content") (Tree.Git.find tree ["foo"; "bar"])
+  let tree = Tree.Git.add tree [ "foo"; "bar" ] "content" in
+  Alcotest.(check (option string))
+    "find added" (Some "content")
+    (Tree.Git.find tree [ "foo"; "bar" ])
 
 let test_tree_remove () =
   let tree = Tree.Git.empty () in
-  let tree = Tree.Git.add tree ["foo"] "content" in
-  let tree = Tree.Git.remove tree ["foo"] in
-  Alcotest.(check (option string)) "find removed" None (Tree.Git.find tree ["foo"])
+  let tree = Tree.Git.add tree [ "foo" ] "content" in
+  let tree = Tree.Git.remove tree [ "foo" ] in
+  Alcotest.(check (option string))
+    "find removed" None
+    (Tree.Git.find tree [ "foo" ])
 
 let test_tree_overwrite () =
   let tree = Tree.Git.empty () in
-  let tree = Tree.Git.add tree ["key"] "value1" in
-  let tree = Tree.Git.add tree ["key"] "value2" in
-  Alcotest.(check (option string)) "find overwritten" (Some "value2") (Tree.Git.find tree ["key"])
+  let tree = Tree.Git.add tree [ "key" ] "value1" in
+  let tree = Tree.Git.add tree [ "key" ] "value2" in
+  Alcotest.(check (option string))
+    "find overwritten" (Some "value2")
+    (Tree.Git.find tree [ "key" ])
 
 let test_tree_nested () =
   let tree = Tree.Git.empty () in
-  let tree = Tree.Git.add tree ["a"; "b"; "c"] "deep" in
-  let tree = Tree.Git.add tree ["a"; "x"] "shallow" in
-  Alcotest.(check (option string)) "find deep" (Some "deep") (Tree.Git.find tree ["a"; "b"; "c"]);
-  Alcotest.(check (option string)) "find shallow" (Some "shallow") (Tree.Git.find tree ["a"; "x"])
+  let tree = Tree.Git.add tree [ "a"; "b"; "c" ] "deep" in
+  let tree = Tree.Git.add tree [ "a"; "x" ] "shallow" in
+  Alcotest.(check (option string))
+    "find deep" (Some "deep")
+    (Tree.Git.find tree [ "a"; "b"; "c" ]);
+  Alcotest.(check (option string))
+    "find shallow" (Some "shallow")
+    (Tree.Git.find tree [ "a"; "x" ])
 
 (* Backend tests *)
 let test_memory_backend () =
@@ -66,7 +84,9 @@ let test_backend_refs () =
   let backend = Backend.Memory.create_sha1 () in
   let hash = backend.write "content" in
   backend.set_ref "refs/heads/main" hash;
-  Alcotest.(check bool) "ref exists" true (Option.is_some (backend.get_ref "refs/heads/main"));
+  Alcotest.(check bool)
+    "ref exists" true
+    (Option.is_some (backend.get_ref "refs/heads/main"));
   match backend.get_ref "refs/heads/main" with
   | Some h -> Alcotest.(check bool) "ref matches" true (Hash.equal hash h)
   | None -> Alcotest.fail "ref not found"
@@ -90,18 +110,23 @@ let test_store_commit () =
   let backend = Backend.Memory.create_sha1 () in
   let store = Store.Git.create ~backend in
   let tree = Tree.Git.empty () in
-  let tree = Tree.Git.add tree ["README.md"] "# Hello" in
-  let hash = Store.Git.commit store ~tree ~parents:[] ~message:"Initial commit" ~author:"test" in
+  let tree = Tree.Git.add tree [ "README.md" ] "# Hello" in
+  let hash =
+    Store.Git.commit store ~tree ~parents:[] ~message:"Initial commit"
+      ~author:"test"
+  in
   Alcotest.(check bool) "commit hash exists" true (backend.exists hash)
 
 let test_store_branches () =
   let backend = Backend.Memory.create_sha1 () in
   let store = Store.Git.create ~backend in
   let tree = Tree.Git.empty () in
-  let hash = Store.Git.commit store ~tree ~parents:[] ~message:"test" ~author:"test" in
+  let hash =
+    Store.Git.commit store ~tree ~parents:[] ~message:"test" ~author:"test"
+  in
   Store.Git.set_head store ~branch:"main" hash;
   let branches = Store.Git.branches store in
-  Alcotest.(check (list string)) "branches" ["main"] branches
+  Alcotest.(check (list string)) "branches" [ "main" ] branches
 
 (* Tree format tests *)
 let test_git_tree_format () =
@@ -109,9 +134,12 @@ let test_git_tree_format () =
   Alcotest.(check bool) "empty is empty" true (Tree_format.Git.is_empty node);
   let h = Hash.sha1 "content" in
   let node = Tree_format.Git.add node "file.txt" (`Contents h) in
-  Alcotest.(check bool) "not empty after add" false (Tree_format.Git.is_empty node);
+  Alcotest.(check bool)
+    "not empty after add" false
+    (Tree_format.Git.is_empty node);
   match Tree_format.Git.find node "file.txt" with
-  | Some (`Contents h') -> Alcotest.(check bool) "find matches" true (Hash.equal h h')
+  | Some (`Contents h') ->
+      Alcotest.(check bool) "find matches" true (Hash.equal h h')
   | _ -> Alcotest.fail "entry not found"
 
 let test_git_tree_serialization () =
@@ -159,7 +187,8 @@ let store_tests =
 let tree_format_tests =
   [
     Alcotest.test_case "git tree format" `Quick test_git_tree_format;
-    Alcotest.test_case "git tree serialization" `Quick test_git_tree_serialization;
+    Alcotest.test_case "git tree serialization" `Quick
+      test_git_tree_serialization;
   ]
 
 let () =

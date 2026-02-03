@@ -11,12 +11,7 @@ type 'hash t = {
   close : unit -> unit;
 }
 
-type stats = {
-  reads : int;
-  writes : int;
-  cache_hits : int;
-  cache_misses : int;
-}
+type stats = { reads : int; writes : int; cache_hits : int; cache_misses : int }
 
 module Memory = struct
   module StringMap = Map.Make (String)
@@ -32,7 +27,13 @@ module Memory = struct
   let create_with_hash (type h) (hash_fn : string -> h) (to_hex : h -> string)
       (equal : h -> h -> bool) : h t =
     let state =
-      { objects = StringMap.empty; refs = StringMap.empty; hash_fn; to_hex; equal }
+      {
+        objects = StringMap.empty;
+        refs = StringMap.empty;
+        hash_fn;
+        to_hex;
+        equal;
+      }
     in
     {
       read =
@@ -87,10 +88,7 @@ end
 
 (* Simple LRU cache *)
 module Lru = struct
-  type ('k, 'v) t = {
-    capacity : int;
-    mutable items : ('k * 'v) list;
-  }
+  type ('k, 'v) t = { capacity : int; mutable items : ('k * 'v) list }
 
   let create capacity = { capacity; items = [] }
 

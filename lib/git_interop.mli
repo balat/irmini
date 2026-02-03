@@ -1,27 +1,20 @@
 (** Git interoperability.
 
-    Bidirectional support for reading and writing Git repositories.
-    This allows Irmin to work with existing .git directories and
-    interoperate with the Git ecosystem. *)
+    Bidirectional support for reading and writing Git repositories. This allows
+    Irmin to work with existing .git directories and interoperate with the Git
+    ecosystem. *)
 
 (** {1 Git Repository Operations} *)
 
 val import_git :
-  sw:Eio.Switch.t ->
-  fs:_ Eio.Path.t ->
-  git_dir:string ->
-  Store.Git.t
-(** [import_git ~sw ~fs ~git_dir] opens a .git directory as an Irmin store.
-    The store supports both reads and writes - changes are written back
-    in Git-compatible format. *)
+  sw:Eio.Switch.t -> fs:_ Eio.Path.t -> git_dir:string -> Store.Git.t
+(** [import_git ~sw ~fs ~git_dir] opens a .git directory as an Irmin store. The
+    store supports both reads and writes - changes are written back in
+    Git-compatible format. *)
 
-val init_git :
-  sw:Eio.Switch.t ->
-  fs:_ Eio.Path.t ->
-  path:string ->
-  Store.Git.t
-(** [init_git ~sw ~fs ~path] initializes a new Git repository at [path]
-    and returns an Irmin store for it. *)
+val init_git : sw:Eio.Switch.t -> fs:_ Eio.Path.t -> path:string -> Store.Git.t
+(** [init_git ~sw ~fs ~path] initializes a new Git repository at [path] and
+    returns an Irmin store for it. *)
 
 (** {1 Object Operations} *)
 
@@ -63,19 +56,13 @@ val write_ref :
 (** [write_ref ~sw ~fs ~git_dir name hash] writes a Git reference. *)
 
 val list_refs :
-  sw:Eio.Switch.t ->
-  fs:_ Eio.Path.t ->
-  git_dir:string ->
-  string list
+  sw:Eio.Switch.t -> fs:_ Eio.Path.t -> git_dir:string -> string list
 (** [list_refs ~sw ~fs ~git_dir] lists all references. *)
 
 (** {1 Pack File Operations} *)
 
 val read_pack_index :
-  sw:Eio.Switch.t ->
-  fs:_ Eio.Path.t ->
-  path:string ->
-  (Hash.sha1 * int64) list
+  sw:Eio.Switch.t -> fs:_ Eio.Path.t -> path:string -> (Hash.sha1 * int64) list
 (** [read_pack_index ~sw ~fs ~path] reads a .idx file, returning
     [(hash, offset)] pairs. *)
 
@@ -85,5 +72,5 @@ val read_from_pack :
   pack:string ->
   offset:int64 ->
   (string * string, [> `Msg of string ]) result
-(** [read_from_pack ~sw ~fs ~pack ~offset] reads an object from a pack file
-    at the given offset. *)
+(** [read_from_pack ~sw ~fs ~pack ~offset] reads an object from a pack file at
+    the given offset. *)

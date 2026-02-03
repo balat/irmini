@@ -1,13 +1,13 @@
 (** Content-addressed hashes with phantom types for algorithm safety.
 
-    This module provides SHA-1 and SHA-256 hash types that are distinguished
-    at the type level, preventing accidental mixing of different hash
-    algorithms. *)
+    This module provides SHA-1 and SHA-256 hash types that are distinguished at
+    the type level, preventing accidental mixing of different hash algorithms.
+*)
 
 (** {1 Hash Algorithms} *)
 
 type algorithm =
-  | Sha1    (** SHA-1: 20 bytes, Git compatible *)
+  | Sha1  (** SHA-1: 20 bytes, Git compatible *)
   | Sha256  (** SHA-256: 32 bytes, ATProto compatible *)
 
 (** {1 Phantom-Typed Hashes} *)
@@ -63,7 +63,8 @@ val compare : 'a t -> 'a t -> int
 (** {1 Algorithm Info} *)
 
 val length : _ t -> int
-(** [length h] returns the byte length of the hash (20 for SHA-1, 32 for SHA-256). *)
+(** [length h] returns the byte length of the hash (20 for SHA-1, 32 for
+    SHA-256). *)
 
 val algorithm_of : _ t -> algorithm
 (** [algorithm_of h] returns the algorithm used for [h]. *)
@@ -74,13 +75,12 @@ val algorithm_length : algorithm -> int
 (** {1 MST Support} *)
 
 val mst_depth : sha256 -> int
-(** [mst_depth h] counts leading zeros in 2-bit chunks for ATProto MST.
-    This determines the tree depth for a given key hash. *)
+(** [mst_depth h] counts leading zeros in 2-bit chunks for ATProto MST. This
+    determines the tree depth for a given key hash. *)
 
 (** {1 Type-Erased Hashes} *)
 
-type any = Any : _ t -> any
-(** Type-erased hash for mixed-hash stores. *)
+type any = Any : _ t -> any  (** Type-erased hash for mixed-hash stores. *)
 
 val any_algorithm : any -> algorithm
 (** [any_algorithm (Any h)] returns the algorithm of the erased hash. *)

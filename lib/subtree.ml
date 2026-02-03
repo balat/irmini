@@ -9,12 +9,11 @@ module Make (F : Tree_format.S) = struct
     [ `In_sync
     | `Local_ahead of int
     | `Remote_ahead of int
-    | `Diverged of int * int  (* local, remote *)
+    | `Diverged of int * int (* local, remote *)
     | `Trees_differ ]
 
   (* Extract subtree at prefix from a tree *)
-  let extract_subtree tree prefix =
-    Tree.find_tree tree prefix
+  let extract_subtree tree prefix = Tree.find_tree tree prefix
 
   (* Check if a commit touches the given prefix *)
   let commit_touches_prefix store commit prefix =
@@ -33,7 +32,7 @@ module Make (F : Tree_format.S) = struct
       else
         match Store.read_commit store old_hash with
         | None -> (old_hash, rewritten)
-        | Some commit ->
+        | Some commit -> (
             if not (commit_touches_prefix store commit prefix) then
               (* Skip commits not touching prefix *)
               match Commit.parents commit with
@@ -46,8 +45,7 @@ module Make (F : Tree_format.S) = struct
                   (fun (parents, rw) p ->
                     let new_p, rw = rewrite_commit p rw in
                     (new_p :: parents, rw))
-                  ([], rewritten)
-                  (Commit.parents commit)
+                  ([], rewritten) (Commit.parents commit)
               in
               let parents = List.rev parents in
 
@@ -61,7 +59,7 @@ module Make (F : Tree_format.S) = struct
                       ~message:(Commit.message commit)
                       ~author:(Commit.author commit)
                   in
-                  (new_hash, (old_hash, new_hash) :: rewritten)
+                  (new_hash, (old_hash, new_hash) :: rewritten))
     in
 
     (* Start from main branch head *)
@@ -77,20 +75,22 @@ module Make (F : Tree_format.S) = struct
   let add store ~prefix ~source =
     match Store.head source ~branch:"main" with
     | None -> failwith "Source has no main branch"
-    | Some source_head ->
+    | Some source_head -> (
         match Store.read_commit source source_head with
         | None -> failwith "Cannot read source commit"
         | Some source_commit ->
-            let source_tree = Store.read_tree source (Commit.tree source_commit) in
+            let source_tree =
+              Store.read_tree source (Commit.tree source_commit)
+            in
 
             (* Get current tree or empty *)
             let current_tree =
               match Store.head store ~branch:"main" with
               | None -> Tree.empty ()
-              | Some h ->
+              | Some h -> (
                   match Store.read_commit store h with
                   | None -> Tree.empty ()
-                  | Some c -> Store.read_tree store (Commit.tree c)
+                  | Some c -> Store.read_tree store (Commit.tree c))
             in
 
             (* Add source tree at prefix *)
@@ -112,25 +112,27 @@ module Make (F : Tree_format.S) = struct
                 ~author:"irmin-subtree"
             in
             Store.set_head store ~branch:"main" new_head;
-            new_head
+            new_head)
 
   (* Pull: Update subtree from external source *)
   let pull store ~prefix ~source =
     match Store.head source ~branch:"main" with
     | None -> Error (`Conflict [])
-    | Some source_head ->
+    | Some source_head -> (
         match Store.read_commit source source_head with
         | None -> Error (`Conflict [])
         | Some source_commit ->
-            let source_tree = Store.read_tree source (Commit.tree source_commit) in
+            let source_tree =
+              Store.read_tree source (Commit.tree source_commit)
+            in
 
             let current_tree =
               match Store.head store ~branch:"main" with
               | None -> Tree.empty ()
-              | Some h ->
+              | Some h -> (
                   match Store.read_commit store h with
                   | None -> Tree.empty ()
-                  | Some c -> Store.read_tree store (Commit.tree c)
+                  | Some c -> Store.read_tree store (Commit.tree c))
             in
 
             (* Replace subtree at prefix *)
@@ -154,16 +156,16 @@ module Make (F : Tree_format.S) = struct
                 ~author:"irmin-subtree"
             in
             Store.set_head store ~branch:"main" new_head;
-            Ok new_head
+            Ok new_head)
 
   (* Push: Push subtree changes to external repo *)
   let push store ~prefix ~target =
     match Store.head store ~branch:"main" with
     | None -> failwith "Store has no main branch"
-    | Some head ->
+    | Some head -> (
         match Store.read_commit store head with
         | None -> failwith "Cannot read store commit"
-        | Some commit ->
+        | Some commit -> (
             let tree = Store.read_tree store (Commit.tree commit) in
             match extract_subtree tree prefix with
             | None -> failwith "No subtree at prefix"
@@ -183,7 +185,7 @@ module Make (F : Tree_format.S) = struct
                     ~author:"irmin-subtree"
                 in
                 Store.set_head target ~branch:"main" new_head;
-                new_head
+                new_head))
 
   (* Status: Compare subtree with external repo *)
   let status store ~prefix ~external_ =
@@ -194,16 +196,16 @@ module Make (F : Tree_format.S) = struct
     | None, None -> `In_sync
     | None, Some _ -> `Remote_ahead 1
     | Some _, None -> `Local_ahead 1
-    | Some lh, Some rh ->
+    | Some lh, Some rh -> (
         (* Get subtree hash from local *)
         let local_tree_hash =
           match Store.read_commit store lh with
           | None -> None
-          | Some c ->
+          | Some c -> (
               let tree = Store.read_tree store (Commit.tree c) in
               match Tree.find_tree tree prefix with
               | None -> None
-              | Some t -> Some (Tree.hash t ~backend:(Store.backend store))
+              | Some t -> Some (Tree.hash t ~backend:(Store.backend store)))
         in
 
         (* Get tree hash from remote *)
@@ -219,13 +221,14 @@ module Make (F : Tree_format.S) = struct
         | Some _, None -> `Local_ahead 1
         | Some lt, Some rt ->
             if Hash.equal lt rt then `In_sync
-            else
+            else if
               (* Check ancestry *)
-              if Store.is_ancestor external_ ~ancestor:rt ~descendant:lt then
-                `Local_ahead (Store.commits_between external_ ~base:rt ~head:lt)
-              else if Store.is_ancestor external_ ~ancestor:lt ~descendant:rt then
-                `Remote_ahead (Store.commits_between external_ ~base:lt ~head:rt)
-              else `Trees_differ
+              Store.is_ancestor external_ ~ancestor:rt ~descendant:lt
+            then
+              `Local_ahead (Store.commits_between external_ ~base:rt ~head:lt)
+            else if Store.is_ancestor external_ ~ancestor:lt ~descendant:rt then
+              `Remote_ahead (Store.commits_between external_ ~base:lt ~head:rt)
+            else `Trees_differ)
 end
 
 module Git = Make (Tree_format.Git)

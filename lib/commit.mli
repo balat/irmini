@@ -1,6 +1,7 @@
 (** Commit objects.
 
-    Commits point to a tree and have metadata like author, message, timestamp. *)
+    Commits point to a tree and have metadata like author, message, timestamp.
+*)
 
 (** {1 Commit Functor} *)
 
@@ -41,8 +42,8 @@ module Make (F : Tree_format.S) : sig
     message:string ->
     unit ->
     t
-  (** [v ~tree ~parents ~author ?committer ?timestamp ~message ()]
-      creates a new commit. *)
+  (** [v ~tree ~parents ~author ?committer ?timestamp ~message ()] creates a new
+      commit. *)
 
   (** {2 Serialization} *)
 

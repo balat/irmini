@@ -21,9 +21,8 @@ module Make (F : Tree_format.S) : sig
   (** {2 Tree Operations} *)
 
   val tree : t -> ?at:hash -> unit -> Tree.t
-  (** [tree t ?at ()] returns a tree.
-      If [at] is given, returns the tree at that commit.
-      Otherwise returns an empty tree. *)
+  (** [tree t ?at ()] returns a tree. If [at] is given, returns the tree at that
+      commit. Otherwise returns an empty tree. *)
 
   val checkout : t -> branch:string -> Tree.t option
   (** [checkout t ~branch] returns the tree at the head of [branch]. *)
@@ -37,8 +36,8 @@ module Make (F : Tree_format.S) : sig
     message:string ->
     author:string ->
     hash
-  (** [commit t ~tree ~parents ~message ~author] creates a commit.
-      This is when delayed tree writes actually happen. *)
+  (** [commit t ~tree ~parents ~message ~author] creates a commit. This is when
+      delayed tree writes actually happen. *)
 
   (** {2 Branch Operations} *)
 
@@ -52,8 +51,8 @@ module Make (F : Tree_format.S) : sig
   (** [branches t] returns all branch names. *)
 
   val update_branch : t -> branch:string -> old:hash option -> new_:hash -> bool
-  (** [update_branch t ~branch ~old ~new_] atomically updates [branch]
-      if its current head matches [old]. *)
+  (** [update_branch t ~branch ~old ~new_] atomically updates [branch] if its
+      current head matches [old]. *)
 
   (** {2 Ancestry Queries} *)
 

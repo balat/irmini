@@ -1,8 +1,8 @@
 (** Tree format abstraction - the ONE functor in Irmin.
 
-    This module type defines how tree nodes are encoded and decoded.
-    Different formats (Git trees, ATProto MST) implement this interface.
-    This is the only functor-based abstraction point in the library. *)
+    This module type defines how tree nodes are encoded and decoded. Different
+    formats (Git trees, ATProto MST) implement this interface. This is the only
+    functor-based abstraction point in the library. *)
 
 (** {1 Module Type} *)
 

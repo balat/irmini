@@ -1,9 +1,7 @@
 module Make (F : Tree_format.S) = struct
   type hash = F.hash
   type path = string list
-
-  type concrete =
-    [ `Contents of string | `Tree of (string * concrete) list ]
+  type concrete = [ `Contents of string | `Tree of (string * concrete) list ]
 
   (* Internal tree representation with lazy loading *)
   type node_state =
@@ -22,7 +20,8 @@ module Make (F : Tree_format.S) = struct
 
   type t = tree_node
 
-  let empty () = Node { state = Loaded F.empty_node; children = []; removed = [] }
+  let empty () =
+    Node { state = Loaded F.empty_node; children = []; removed = [] }
 
   let of_hash ~backend hash =
     Node { state = Lazy { backend; hash }; children = []; removed = [] }
@@ -33,7 +32,9 @@ module Make (F : Tree_format.S) = struct
   let rec of_concrete : concrete -> t = function
     | `Contents s -> Contents s
     | `Tree entries ->
-        let children = List.map (fun (name, c) -> (name, of_concrete c)) entries in
+        let children =
+          List.map (fun (name, c) -> (name, of_concrete c)) entries
+        in
         Node { state = Loaded F.empty_node; children; removed = [] }
 
   (* Force loading of a lazy node *)
@@ -43,9 +44,7 @@ module Make (F : Tree_format.S) = struct
     | Lazy { backend; hash } -> (
         match backend.read hash with
         | Some data -> (
-            match F.node_of_bytes data with
-            | Ok n -> Some n
-            | Error _ -> None)
+            match F.node_of_bytes data with Ok n -> Some n | Error _ -> None)
         | None -> None)
     | Shallow _ -> None
     | Pruned _ -> None
@@ -59,7 +58,7 @@ module Make (F : Tree_format.S) = struct
         (* Check modifications first *)
         match List.assoc_opt name node.children with
         | Some child -> navigate child rest
-        | None ->
+        | None -> (
             if List.mem name node.removed then None
             else
               (* Try to load from underlying node *)
@@ -76,24 +75,18 @@ module Make (F : Tree_format.S) = struct
                       | Lazy { backend; _ } ->
                           let child = of_hash ~backend hash in
                           navigate child rest
-                      | _ -> None)))
+                      | _ -> None))))
 
   let find t path =
-    match navigate t path with
-    | Some (Contents s, []) -> Some s
-    | _ -> None
+    match navigate t path with Some (Contents s, []) -> Some s | _ -> None
 
   let find_tree t path =
-    match navigate t path with
-    | Some ((Node _ as n), []) -> Some n
-    | _ -> None
+    match navigate t path with Some ((Node _ as n), []) -> Some n | _ -> None
 
   let mem t path = Option.is_some (navigate t path)
 
   let mem_tree t path =
-    match navigate t path with
-    | Some (Node _, []) -> true
-    | _ -> false
+    match navigate t path with Some (Node _, []) -> true | _ -> false
 
   let list t path =
     match navigate t path with
@@ -104,20 +97,28 @@ module Make (F : Tree_format.S) = struct
             let base_entries =
               F.list loaded
               |> List.filter (fun (name, _) ->
-                     (not (List.mem name node.removed))
-                     && not (List.mem_assoc name node.children))
+                  (not (List.mem name node.removed))
+                  && not (List.mem_assoc name node.children))
               |> List.map (fun (name, kind) ->
-                     let k = match kind with `Node _ -> `Node | `Contents _ -> `Contents in
-                     (name, k))
+                  let k =
+                    match kind with
+                    | `Node _ -> `Node
+                    | `Contents _ -> `Contents
+                  in
+                  (name, k))
             in
             let child_entries =
               List.map
                 (fun (name, child) ->
-                  let k = match child with Node _ -> `Node | Contents _ -> `Contents in
+                  let k =
+                    match child with Node _ -> `Node | Contents _ -> `Contents
+                  in
                   (name, k))
                 node.children
             in
-            List.sort (fun (a, _) (b, _) -> String.compare a b) (base_entries @ child_entries))
+            List.sort
+              (fun (a, _) (b, _) -> String.compare a b)
+              (base_entries @ child_entries))
     | _ -> []
 
   (* Add contents at path, creating intermediate nodes as needed *)
@@ -152,7 +153,8 @@ module Make (F : Tree_format.S) = struct
         in
         let new_child = add_at child rest value in
         let children =
-          (name, new_child) :: List.filter (fun (n, _) -> n <> name) node.children
+          (name, new_child)
+          :: List.filter (fun (n, _) -> n <> name) node.children
         in
         Node { node with children }
 
@@ -166,7 +168,8 @@ module Make (F : Tree_format.S) = struct
     | Node node, [ name ] ->
         let children = List.filter (fun (n, _) -> n <> name) node.children in
         let removed =
-          if List.mem name node.removed then node.removed else name :: node.removed
+          if List.mem name node.removed then node.removed
+          else name :: node.removed
         in
         Node { node with children; removed }
     | Node node, name :: rest ->
@@ -188,7 +191,8 @@ module Make (F : Tree_format.S) = struct
         in
         let new_child = remove child rest in
         let children =
-          (name, new_child) :: List.filter (fun (n, _) -> n <> name) node.children
+          (name, new_child)
+          :: List.filter (fun (n, _) -> n <> name) node.children
         in
         Node { node with children }
 
@@ -202,16 +206,22 @@ module Make (F : Tree_format.S) = struct
           | Some loaded ->
               F.list loaded
               |> List.filter_map (fun (name, _kind) ->
-                     if List.mem name node.removed then None
-                     else if List.mem_assoc name node.children then None
-                     else
-                       (* Would need to recursively load - simplified here *)
-                       None)
+                  if List.mem name node.removed then None
+                  else if List.mem_assoc name node.children then None
+                  else
+                    (* Would need to recursively load - simplified here *)
+                    None)
         in
         let child_entries =
-          List.map (fun (name, child) -> (name, to_concrete child)) node.children
+          List.map
+            (fun (name, child) -> (name, to_concrete child))
+            node.children
         in
-        let all = List.sort (fun (a, _) (b, _) -> String.compare a b) (entries @ child_entries) in
+        let all =
+          List.sort
+            (fun (a, _) (b, _) -> String.compare a b)
+            (entries @ child_entries)
+        in
         `Tree all
 
   (* Write tree to backend and return hash *)
@@ -227,7 +237,9 @@ module Make (F : Tree_format.S) = struct
           match force_node node.state with Some n -> n | None -> F.empty_node
         in
         (* Apply removals *)
-        let base = List.fold_left (fun n name -> F.remove n name) base node.removed in
+        let base =
+          List.fold_left (fun n name -> F.remove n name) base node.removed
+        in
         (* Apply additions (recursively writing children) *)
         let final =
           List.fold_left
@@ -253,7 +265,7 @@ module Make (F : Tree_format.S) = struct
     let rec go path t acc =
       match t with
       | Contents s -> f path (`Contents s) acc
-      | Node node ->
+      | Node node -> (
           let acc = f path `Tree acc in
           match force with
           | `True -> (
@@ -279,7 +291,7 @@ module Make (F : Tree_format.S) = struct
               | _ ->
                   List.fold_left
                     (fun acc (name, child) -> go (path @ [ name ]) child acc)
-                    acc node.children)
+                    acc node.children))
     in
     go [] t init
 

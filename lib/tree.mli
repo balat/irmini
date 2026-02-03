@@ -1,8 +1,8 @@
 (** Lazy trees with delayed writes.
 
     Trees are like Git's staging area: immutable, temporary, non-persistent
-    areas held in memory. Reads are done lazily and writes are accumulated
-    until commit - if you modify a key twice, only the last change is written. *)
+    areas held in memory. Reads are done lazily and writes are accumulated until
+    commit - if you modify a key twice, only the last change is written. *)
 
 (** {1 Tree Functor} *)
 
@@ -19,8 +19,7 @@ module Make (F : Tree_format.S) : sig
 
   (** {2 Concrete Trees} *)
 
-  type concrete =
-    [ `Contents of string | `Tree of (string * concrete) list ]
+  type concrete = [ `Contents of string | `Tree of (string * concrete) list ]
   (** Fully materialized tree for import/export. *)
 
   (** {2 Construction} *)
@@ -29,25 +28,25 @@ module Make (F : Tree_format.S) : sig
   (** [empty ()] creates an empty tree. *)
 
   val of_hash : backend:hash Backend.t -> hash -> t
-  (** [of_hash ~backend h] creates a tree backed by the store.
-      Nothing is loaded until accessed (lazy reads). *)
+  (** [of_hash ~backend h] creates a tree backed by the store. Nothing is loaded
+      until accessed (lazy reads). *)
 
   val of_concrete : concrete -> t
   (** [of_concrete c] creates a tree from a fully materialized tree. *)
 
   val shallow : hash -> t
-  (** [shallow h] creates a tree with only a hash reference.
-      Accessing contents raises an error. *)
+  (** [shallow h] creates a tree with only a hash reference. Accessing contents
+      raises an error. *)
 
   val pruned : hash -> t
-  (** [pruned h] creates a pruned tree that raises on dereference.
-      Used for GC and export operations. *)
+  (** [pruned h] creates a pruned tree that raises on dereference. Used for GC
+      and export operations. *)
 
   (** {2 Reads (Lazy)} *)
 
   val find : t -> path -> string option
-  (** [find t path] looks up contents at [path].
-      Loads nodes lazily as needed. *)
+  (** [find t path] looks up contents at [path]. Loads nodes lazily as needed.
+  *)
 
   val find_tree : t -> path -> t option
   (** [find_tree t path] looks up a subtree at [path]. *)
@@ -64,8 +63,8 @@ module Make (F : Tree_format.S) : sig
   (** {2 Writes (Delayed)} *)
 
   val add : t -> path -> string -> t
-  (** [add t path contents] adds contents at [path].
-      The write is accumulated, not performed immediately. *)
+  (** [add t path contents] adds contents at [path]. The write is accumulated,
+      not performed immediately. *)
 
   val add_tree : t -> path -> t -> t
   (** [add_tree t path subtree] adds a subtree at [path]. *)
@@ -76,12 +75,12 @@ module Make (F : Tree_format.S) : sig
   (** {2 Materialization} *)
 
   val to_concrete : t -> concrete
-  (** [to_concrete t] fully materializes the tree.
-      Forces all lazy nodes to be loaded. *)
+  (** [to_concrete t] fully materializes the tree. Forces all lazy nodes to be
+      loaded. *)
 
   val hash : t -> backend:hash Backend.t -> hash
-  (** [hash t ~backend] computes the tree hash.
-      Writes all accumulated changes to the backend. *)
+  (** [hash t ~backend] computes the tree hash. Writes all accumulated changes
+      to the backend. *)
 
   (** {2 Force Control} *)
 
@@ -97,14 +96,14 @@ module Make (F : Tree_format.S) : sig
     'a ->
     (path -> [ `Contents of string | `Tree ] -> 'a -> 'a) ->
     'a
-  (** [fold ~force t init f] traverses the tree.
-      The [force] parameter controls lazy loading behavior. *)
+  (** [fold ~force t init f] traverses the tree. The [force] parameter controls
+      lazy loading behavior. *)
 
   (** {2 Cache Management} *)
 
   val clear : ?depth:int -> t -> unit
-  (** [clear ?depth t] purges cached data.
-      If [depth] is given, only clears nodes at that depth or deeper. *)
+  (** [clear ?depth t] purges cached data. If [depth] is given, only clears
+      nodes at that depth or deeper. *)
 
   (** {2 Comparison} *)
 

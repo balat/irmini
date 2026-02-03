@@ -113,11 +113,9 @@ let git_backend ~fs ~git_dir : Hash.sha1 Backend.t =
         let full_path = Eio.Path.(fs / path) in
         Eio.Path.is_file full_path);
     get_ref =
-      (fun name ->
-        Option.map sha1_of_git_hash (read_ref ~fs ~git_dir name));
+      (fun name -> Option.map sha1_of_git_hash (read_ref ~fs ~git_dir name));
     set_ref =
-      (fun name hash ->
-        write_ref ~fs ~git_dir name (git_hash_of_sha1 hash));
+      (fun name hash -> write_ref ~fs ~git_dir name (git_hash_of_sha1 hash));
     test_and_set_ref =
       (fun name ~test ~set ->
         let current = read_ref ~fs ~git_dir name in
@@ -129,10 +127,10 @@ let git_backend ~fs ~git_dir : Hash.sha1 Backend.t =
         in
         if matches then (
           (match set with
-          | None ->
+          | None -> (
               let path = Filename.concat git_dir name in
               let full_path = Eio.Path.(fs / path) in
-              (try Eio.Path.unlink full_path with _ -> ())
+              try Eio.Path.unlink full_path with _ -> ())
           | Some h -> write_ref ~fs ~git_dir name (git_hash_of_sha1 h));
           true)
         else false);

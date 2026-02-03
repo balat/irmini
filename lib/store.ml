@@ -39,18 +39,18 @@ module Make (F : Tree_format.S) = struct
     Commit.hash c
 
   let head t ~branch = t.backend.get_ref ("refs/heads/" ^ branch)
-
   let set_head t ~branch h = t.backend.set_ref ("refs/heads/" ^ branch) h
 
   let branches t =
     t.backend.list_refs ()
     |> List.filter_map (fun r ->
-           if String.length r > 11 && String.sub r 0 11 = "refs/heads/" then
-             Some (String.sub r 11 (String.length r - 11))
-           else None)
+        if String.length r > 11 && String.sub r 0 11 = "refs/heads/" then
+          Some (String.sub r 11 (String.length r - 11))
+        else None)
 
   let update_branch t ~branch ~old ~new_ =
-    t.backend.test_and_set_ref ("refs/heads/" ^ branch) ~test:old ~set:(Some new_)
+    t.backend.test_and_set_ref ("refs/heads/" ^ branch) ~test:old
+      ~set:(Some new_)
 
   (* Simple ancestry check - walks parent chain *)
   let is_ancestor t ~ancestor ~descendant =
@@ -86,9 +86,7 @@ module Make (F : Tree_format.S) = struct
         match read_commit t h with
         | None -> None
         | Some c -> (
-            match Commit.parents c with
-            | [] -> None
-            | p :: _ -> find_common p)
+            match Commit.parents c with [] -> None | p :: _ -> find_common p)
     in
     find_common h2
 
@@ -99,9 +97,7 @@ module Make (F : Tree_format.S) = struct
         match read_commit t h with
         | None -> n
         | Some c -> (
-            match Commit.parents c with
-            | [] -> n
-            | p :: _ -> count p (n + 1))
+            match Commit.parents c with [] -> n | p :: _ -> count p (n + 1))
     in
     count head 0
 

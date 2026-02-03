@@ -1,7 +1,7 @@
 (** Irmin - Content-addressable store with Git and ATProto MST support.
 
-    Irmin provides lazy reads, delayed writes, and multiple tree formats
-    with bidirectional Git compatibility and first-class subtree operations. *)
+    Irmin provides lazy reads, delayed writes, and multiple tree formats with
+    bidirectional Git compatibility and first-class subtree operations. *)
 
 (** {1 Core Types} *)
 

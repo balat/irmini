@@ -70,10 +70,10 @@ module Make (F : Tree_format.S) = struct
     let rec parse_headers lines tree parents author committer =
       match lines with
       | [] -> Error (`Msg "unexpected end of commit")
-      | "" :: rest ->
+      | "" :: rest -> (
           (* Empty line marks start of message *)
           let message = String.concat "\n" rest in
-          (match tree with
+          match tree with
           | None -> Error (`Msg "missing tree")
           | Some tree ->
               Ok
@@ -91,15 +91,19 @@ module Make (F : Tree_format.S) = struct
             match parse_hex_hash hex with
             | Ok h -> parse_headers rest (Some h) parents author committer
             | Error _ as e -> e
-          else if String.length line >= 7 && String.sub line 0 7 = "parent " then
+          else if String.length line >= 7 && String.sub line 0 7 = "parent "
+          then
             let hex = String.sub line 7 (String.length line - 7) in
             match parse_hex_hash hex with
             | Ok h -> parse_headers rest tree (h :: parents) author committer
             | Error _ as e -> e
-          else if String.length line >= 7 && String.sub line 0 7 = "author " then
+          else if String.length line >= 7 && String.sub line 0 7 = "author "
+          then
             let author_str = String.sub line 7 (String.length line - 7) in
             parse_headers rest tree parents (Some author_str) committer
-          else if String.length line >= 10 && String.sub line 0 10 = "committer " then
+          else if
+            String.length line >= 10 && String.sub line 0 10 = "committer "
+          then
             let committer_str = String.sub line 10 (String.length line - 10) in
             parse_headers rest tree parents author (Some committer_str)
           else parse_headers rest tree parents author committer
