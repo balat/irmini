@@ -1,0 +1,30 @@
+(lang dune 3.17)
+(name irmin)
+(version 2.0.0~dev)
+
+(generate_opam_files true)
+
+(license ISC)
+(authors "Thomas Gazagnaire <thomas@gazagnaire.org>")
+(maintainers "Thomas Gazagnaire <thomas@gazagnaire.org>")
+(source
+ (uri https://tangled.org/gazagnaire.org/irmin))
+
+(package
+ (name irmin)
+ (synopsis "Content-addressable store with Git and ATProto MST support")
+ (description
+  "Irmin is a library for building content-addressable stores with lazy reads,
+delayed writes, and multiple tree formats (Git, ATProto MST). It provides
+bidirectional Git compatibility and first-class subtree operations.")
+ (depends
+  (ocaml (>= 5.2))
+  (dune (>= 3.17))
+  (eio (>= 1.2))
+  (digestif (>= 1.2))
+  (fmt (>= 0.9))
+  (logs (>= 0.7))
+  (git (>= 0.1))
+  (atp (>= 0.1))
+  (alcotest :with-test)
+  (crowbar :with-test))))

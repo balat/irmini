@@ -1,0 +1,4 @@
+(library
+ (name irmin)
+ (public_name irmin)
+ (libraries eio digestif fmt logs git atp))
