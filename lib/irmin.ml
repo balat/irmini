@@ -69,10 +69,6 @@ module Subtree = Subtree
 module Proof = Proof
 (** Merkle proofs for verified computations. *)
 
-(** {1 Merkle Proofs} *)
-
-module Proof = Proof
-
 (** {1 Git Interoperability} *)
 
 module Git_interop = Git_interop
