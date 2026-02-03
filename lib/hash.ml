@@ -121,6 +121,7 @@ type any = Any : _ t -> any
 let any_algorithm (Any h) = algorithm_of h
 let any_to_bytes (Any h) = to_bytes h
 let any_to_hex (Any h) = to_hex h
+let equal_any (Any h1) (Any h2) = any_to_bytes (Any h1) = any_to_bytes (Any h2)
 let pp fmt h = Format.fprintf fmt "%s" (to_hex h)
 
 let pp_short fmt h =

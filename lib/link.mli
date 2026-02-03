@@ -1,84 +1,103 @@
-(** Persistent pointers to OCaml values.
+(** Link API - Persistent OCaml heap.
 
-    Links delimit serialization boundaries in data structures. Insert [v] calls
-    to control persistence granularity - only new links are written.
+    Links are content-addressed references to values. They provide a minimal
+    interface for persisting OCaml values to disk with lazy loading. *)
 
-    {[
-      type tree = node t
-      and node = Empty | Node of { l : tree; x : int; r : tree }
-
-      let rec add s x t =
-        match get t with
-        | Empty -> v s (Node { l = v s Empty; x; r = v s Empty })
-        | Node n ->
-            if x = n.x then t
-            else if x < n.x then v s (Node { n with l = add s x n.l })
-            else v s (Node { n with r = add s x n.r })
-    ]}
-
-    Properties: [get (v s x) = x] and [equal (v s (get l)) l]. *)
-
-(** {1:types Types} *)
+(** {1 Core Types} *)
 
 type 'a t
-(** The type for links to ['a] values. Links embed their content store. *)
+(** A reference to a value of type ['a], identified by content hash. *)
 
-type 'a store
-(** The type for stores with root of type ['a]. *)
+type 'a link = 'a t
+(** Alias for [t]. *)
 
-type address
-(** The type for content addresses. Opaque. *)
+(** {1 Construction} *)
 
-(** {1:links Links} *)
+val link : 'a -> 'a t
+(** [link v] creates a reference to [v]. The value is kept in memory until
+    persisted. *)
 
-val v : _ store -> 'a -> 'a t
-(** [v s x] is a link to [x], using content store from [s]. *)
+val of_hash : Hash.any -> 'a t
+(** [of_hash h] creates a link from a known hash. The value will be fetched on
+    first access. *)
 
-val of_address : _ store -> address -> 'a t
-(** [of_address s addr] is a link that lazily loads from [addr]. *)
+(** {1 Access} *)
 
-val get : 'a t -> 'a
-(** [get l] is the value linked by [l]. Fetches if needed. *)
+val fetch : 'a t -> 'a
+(** [fetch l] returns the value referenced by [l]. May perform I/O if the value
+    is not in memory.
 
-val address : 'a t -> address
-(** [address l] is the content address of [l]. Writes if needed. *)
+    Uses algebraic effects for I/O - code using [fetch] need not be written in
+    monadic style.
+
+    @raise Effect.Unhandled if no fetch handler is installed.
+
+    Invariants:
+    - [fetch (link v) = v]
+    - [link (fetch l) = l] (when [l] is reachable) *)
+
+val fetch_opt : 'a t -> 'a option
+(** [fetch_opt l] returns [Some v] if the value is available, [None] if fetching
+    fails. *)
+
+(** {1 Properties} *)
+
+val hash : 'a t -> Hash.any
+(** [hash l] returns the content hash of the linked value. Forces computation of
+    the hash if not yet known. *)
+
+val is_in_memory : 'a t -> bool
+(** [is_in_memory l] returns [true] if the value is currently cached. *)
 
 val equal : 'a t -> 'a t -> bool
-(** [equal l0 l1] is [true] iff [l0] and [l1] have the same address. *)
+(** [equal l1 l2] returns [true] iff [l1] and [l2] reference the same content.
+    Equality is hash equality. *)
 
-val is_val : 'a t -> bool
-(** [is_val l] is [true] if the value is in memory (like {!Lazy.is_val}). *)
+(** {1 Effects} *)
 
-val pp : Format.formatter -> 'a t -> unit
-(** [pp] formats the link's address (or ["<mem>"] if not yet stored). *)
+type _ Effect.t +=
+  | Fetch : Hash.any -> string Effect.t
+        (** Effect performed when [fetch] needs to read from disk/network. *)
+  | Store : string -> Hash.any Effect.t
+        (** Effect performed when a value needs to be persisted. *)
 
-(** {1:stores Stores} *)
+(** {1 Effect Handlers} *)
+
+val with_memory_handler : (unit -> 'a) -> 'a
+(** [with_memory_handler f] runs [f] with an in-memory store. Useful for
+    testing. *)
+
+val with_backend_handler : _ Backend.t -> (unit -> 'a) -> 'a
+(** [with_backend_handler backend f] runs [f] with fetch/store handled by
+    [backend]. *)
+
+(** {1 Cache Control} *)
+
+val clear_cache : 'a t -> unit
+(** [clear_cache l] evicts the value from memory. Next [fetch] will re-read from
+    disk. *)
+
+val prefetch : 'a t -> unit
+(** [prefetch l] starts loading the value in the background. Does nothing if
+    already in memory. *)
+
+(** {1 Stores} *)
+
+type 'a store
+(** A persistent store for values of type ['a]. *)
+
+val create_store : string -> 'a -> 'a store
+(** [create_store path init] creates a store at [path] with initial value
+    [init]. *)
+
+val open_store : string -> 'a store
+(** [open_store path] opens an existing store. *)
 
 val read : 'a store -> 'a
-(** [read s] is the current root of [s]. Raises if no root set. *)
+(** [read s] returns the root value. Subtrees load lazily via [fetch]. *)
 
 val write : 'a store -> 'a -> unit
-(** [write s x] sets the root of [s] to [x]. *)
+(** [write s v] persists [v] as the new root. Only new links are written. *)
 
-val is_open : _ store -> bool
-(** [is_open s] is [true] if [s] is open. *)
-
-val close : _ store -> unit
-(** [close s] closes [s]. Further operations raise. *)
-
-(** {2 Store creation} *)
-
-module Make (_ : Codec.S) : sig
-  val v : unit -> _ store
-  (** [v ()] is a new in-memory store. *)
-end
-
-module Git : sig
-  val v : unit -> _ store
-  (** [v ()] is a new in-memory Git-compatible store (SHA-1). *)
-end
-
-module Mst : sig
-  val v : unit -> _ store
-  (** [v ()] is a new in-memory MST store (SHA-256, ATProto). *)
-end
+val close : 'a store -> unit
+(** [close s] releases resources. *)

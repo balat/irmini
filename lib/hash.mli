@@ -95,6 +95,9 @@ val any_to_bytes : any -> string
 val any_to_hex : any -> string
 (** [any_to_hex (Any h)] returns the hex representation. *)
 
+val equal_any : any -> any -> bool
+(** [equal_any a1 a2] compares two type-erased hashes. *)
+
 (** {1 Pretty Printing} *)
 
 val pp : Format.formatter -> _ t -> unit

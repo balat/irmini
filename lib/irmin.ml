@@ -1,5 +1,12 @@
 (** Irmin 4.0 - Content-addressable storage for OCaml.
 
+    Irmin provides two APIs:
+    - {b Link API}: Minimal interface for persisting OCaml values.
+    - {b Tree API}: Git-compatible version control with paths, commits, and
+      branches.
+
+    Both share a common content-addressable backend.
+
     Architecture: Link → Tree → KV
 
     {[
@@ -61,6 +68,10 @@ module Subtree = Subtree
 
 module Proof = Proof
 (** Merkle proofs for verified computations. *)
+
+(** {1 Merkle Proofs} *)
+
+module Proof = Proof
 
 (** {1 Git Interoperability} *)
 
