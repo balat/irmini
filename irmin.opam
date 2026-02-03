@@ -16,6 +16,8 @@ depends: [
   "digestif" {>= "1.2"}
   "fmt" {>= "0.9"}
   "logs" {>= "0.7"}
+  "git" {>= "0.1"}
+  "atp" {>= "0.1"}
   "alcotest" {with-test}
   "crowbar" {with-test}
   "odoc" {with-doc}
