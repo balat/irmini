@@ -23,48 +23,49 @@
 type 'a t
 (** The type for links to ['a] values. *)
 
+type hash
+(** The type for content hashes. Opaque. *)
+
 val v : 'a -> 'a t
 (** [v x] is a link to [x]. *)
 
 val get : 'a t -> 'a
 (** [get l] is the value linked by [l]. May perform I/O via effects. *)
 
-val hash : 'a t -> Hash.sha256
-(** [hash l] is the content hash of [l]. Persists if needed. *)
+val hash : 'a t -> hash
+(** [hash l] is the content hash of [l]. *)
 
 val equal : 'a t -> 'a t -> bool
-(** [equal l0 l1] is [true] iff [l0] and [l1] have the same {!hash}. *)
+(** [equal l0 l1] is [true] iff [l0] and [l1] have the same hash. *)
 
-val is_available : 'a t -> bool
-(** [is_available l] is [true] if {!get} won't perform I/O. *)
+val is_val : 'a t -> bool
+(** [is_val l] is [true] if the value is in memory (like {!Lazy.is_val}). *)
 
 val pp : Format.formatter -> 'a t -> unit
 (** [pp] formats the link's hash. *)
 
+val pp_hash : Format.formatter -> hash -> unit
+(** [pp_hash] formats a hash. *)
+
 (** {1:stores Stores} *)
 
-type 'a store
-(** The type for stores with root type ['a]. *)
+type store
+(** The type for stores. *)
 
-val mem : unit -> 'a store
+val mem : unit -> store
 (** [mem ()] is a new in-memory store. *)
 
-val run : 'a store -> (unit -> 'b) -> 'b
+val run : store -> (unit -> 'a) -> 'a
 (** [run s f] runs [f] with [s] handling link effects. *)
 
-val root : 'a store -> 'a option
+val root : store -> 'a option
 (** [root s] is the current root of [s]. *)
 
-val set_root : 'a store -> 'a -> unit
+val set_root : store -> 'a -> unit
 (** [set_root s x] sets the root of [s] to [x]. *)
 
-val is_open : 'a store -> bool
+val is_open : store -> bool
 (** [is_open s] is [true] if [s] is open. *)
 
-val close : 'a store -> unit
+val close : store -> unit
 (** [close s] closes [s]. Further operations return [None] or raise. *)
-
-(**/**)
-
-(* Internal, for persistence layer *)
-val of_hash_ : Hash.sha256 -> 'a t
