@@ -193,46 +193,39 @@ let tree_format_tests =
 
 (* Link tests *)
 let test_link_v_get () =
-  let s = Link.mem_sha256 () in
-  Link.run s (fun () ->
-      let l = Link.v 42 in
-      Alcotest.(check int) "get (v x) = x" 42 (Link.get l))
+  let s = Link.Mst.mem () in
+  let l = Link.v s 42 in
+  Alcotest.(check int) "get (v x) = x" 42 (Link.get l)
 
 let test_link_is_val () =
-  let s = Link.mem_sha256 () in
-  Link.run s (fun () ->
-      let l = Link.v "hello" in
-      Alcotest.(check bool) "in-memory is_val" true (Link.is_val l))
+  let s = Link.Mst.mem () in
+  let l = Link.v s "hello" in
+  Alcotest.(check bool) "in-memory is_val" true (Link.is_val l)
 
 let test_link_equal () =
-  let s = Link.mem_sha256 () in
-  Link.run s (fun () ->
-      let l0 = Link.v [ 1; 2; 3 ] in
-      let l1 = Link.v [ 1; 2; 3 ] in
-      let l2 = Link.v [ 1; 2; 4 ] in
-      Alcotest.(check bool) "same value equal" true (Link.equal l0 l1);
-      Alcotest.(check bool) "diff value not equal" false (Link.equal l0 l2))
+  let s = Link.Mst.mem () in
+  let l0 = Link.v s [ 1; 2; 3 ] in
+  let l1 = Link.v s [ 1; 2; 3 ] in
+  let l2 = Link.v s [ 1; 2; 4 ] in
+  Alcotest.(check bool) "same value equal" true (Link.equal l0 l1);
+  Alcotest.(check bool) "diff value not equal" false (Link.equal l0 l2)
 
-let test_link_hash () =
-  let s = Link.mem_sha256 () in
-  Link.run s (fun () ->
-      let l0 = Link.v "test" in
-      let l1 = Link.v "test" in
-      Alcotest.(check bool)
-        "same hash" true
-        (Hash.equal (Link.hash s l0) (Link.hash s l1)))
+let test_link_address () =
+  let s = Link.Mst.mem () in
+  let l0 = Link.v s "test" in
+  let l1 = Link.v s "test" in
+  Alcotest.(check bool) "same address" true (Link.address l0 = Link.address l1)
 
 let test_link_pp () =
-  let s = Link.mem_sha256 () in
-  Link.run s (fun () ->
-      let l = Link.v "test" in
-      let _ = Link.hash s l in
-      (* force hash computation *)
-      let str = Format.asprintf "%a" Link.pp l in
-      Alcotest.(check int) "pp is 7 chars" 7 (String.length str))
+  let s = Link.Mst.mem () in
+  let l = Link.v s "test" in
+  let _ = Link.address l in
+  (* force address computation *)
+  let str = Format.asprintf "%a" Link.pp l in
+  Alcotest.(check int) "pp is 7 chars" 7 (String.length str)
 
 let test_link_root () =
-  let s = Link.mem_sha256 () in
+  let s = Link.Mst.mem () in
   Alcotest.(check (option int)) "initially none" None (Link.root s);
   Link.set_root s 42;
   Alcotest.(check (option int)) "after set" (Some 42) (Link.root s);
@@ -240,7 +233,7 @@ let test_link_root () =
   Alcotest.(check (option int)) "after second set" (Some 100) (Link.root s)
 
 let test_link_is_open () =
-  let s = Link.mem_sha256 () in
+  let s = Link.Mst.mem () in
   Alcotest.(check bool) "initially open" true (Link.is_open s);
   Link.close s;
   Alcotest.(check bool) "closed after close" false (Link.is_open s)
@@ -250,21 +243,20 @@ type test_tree = test_node Link.t
 and test_node = TEmpty | TNode of { l : test_tree; x : int; r : test_tree }
 
 let test_link_tree () =
-  let s = Link.mem_sha256 () in
-  Link.run s (fun () ->
-      let empty = Link.v TEmpty in
-      let leaf x = Link.v (TNode { l = empty; x; r = empty }) in
-      let node l x r = Link.v (TNode { l; x; r }) in
-      let t = node (leaf 1) 2 (leaf 3) in
-      match Link.get t with
-      | TEmpty -> Alcotest.fail "expected node"
-      | TNode n -> (
-          Alcotest.(check int) "root" 2 n.x;
-          match (Link.get n.l, Link.get n.r) with
-          | TNode l, TNode r ->
-              Alcotest.(check int) "left" 1 l.x;
-              Alcotest.(check int) "right" 3 r.x
-          | _ -> Alcotest.fail "expected leaves"))
+  let _s = Link.Mst.mem () in
+  let empty = Link.v TEmpty in
+  let leaf x = Link.v (TNode { l = empty; x; r = empty }) in
+  let node l x r = Link.v (TNode { l; x; r }) in
+  let t = node (leaf 1) 2 (leaf 3) in
+  match Link.get t with
+  | TEmpty -> Alcotest.fail "expected node"
+  | TNode n -> (
+      Alcotest.(check int) "root" 2 n.x;
+      match (Link.get n.l, Link.get n.r) with
+      | TNode l, TNode r ->
+          Alcotest.(check int) "left" 1 l.x;
+          Alcotest.(check int) "right" 3 r.x
+      | _ -> Alcotest.fail "expected leaves")
 
 let link_tests =
   [

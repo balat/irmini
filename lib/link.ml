@@ -1,97 +1,82 @@
 (** Persistent pointers to OCaml values. *)
 
-(* Hash is stored as hex string internally - algorithm agnostic *)
-type hash = string
+(* Address is a hex-encoded hash - algorithm agnostic *)
+type address = string
 
-(* Internal representation *)
-type 'a location =
-  | In_memory of 'a * string (* value and serialized data *)
-  | At of hash (* hash only, needs fetch *)
-  | Both of 'a * hash (* value and hash *)
+(* Stores *)
 
-type 'a t = 'a location ref
+type store = {
+  read : address -> string option;
+  write : string -> address;
+  mutable root : address option;
+  mutable open' : bool;
+}
 
-(* Effects *)
-type _ Effect.t +=
-  | Fetch : hash -> string Effect.t
-  | Store : string -> hash Effect.t
+(* Links embed their store reference *)
 
-(* Serialization *)
+type 'a t = { store : store; mutable location : 'a location }
+
+and 'a location =
+  | In_memory of 'a (* value not yet persisted *)
+  | At of address (* persisted but not in memory, needs fetch *)
+  | Both of 'a * address (* in memory and persisted *)
+
+(* Serialization - placeholder, needs repr for production *)
 let encode v = Marshal.to_string v [ Marshal.No_sharing ]
 let decode s = Marshal.from_string s 0
 
 (* Links *)
 
-let v x =
-  let _data = encode x in
-  ref (In_memory (x, _data))
+let v store x = { store; location = In_memory x }
+let of_address store addr = { store; location = At addr }
 
 let get l =
-  match !l with
-  | In_memory (x, _) -> x
-  | Both (x, _) -> x
-  | At h ->
-      let data = Effect.perform (Fetch h) in
-      let x = decode data in
-      l := Both (x, h);
-      x
+  match l.location with
+  | In_memory x | Both (x, _) -> x
+  | At addr -> (
+      match l.store.read addr with
+      | None -> failwith (Printf.sprintf "Link.get: address not found: %s" addr)
+      | Some data ->
+          let x = decode data in
+          l.location <- Both (x, addr);
+          x)
 
-let hash l =
-  match !l with
-  | In_memory (_, data) ->
-      let h = Effect.perform (Store data) in
-      let x = decode data in
-      l := Both (x, h);
-      h
-  | At h -> h
-  | Both (_, h) -> h
+let address l =
+  match l.location with
+  | In_memory x ->
+      let data = encode x in
+      let addr = l.store.write data in
+      l.location <- Both (x, addr);
+      addr
+  | At addr | Both (_, addr) -> addr
 
-let equal l0 l1 = hash l0 = hash l1
-let is_val l = match !l with In_memory _ | Both _ -> true | At _ -> false
+let equal l0 l1 = address l0 = address l1
+
+let is_val l =
+  match l.location with In_memory _ | Both _ -> true | At _ -> false
 
 let pp ppf l =
-  match !l with
+  match l.location with
   | In_memory _ -> Format.fprintf ppf "<mem>"
-  | At h | Both (_, h) ->
-      Format.fprintf ppf "%s" (String.sub h 0 (min 7 (String.length h)))
+  | At addr | Both (_, addr) ->
+      Format.fprintf ppf "%s" (String.sub addr 0 (min 7 (String.length addr)))
 
-(* Stores *)
+(* Store operations *)
 
-type store = {
-  read : hash -> string option;
-  write : string -> hash;
-  mutable root : Obj.t option;
-  mutable open' : bool;
-}
-
-let run (type a) (s : store) (f : unit -> a) : a =
-  if not s.open' then failwith "Link.run: store is closed";
-  let open Effect.Deep in
-  try_with f ()
-    {
-      effc =
-        (fun (type c) (eff : c Effect.t) ->
-          match eff with
-          | Fetch h ->
-              Some
-                (fun (k : (c, _) continuation) ->
-                  match s.read h with
-                  | None ->
-                      failwith (Printf.sprintf "Link.get: hash not found: %s" h)
-                  | Some data -> continue k data)
-          | Store data ->
-              Some
-                (fun (k : (c, _) continuation) ->
-                  let h = s.write data in
-                  continue k h)
-          | _ -> None);
-    }
-
-let root (type a) (s : store) : a option = Option.map Obj.obj s.root
+let root (type a) (s : store) : a option =
+  match s.root with
+  | None -> None
+  | Some addr -> (
+      match s.read addr with
+      | None ->
+          failwith (Printf.sprintf "Link.root: address not found: %s" addr)
+      | Some data -> Some (decode data))
 
 let set_root (type a) (s : store) (x : a) : unit =
   if not s.open' then failwith "Link.set_root: store is closed";
-  s.root <- Some (Obj.repr x)
+  let data = encode x in
+  let addr = s.write data in
+  s.root <- Some addr
 
 let is_open s = s.open'
 let close s = s.open' <- false
@@ -105,9 +90,9 @@ module Make (F : Tree_format.S) = struct
       read = Hashtbl.find_opt tbl;
       write =
         (fun data ->
-          let h = F.hash_to_hex (F.hash_contents data) in
-          Hashtbl.replace tbl h data;
-          h);
+          let addr = F.hash_to_hex (F.hash_contents data) in
+          Hashtbl.replace tbl addr data;
+          addr);
       root = None;
       open' = true;
     }

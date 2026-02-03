@@ -29,6 +29,11 @@ type 'hash t = {
 (** {1 Memory Backend} *)
 
 module Memory : sig
+  val create_with_hash :
+    (string -> 'h) -> ('h -> string) -> ('h -> 'h -> bool) -> 'h t
+  (** [create_with_hash hash_fn to_hex equal] creates an in-memory backend with
+      custom hash functions. *)
+
   val create_sha1 : unit -> Hash.sha1 t
   (** Create an in-memory SHA-1 backend. *)
 

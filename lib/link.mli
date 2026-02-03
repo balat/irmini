@@ -7,50 +7,52 @@
       type tree = node t
       and node = Empty | Node of { l : tree; x : int; r : tree }
 
-      let rec add x t =
+      let rec add s x t =
         match get t with
-        | Empty -> v (Node { l = v Empty; x; r = v Empty })
+        | Empty -> v s (Node { l = v s Empty; x; r = v s Empty })
         | Node n ->
             if x = n.x then t
-            else if x < n.x then v (Node { n with l = add x n.l })
-            else v (Node { n with r = add x n.r })
+            else if x < n.x then v s (Node { n with l = add s x n.l })
+            else v s (Node { n with r = add s x n.r })
     ]}
 
-    Properties: [get (v x) = x] and [equal (v (get l)) l]. *)
+    Properties: [get (v s x) = x] and [equal (v s (get l)) l]. *)
+
+(** {1:types Types} *)
+
+type 'a t
+(** The type for links to ['a] values. Links embed a store reference. *)
+
+type store
+(** The type for stores. *)
+
+type address
+(** The type for content addresses. Opaque. *)
 
 (** {1:links Links} *)
 
-type 'a t
-(** The type for links to ['a] values. *)
+val v : store -> 'a -> 'a t
+(** [v s x] is a link to [x] using store [s]. *)
 
-type hash
-(** The type for content hashes. Opaque. *)
-
-val v : 'a -> 'a t
-(** [v x] is a link to [x]. *)
+val of_address : store -> address -> 'a t
+(** [of_address s addr] is a link that lazily loads from [addr]. *)
 
 val get : 'a t -> 'a
-(** [get l] is the value linked by [l]. May perform I/O via effects. *)
+(** [get l] is the value linked by [l]. Fetches from store if needed. *)
 
-val hash : 'a t -> hash
-(** [hash l] is the content hash of [l]. *)
+val address : 'a t -> address
+(** [address l] is the content address of [l]. Writes to store if needed. *)
 
 val equal : 'a t -> 'a t -> bool
-(** [equal l0 l1] is [true] iff [l0] and [l1] have the same hash. *)
+(** [equal l0 l1] is [true] iff [l0] and [l1] have the same address. *)
 
 val is_val : 'a t -> bool
 (** [is_val l] is [true] if the value is in memory (like {!Lazy.is_val}). *)
 
 val pp : Format.formatter -> 'a t -> unit
-(** [pp] formats the link's hash. *)
+(** [pp] formats the link's address (or ["<mem>"] if not yet stored). *)
 
 (** {1:stores Stores} *)
-
-type store
-(** The type for stores. *)
-
-val run : store -> (unit -> 'a) -> 'a
-(** [run s f] runs [f] with [s] handling link effects. *)
 
 val root : store -> 'a option
 (** [root s] is the current root of [s]. *)
@@ -66,9 +68,9 @@ val close : store -> unit
 
 (** {2 Store creation} *)
 
-module Make (F : Tree_format.S) : sig
+module Make (_ : Tree_format.S) : sig
   val mem : unit -> store
-  (** [mem ()] is a new in-memory store using format [F]. *)
+  (** [mem ()] is a new in-memory store. *)
 end
 
 module Git : sig

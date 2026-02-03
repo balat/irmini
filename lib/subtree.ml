@@ -22,8 +22,10 @@ module Make (F : Tree_format.S) = struct
 
   (* Split: Extract subtree history into a new store *)
   let split store ~prefix =
-    let backend = Backend.Memory.create_sha1 () in
-    let new_store = Store.create ~backend:(Obj.magic backend) in
+    let backend =
+      Backend.Memory.create_with_hash F.hash_contents F.hash_to_hex F.hash_equal
+    in
+    let new_store = Store.create ~backend in
 
     (* Walk commits and rewrite those touching prefix *)
     let rec rewrite_commit old_hash rewritten =
