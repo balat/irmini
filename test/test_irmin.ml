@@ -181,10 +181,46 @@ let backend_tests =
     Alcotest.test_case "backend test_and_set" `Quick test_backend_test_and_set;
   ]
 
+let test_store_diff () =
+  let backend = Backend.Memory.create_sha1 () in
+  let store = Store.Git.create ~backend in
+  (* Create first commit with two files *)
+  let tree1 = Tree.Git.empty () in
+  let tree1 = Tree.Git.add tree1 [ "file1.txt" ] "content1" in
+  let tree1 = Tree.Git.add tree1 [ "file2.txt" ] "content2" in
+  let hash1 = Tree.Git.hash tree1 ~backend in
+  (* Create second tree: modify file1, remove file2, add file3 *)
+  let tree2 = Tree.Git.empty () in
+  let tree2 = Tree.Git.add tree2 [ "file1.txt" ] "modified1" in
+  let tree2 = Tree.Git.add tree2 [ "file3.txt" ] "content3" in
+  let hash2 = Tree.Git.hash tree2 ~backend in
+  (* Compute diff *)
+  let changes = Store.Git.diff store ~old:hash1 ~new_:hash2 |> List.of_seq in
+  (* Check we have the expected changes *)
+  let has_remove_file2 =
+    List.exists
+      (function `Remove [ "file2.txt" ] -> true | _ -> false)
+      changes
+  in
+  let has_add_file3 =
+    List.exists
+      (function `Add ([ "file3.txt" ], _) -> true | _ -> false)
+      changes
+  in
+  let has_change_file1 =
+    List.exists
+      (function `Change ([ "file1.txt" ], _, _) -> true | _ -> false)
+      changes
+  in
+  Alcotest.(check bool) "file2 removed" true has_remove_file2;
+  Alcotest.(check bool) "file3 added" true has_add_file3;
+  Alcotest.(check bool) "file1 changed" true has_change_file1
+
 let store_tests =
   [
     Alcotest.test_case "store commit" `Quick test_store_commit;
     Alcotest.test_case "store branches" `Quick test_store_branches;
+    Alcotest.test_case "store diff" `Quick test_store_diff;
   ]
 
 let tree_format_tests =

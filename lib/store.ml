@@ -107,9 +107,115 @@ module Make (F : Codec.S) = struct
     | `Remove of Tree.path
     | `Change of Tree.path * hash * hash ]
 
-  let diff _t ~old:_ ~new_:_ =
-    (* TODO: Implement tree diff *)
-    Seq.empty
+  let diff t ~old ~new_ =
+    let old_tree = read_tree t old in
+    let new_tree = read_tree t new_ in
+
+    let rec diff_trees prefix old_tree new_tree =
+      let old_entries = Tree.list old_tree [] in
+      let new_entries = Tree.list new_tree [] in
+
+      let old_names = List.map fst old_entries in
+      let new_names = List.map fst new_entries in
+
+      (* Entries only in old -> Remove *)
+      let removed =
+        old_names
+        |> List.filter (fun name -> not (List.mem name new_names))
+        |> List.to_seq
+        |> Seq.map (fun name -> `Remove (prefix @ [ name ]))
+      in
+
+      (* Entries only in new -> Add *)
+      let added =
+        new_names
+        |> List.filter (fun name -> not (List.mem name old_names))
+        |> List.to_seq
+        |> Seq.filter_map (fun name ->
+            match Tree.find new_tree [ name ] with
+            | Some content ->
+                let hash = F.hash_contents content in
+                Some (`Add (prefix @ [ name ], hash))
+            | None ->
+                (* It's a subtree - handled by added_subtrees recursion below *)
+                None)
+      in
+
+      (* Entries in both -> check for changes *)
+      let common =
+        List.filter (fun name -> List.mem name new_names) old_names
+      in
+      let changes =
+        common |> List.to_seq
+        |> Seq.flat_map (fun name ->
+            let path = prefix @ [ name ] in
+            let old_kind = List.assoc name old_entries in
+            let new_kind = List.assoc name new_entries in
+            match (old_kind, new_kind) with
+            | `Contents, `Contents -> (
+                match
+                  (Tree.find old_tree [ name ], Tree.find new_tree [ name ])
+                with
+                | Some old_c, Some new_c ->
+                    let old_h = F.hash_contents old_c in
+                    let new_h = F.hash_contents new_c in
+                    if F.hash_equal old_h new_h then Seq.empty
+                    else Seq.return (`Change (path, old_h, new_h))
+                | _ -> Seq.empty)
+            | `Node, `Node -> (
+                match
+                  ( Tree.find_tree old_tree [ name ],
+                    Tree.find_tree new_tree [ name ] )
+                with
+                | Some old_sub, Some new_sub -> diff_trees path old_sub new_sub
+                | _ -> Seq.empty)
+            | `Contents, `Node ->
+                (* Changed from contents to tree - remove old contents *)
+                Seq.return (`Remove path)
+                |> Seq.append
+                     (match Tree.find_tree new_tree [ name ] with
+                     | Some sub -> diff_trees path (Tree.empty ()) sub
+                     | None -> Seq.empty)
+            | `Node, `Contents ->
+                (* Changed from tree to contents - add new contents *)
+                (match Tree.find new_tree [ name ] with
+                  | Some c ->
+                      let new_h = F.hash_contents c in
+                      Seq.return (`Add (path, new_h))
+                  | None -> Seq.empty)
+                |> Seq.append
+                     (match Tree.find_tree old_tree [ name ] with
+                     | Some sub -> diff_trees path sub (Tree.empty ())
+                     | None -> Seq.empty))
+      in
+
+      (* Also recurse into added subtrees *)
+      let added_subtrees =
+        new_names
+        |> List.filter (fun name -> not (List.mem name old_names))
+        |> List.to_seq
+        |> Seq.flat_map (fun name ->
+            match Tree.find_tree new_tree [ name ] with
+            | Some sub -> diff_trees (prefix @ [ name ]) (Tree.empty ()) sub
+            | None -> Seq.empty)
+      in
+
+      (* Also recurse into removed subtrees *)
+      let removed_subtrees =
+        old_names
+        |> List.filter (fun name -> not (List.mem name new_names))
+        |> List.to_seq
+        |> Seq.flat_map (fun name ->
+            match Tree.find_tree old_tree [ name ] with
+            | Some sub -> diff_trees (prefix @ [ name ]) sub (Tree.empty ())
+            | None -> Seq.empty)
+      in
+
+      Seq.append removed
+        (Seq.append added
+           (Seq.append changes (Seq.append added_subtrees removed_subtrees)))
+    in
+    diff_trees [] old_tree new_tree
 end
 
 module Git = Make (Codec.Git)
