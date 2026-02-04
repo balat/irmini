@@ -1,4 +1,4 @@
 (library
  (name irmin)
  (public_name irmin)
- (libraries eio digestif fmt logs git atp))
+ (libraries eio digestif fmt logs git atp wal bloom))

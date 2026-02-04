@@ -209,6 +209,41 @@ let test_disk_backend_write_batch () =
     objects;
   backend.close ()
 
+let test_disk_backend_wal_recovery () =
+  (* Test WAL crash recovery: write without flush, reopen, verify data *)
+  Eio_main.run @@ fun env ->
+  let cwd = Eio.Stdenv.cwd env in
+  let tmp_name = Printf.sprintf "irmin-wal-test-%d" (Random.int 100000) in
+  let tmp_path = Eio.Path.(cwd / tmp_name) in
+  let data = "wal recovery content" in
+  let hash = Hash.sha1 data in
+  (* Write but DON'T flush - simulates crash before checkpoint *)
+  Eio.Switch.run (fun sw ->
+      let backend = Backend.Disk.create_sha1 ~sw tmp_path in
+      backend.write hash data;
+      (* Verify it's readable in current session *)
+      Alcotest.(check (option string))
+        "readable before crash" (Some data) (backend.read hash);
+      (* Close without flush - WAL should still have the entry *)
+      backend.close ());
+  (* Reopen - should replay WAL and recover the data *)
+  Eio.Switch.run (fun sw ->
+      let backend = Backend.Disk.create_sha1 ~sw tmp_path in
+      Alcotest.(check (option string))
+        "recovered from WAL" (Some data) (backend.read hash);
+      (* Bloom filter should also have the entry *)
+      Alcotest.(check bool) "exists after recovery" true (backend.exists hash);
+      backend.close ());
+  (* Clean up *)
+  let rec rm path =
+    if Eio.Path.is_directory path then begin
+      List.iter (fun name -> rm Eio.Path.(path / name)) (Eio.Path.read_dir path);
+      Eio.Path.rmdir path
+    end
+    else if Eio.Path.is_file path then Eio.Path.unlink path
+  in
+  rm tmp_path
+
 (* Store tests *)
 let test_store_commit () =
   let backend = Backend.Memory.create_sha1 () in
@@ -284,6 +319,8 @@ let backend_tests =
     Alcotest.test_case "disk backend refs" `Quick test_disk_backend_refs;
     Alcotest.test_case "disk backend write_batch" `Quick
       test_disk_backend_write_batch;
+    Alcotest.test_case "disk backend WAL recovery" `Quick
+      test_disk_backend_wal_recovery;
   ]
 
 let test_store_diff () =

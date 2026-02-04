@@ -151,14 +151,23 @@ let layered ~(upper : 'h t) ~(lower : 'h t) : 'h t =
 
 let stats _ = None
 
-(** Disk-based backend using append-only storage.
+(** Disk-based backend using append-only storage with WAL and bloom filter.
 
     Storage layout:
-    - objects.data: append-only file with entries [length:4][data:length]
+    - objects.wal: write-ahead log for crash recovery (uses ocaml-wal)
+    - objects.data: append-only file containing all objects
     - objects.idx: index file mapping hex hash -> (offset, length)
+    - objects.bloom: serialized bloom filter for fast negative lookups
     - refs/: directory with one file per ref containing hex hash
 
-    Inspired by lavyek's append-only design for high write throughput. *)
+    Write path: 1. Write to WAL (crash-safe with CRC) 2. Write to data file 3.
+    Update in-memory index and bloom filter 4. On flush: save index and bloom,
+    then clear WAL
+
+    Recovery: 1. Load index and bloom from disk 2. Replay any entries in WAL not
+    yet in index
+
+    Inspired by lavyek's append-only design and LevelDB's WAL pattern. *)
 module Disk = struct
   module StringMap = Map.Make (String)
 
@@ -166,9 +175,11 @@ module Disk = struct
 
   type 'hash state = {
     root : Eio.Fs.dir_ty Eio.Path.t;
+    mutable wal : Wal.t option;
     mutable data_file : Eio.File.rw_ty Eio.Resource.t option;
     mutable data_offset : int;
     mutable index : index_entry StringMap.t;
+    bloom : string Bloom.t;
     mutable refs : 'hash StringMap.t;
     to_hex : 'hash -> string;
     equal : 'hash -> 'hash -> bool;
@@ -177,7 +188,12 @@ module Disk = struct
 
   let data_path root = Eio.Path.(root / "objects.data")
   let index_path root = Eio.Path.(root / "objects.idx")
+  let bloom_path root = Eio.Path.(root / "objects.bloom")
+  let wal_path root = Eio.Path.(root / "objects.wal")
   let refs_path root = Eio.Path.(root / "refs")
+
+  (* Expected number of objects for bloom filter sizing *)
+  let bloom_expected_size = 100_000
 
   (* Index file format: one line per entry "hex_hash offset length\n" *)
   let load_index root =
@@ -208,6 +224,21 @@ module Disk = struct
       |> String.concat ""
     in
     Eio.Path.save ~create:(`Or_truncate 0o644) tmp_path content;
+    Eio.Path.rename tmp_path path
+
+  let load_bloom root =
+    let path = bloom_path root in
+    if Eio.Path.is_file path then
+      match Bloom.of_bytes (Bytes.of_string (Eio.Path.load path)) with
+      | Ok bloom -> bloom
+      | Error _ -> Bloom.create bloom_expected_size
+    else Bloom.create bloom_expected_size
+
+  let save_bloom root bloom =
+    let path = bloom_path root in
+    let tmp_path = Eio.Path.(root / "objects.bloom.tmp") in
+    Eio.Path.save ~create:(`Or_truncate 0o644) tmp_path
+      (Bytes.to_string (Bloom.to_bytes bloom));
     Eio.Path.rename tmp_path path
 
   let load_refs root of_hex =
@@ -262,6 +293,42 @@ module Disk = struct
     in
     (file, offset)
 
+  (* WAL record format: "hex_hash\x00data" *)
+  let encode_wal_record hex data = hex ^ "\x00" ^ data
+
+  let decode_wal_record record =
+    match String.index_opt record '\x00' with
+    | None -> None
+    | Some i ->
+        let hex = String.sub record 0 i in
+        let data = String.sub record (i + 1) (String.length record - i - 1) in
+        Some (hex, data)
+
+  (* Replay WAL entries that aren't in the index yet *)
+  let replay_wal root index bloom data_file data_offset =
+    let wal_p = wal_path root in
+    if not (Eio.Path.is_file wal_p) then (index, bloom, data_offset)
+    else
+      let records = Wal.read_all wal_p in
+      List.fold_left
+        (fun (idx, blm, offset) record ->
+          match decode_wal_record record with
+          | None -> (idx, blm, offset)
+          | Some (hex, data) ->
+              if StringMap.mem hex idx then (idx, blm, offset)
+              else begin
+                (* Write to data file *)
+                let len = String.length data in
+                Eio.File.pwrite_all data_file
+                  ~file_offset:(Optint.Int63.of_int offset)
+                  [ Cstruct.of_string data ];
+                let idx' = StringMap.add hex { offset; length = len } idx in
+                Bloom.add blm hex;
+                (idx', blm, offset + len)
+              end)
+        (index, bloom, data_offset)
+        records
+
   let create_with_hash (type h) ~sw (root : Eio.Fs.dir_ty Eio.Path.t)
       (to_hex : h -> string) (of_hex : string -> (h, [ `Msg of string ]) result)
       (equal : h -> h -> bool) : h t =
@@ -269,14 +336,25 @@ module Disk = struct
     if not (Eio.Path.is_directory root) then
       Eio.Path.mkdirs ~exists_ok:true ~perm:0o755 root;
     let index = load_index root in
+    let bloom = load_bloom root in
+    (* Populate bloom from index if empty (first load after upgrade) *)
+    if Bloom.size_estimate bloom = 0 then
+      StringMap.iter (fun hex _ -> Bloom.add bloom hex) index;
     let refs = load_refs root of_hex in
     let file, offset = open_data_file ~sw root in
+    let data_file = (file :> Eio.File.rw_ty Eio.Resource.t) in
+    (* Replay any uncommitted WAL entries *)
+    let index, bloom, offset = replay_wal root index bloom data_file offset in
+    (* Open WAL for new writes *)
+    let wal = Wal.create ~sw (wal_path root) in
     let state =
       {
         root;
-        data_file = Some (file :> Eio.File.rw_ty Eio.Resource.t);
+        wal = Some wal;
+        data_file = Some data_file;
         data_offset = offset;
         index;
+        bloom;
         refs;
         to_hex;
         equal;
@@ -302,24 +380,31 @@ module Disk = struct
         (fun h data ->
           Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
               let key = state.to_hex h in
-              if StringMap.mem key state.index then ()
+              (* Fast path: bloom filter says "definitely not present" *)
+              if Bloom.mem state.bloom key && StringMap.mem key state.index then
+                ()
               else
-                match state.data_file with
-                | None -> ()
-                | Some file ->
+                match (state.wal, state.data_file) with
+                | Some wal, Some file ->
+                    (* Write to WAL first for crash safety *)
+                    Wal.append wal (encode_wal_record key data);
+                    Wal.sync wal;
+                    (* Then write to data file *)
                     let len = String.length data in
                     let offset = state.data_offset in
-                    (* Write data directly (no length prefix for simplicity) *)
                     Eio.File.pwrite_all file
                       ~file_offset:(Optint.Int63.of_int offset)
                       [ Cstruct.of_string data ];
                     state.data_offset <- offset + len;
                     state.index <-
-                      StringMap.add key { offset; length = len } state.index));
+                      StringMap.add key { offset; length = len } state.index;
+                    Bloom.add state.bloom key
+                | _ -> ()));
       exists =
         (fun h ->
           let key = state.to_hex h in
-          StringMap.mem key state.index);
+          (* Fast path: bloom filter for negative lookups *)
+          Bloom.mem state.bloom key && StringMap.mem key state.index);
       get_ref = (fun name -> StringMap.find_opt name state.refs);
       set_ref =
         (fun name hash ->
@@ -351,14 +436,22 @@ module Disk = struct
       write_batch =
         (fun objects ->
           Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
-              match state.data_file with
-              | None -> ()
-              | Some file ->
+              match (state.wal, state.data_file) with
+              | Some wal, Some file ->
+                  (* Write all to WAL first *)
+                  List.iter
+                    (fun (h, data) ->
+                      let key = state.to_hex h in
+                      if not (StringMap.mem key state.index) then
+                        Wal.append wal (encode_wal_record key data))
+                    objects;
+                  Wal.sync wal;
+                  (* Then write to data file *)
                   List.iter
                     (fun (h, data) ->
                       let key = state.to_hex h in
                       if StringMap.mem key state.index then ()
-                      else
+                      else begin
                         let len = String.length data in
                         let offset = state.data_offset in
                         Eio.File.pwrite_all file
@@ -366,24 +459,38 @@ module Disk = struct
                           [ Cstruct.of_string data ];
                         state.data_offset <- offset + len;
                         state.index <-
-                          StringMap.add key { offset; length = len } state.index)
-                    objects));
+                          StringMap.add key { offset; length = len } state.index;
+                        Bloom.add state.bloom key
+                      end)
+                    objects
+              | _ -> ()));
       flush =
         (fun () ->
           Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
               (match state.data_file with
               | Some file -> Eio.File.sync file
               | None -> ());
-              save_index state.root state.index));
+              save_index state.root state.index;
+              save_bloom state.root state.bloom;
+              (* Clear WAL after persisting index - entries are now recoverable
+                 from index + data file *)
+              let wal_p = wal_path state.root in
+              if Eio.Path.is_file wal_p then Eio.Path.unlink wal_p));
       close =
         (fun () ->
           Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+              (match state.wal with Some wal -> Wal.close wal | None -> ());
               (match state.data_file with
               | Some file ->
                   Eio.File.sync file;
                   Eio.Resource.close file
               | None -> ());
               save_index state.root state.index;
+              save_bloom state.root state.bloom;
+              (* Clear WAL *)
+              let wal_p = wal_path state.root in
+              if Eio.Path.is_file wal_p then Eio.Path.unlink wal_p;
+              state.wal <- None;
               state.data_file <- None));
     }
 
