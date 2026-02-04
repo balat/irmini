@@ -110,6 +110,105 @@ let test_backend_test_and_set () =
   let result = backend.test_and_set_ref "ref" ~test:(Some h1) ~set:(Some h2) in
   Alcotest.(check bool) "correct test succeeds" true result
 
+(* Disk backend tests *)
+let with_temp_dir f =
+  Eio_main.run @@ fun env ->
+  let fs = Eio.Stdenv.fs env in
+  let cwd = Eio.Stdenv.cwd env in
+  Eio.Switch.run @@ fun sw ->
+  let tmp_name = Printf.sprintf "irmin-test-%d" (Random.int 100000) in
+  let tmp_path = Eio.Path.(cwd / tmp_name) in
+  Eio.Path.mkdirs ~exists_ok:true ~perm:0o755 tmp_path;
+  Fun.protect
+    ~finally:(fun () ->
+      (* Clean up temp directory *)
+      let rec rm path =
+        if Eio.Path.is_directory path then begin
+          List.iter
+            (fun name -> rm Eio.Path.(path / name))
+            (Eio.Path.read_dir path);
+          Eio.Path.rmdir path
+        end
+        else if Eio.Path.is_file path then Eio.Path.unlink path
+      in
+      rm tmp_path)
+    (fun () -> f ~sw ~fs tmp_path)
+
+let test_disk_backend () =
+  with_temp_dir @@ fun ~sw ~fs:_ tmp_path ->
+  let backend = Backend.Disk.create_sha1 ~sw tmp_path in
+  let data = "test content" in
+  let hash = Hash.sha1 data in
+  backend.write hash data;
+  Alcotest.(check (option string)) "read back" (Some data) (backend.read hash);
+  backend.close ()
+
+let test_disk_backend_persistence () =
+  Eio_main.run @@ fun env ->
+  let cwd = Eio.Stdenv.cwd env in
+  let tmp_name = Printf.sprintf "irmin-test-%d" (Random.int 100000) in
+  let tmp_path = Eio.Path.(cwd / tmp_name) in
+  let data = "persistent content" in
+  let hash = Hash.sha1 data in
+  (* Write and close *)
+  Eio.Switch.run (fun sw ->
+      let backend = Backend.Disk.create_sha1 ~sw tmp_path in
+      backend.write hash data;
+      backend.set_ref "refs/heads/main" hash;
+      backend.flush ();
+      backend.close ());
+  (* Reopen and read *)
+  Eio.Switch.run (fun sw ->
+      let backend = Backend.Disk.create_sha1 ~sw tmp_path in
+      Alcotest.(check (option string))
+        "read after reopen" (Some data) (backend.read hash);
+      Alcotest.(check bool)
+        "ref persisted" true
+        (Option.is_some (backend.get_ref "refs/heads/main"));
+      backend.close ());
+  (* Clean up *)
+  let rec rm path =
+    if Eio.Path.is_directory path then begin
+      List.iter (fun name -> rm Eio.Path.(path / name)) (Eio.Path.read_dir path);
+      Eio.Path.rmdir path
+    end
+    else if Eio.Path.is_file path then Eio.Path.unlink path
+  in
+  rm tmp_path
+
+let test_disk_backend_refs () =
+  with_temp_dir @@ fun ~sw ~fs:_ tmp_path ->
+  let backend = Backend.Disk.create_sha1 ~sw tmp_path in
+  let data = "content" in
+  let hash = Hash.sha1 data in
+  backend.write hash data;
+  backend.set_ref "refs/heads/main" hash;
+  Alcotest.(check bool)
+    "ref exists" true
+    (Option.is_some (backend.get_ref "refs/heads/main"));
+  (match backend.get_ref "refs/heads/main" with
+  | Some h -> Alcotest.(check bool) "ref matches" true (Hash.equal hash h)
+  | None -> Alcotest.fail "ref not found");
+  backend.close ()
+
+let test_disk_backend_write_batch () =
+  with_temp_dir @@ fun ~sw ~fs:_ tmp_path ->
+  let backend = Backend.Disk.create_sha1 ~sw tmp_path in
+  let objects =
+    [
+      (Hash.sha1 "data1", "data1");
+      (Hash.sha1 "data2", "data2");
+      (Hash.sha1 "data3", "data3");
+    ]
+  in
+  backend.write_batch objects;
+  List.iter
+    (fun (hash, data) ->
+      Alcotest.(check (option string))
+        "batch item" (Some data) (backend.read hash))
+    objects;
+  backend.close ()
+
 (* Store tests *)
 let test_store_commit () =
   let backend = Backend.Memory.create_sha1 () in
@@ -179,6 +278,12 @@ let backend_tests =
     Alcotest.test_case "memory backend" `Quick test_memory_backend;
     Alcotest.test_case "backend refs" `Quick test_backend_refs;
     Alcotest.test_case "backend test_and_set" `Quick test_backend_test_and_set;
+    Alcotest.test_case "disk backend" `Quick test_disk_backend;
+    Alcotest.test_case "disk backend persistence" `Quick
+      test_disk_backend_persistence;
+    Alcotest.test_case "disk backend refs" `Quick test_disk_backend_refs;
+    Alcotest.test_case "disk backend write_batch" `Quick
+      test_disk_backend_write_batch;
   ]
 
 let test_store_diff () =

@@ -56,6 +56,33 @@ val layered : upper:'h t -> lower:'h t -> 'h t
     then lower. Writes go to upper only. Used for garbage collection
     (upper=live, lower=frozen). *)
 
+(** {1 Disk Backend} *)
+
+module Disk : sig
+  val create_with_hash :
+    sw:Eio.Switch.t ->
+    Eio.Fs.dir_ty Eio.Path.t ->
+    ('h -> string) ->
+    (string -> ('h, [ `Msg of string ]) result) ->
+    ('h -> 'h -> bool) ->
+    'h t
+  (** [create_with_hash ~sw root to_hex of_hex equal] creates a disk-based
+      backend at [root]. Uses append-only storage for objects with an index file
+      for lookups.
+
+      Storage layout:
+      - objects.data: append-only file containing all objects
+      - objects.idx: index mapping hex hash to (offset, length)
+      - refs/: directory with one file per ref *)
+
+  val create_sha1 : sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Hash.sha1 t
+  (** Create a disk-based SHA-1 backend. *)
+
+  val create_sha256 :
+    sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Hash.sha256 t
+  (** Create a disk-based SHA-256 backend. *)
+end
+
 (** {1 Statistics} *)
 
 type stats = { reads : int; writes : int; cache_hits : int; cache_misses : int }

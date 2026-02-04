@@ -150,3 +150,246 @@ let layered ~(upper : 'h t) ~(lower : 'h t) : 'h t =
   }
 
 let stats _ = None
+
+(** Disk-based backend using append-only storage.
+
+    Storage layout:
+    - objects.data: append-only file with entries [length:4][data:length]
+    - objects.idx: index file mapping hex hash -> (offset, length)
+    - refs/: directory with one file per ref containing hex hash
+
+    Inspired by lavyek's append-only design for high write throughput. *)
+module Disk = struct
+  module StringMap = Map.Make (String)
+
+  type index_entry = { offset : int; length : int }
+
+  type 'hash state = {
+    root : Eio.Fs.dir_ty Eio.Path.t;
+    mutable data_file : Eio.File.rw_ty Eio.Resource.t option;
+    mutable data_offset : int;
+    mutable index : index_entry StringMap.t;
+    mutable refs : 'hash StringMap.t;
+    to_hex : 'hash -> string;
+    equal : 'hash -> 'hash -> bool;
+    mutex : Eio.Mutex.t;
+  }
+
+  let data_path root = Eio.Path.(root / "objects.data")
+  let index_path root = Eio.Path.(root / "objects.idx")
+  let refs_path root = Eio.Path.(root / "refs")
+
+  (* Index file format: one line per entry "hex_hash offset length\n" *)
+  let load_index root =
+    let path = index_path root in
+    if Eio.Path.is_file path then
+      Eio.Path.load path |> String.split_on_char '\n'
+      |> List.fold_left
+           (fun idx line ->
+             if String.length line = 0 then idx
+             else
+               match String.split_on_char ' ' line with
+               | [ hex; off_s; len_s ] ->
+                   let offset = int_of_string off_s in
+                   let length = int_of_string len_s in
+                   StringMap.add hex { offset; length } idx
+               | _ -> idx)
+           StringMap.empty
+    else StringMap.empty
+
+  let save_index root index =
+    let path = index_path root in
+    let tmp_path = Eio.Path.(root / "objects.idx.tmp") in
+    let content =
+      StringMap.fold
+        (fun hex entry acc ->
+          Printf.sprintf "%s %d %d\n" hex entry.offset entry.length :: acc)
+        index []
+      |> String.concat ""
+    in
+    Eio.Path.save ~create:(`Or_truncate 0o644) tmp_path content;
+    Eio.Path.rename tmp_path path
+
+  let load_refs root of_hex =
+    let refs_root = refs_path root in
+    if Eio.Path.is_directory refs_root then
+      let rec scan_dir prefix path acc =
+        let entries = Eio.Path.read_dir path in
+        List.fold_left
+          (fun acc name ->
+            let entry_path = Eio.Path.(path / name) in
+            let full_name = if prefix = "" then name else prefix ^ "/" ^ name in
+            if Eio.Path.is_file entry_path then
+              let hex = String.trim (Eio.Path.load entry_path) in
+              match of_hex hex with
+              | Ok hash -> StringMap.add full_name hash acc
+              | Error _ -> acc
+            else if Eio.Path.is_directory entry_path then
+              scan_dir full_name entry_path acc
+            else acc)
+          acc entries
+      in
+      scan_dir "" refs_root StringMap.empty
+    else StringMap.empty
+
+  let save_ref root name hash to_hex =
+    let path = refs_path root in
+    if not (Eio.Path.is_directory path) then Eio.Path.mkdir ~perm:0o755 path;
+    let ref_path = Eio.Path.(path / name) in
+    (* Handle nested paths like refs/heads/main *)
+    let dir = Filename.dirname name in
+    if dir <> "." && dir <> "" then begin
+      let dir_path = Eio.Path.(path / dir) in
+      if not (Eio.Path.is_directory dir_path) then
+        Eio.Path.mkdirs ~exists_ok:true ~perm:0o755 dir_path
+    end;
+    Eio.Path.save ~create:(`Or_truncate 0o644) ref_path (to_hex hash ^ "\n")
+
+  let delete_ref root name =
+    let ref_path = Eio.Path.(refs_path root / name) in
+    if Eio.Path.is_file ref_path then Eio.Path.unlink ref_path
+
+  let open_data_file ~sw root =
+    let path = data_path root in
+    let file =
+      Eio.Path.open_out ~sw ~append:true ~create:(`If_missing 0o644) path
+    in
+    let offset =
+      if Eio.Path.is_file path then
+        let stat = Eio.Path.stat ~follow:true path in
+        Optint.Int63.to_int stat.size
+      else 0
+    in
+    (file, offset)
+
+  let create_with_hash (type h) ~sw (root : Eio.Fs.dir_ty Eio.Path.t)
+      (to_hex : h -> string) (of_hex : string -> (h, [ `Msg of string ]) result)
+      (equal : h -> h -> bool) : h t =
+    (* Create root directory if needed *)
+    if not (Eio.Path.is_directory root) then
+      Eio.Path.mkdirs ~exists_ok:true ~perm:0o755 root;
+    let index = load_index root in
+    let refs = load_refs root of_hex in
+    let file, offset = open_data_file ~sw root in
+    let state =
+      {
+        root;
+        data_file = Some (file :> Eio.File.rw_ty Eio.Resource.t);
+        data_offset = offset;
+        index;
+        refs;
+        to_hex;
+        equal;
+        mutex = Eio.Mutex.create ();
+      }
+    in
+    {
+      read =
+        (fun h ->
+          let key = state.to_hex h in
+          match StringMap.find_opt key state.index with
+          | None -> None
+          | Some entry -> (
+              match state.data_file with
+              | None -> None
+              | Some file ->
+                  let buf = Cstruct.create entry.length in
+                  Eio.File.pread_exact file
+                    ~file_offset:(Optint.Int63.of_int entry.offset)
+                    [ buf ];
+                  Some (Cstruct.to_string buf)));
+      write =
+        (fun h data ->
+          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+              let key = state.to_hex h in
+              if StringMap.mem key state.index then ()
+              else
+                match state.data_file with
+                | None -> ()
+                | Some file ->
+                    let len = String.length data in
+                    let offset = state.data_offset in
+                    (* Write data directly (no length prefix for simplicity) *)
+                    Eio.File.pwrite_all file
+                      ~file_offset:(Optint.Int63.of_int offset)
+                      [ Cstruct.of_string data ];
+                    state.data_offset <- offset + len;
+                    state.index <-
+                      StringMap.add key { offset; length = len } state.index));
+      exists =
+        (fun h ->
+          let key = state.to_hex h in
+          StringMap.mem key state.index);
+      get_ref = (fun name -> StringMap.find_opt name state.refs);
+      set_ref =
+        (fun name hash ->
+          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+              state.refs <- StringMap.add name hash state.refs;
+              save_ref state.root name hash state.to_hex));
+      test_and_set_ref =
+        (fun name ~test ~set ->
+          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+              let current = StringMap.find_opt name state.refs in
+              let matches =
+                match (test, current) with
+                | None, None -> true
+                | Some t, Some c -> state.equal t c
+                | _ -> false
+              in
+              if matches then begin
+                (match set with
+                | None ->
+                    state.refs <- StringMap.remove name state.refs;
+                    delete_ref state.root name
+                | Some h ->
+                    state.refs <- StringMap.add name h state.refs;
+                    save_ref state.root name h state.to_hex);
+                true
+              end
+              else false));
+      list_refs = (fun () -> StringMap.bindings state.refs |> List.map fst);
+      write_batch =
+        (fun objects ->
+          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+              match state.data_file with
+              | None -> ()
+              | Some file ->
+                  List.iter
+                    (fun (h, data) ->
+                      let key = state.to_hex h in
+                      if StringMap.mem key state.index then ()
+                      else
+                        let len = String.length data in
+                        let offset = state.data_offset in
+                        Eio.File.pwrite_all file
+                          ~file_offset:(Optint.Int63.of_int offset)
+                          [ Cstruct.of_string data ];
+                        state.data_offset <- offset + len;
+                        state.index <-
+                          StringMap.add key { offset; length = len } state.index)
+                    objects));
+      flush =
+        (fun () ->
+          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+              (match state.data_file with
+              | Some file -> Eio.File.sync file
+              | None -> ());
+              save_index state.root state.index));
+      close =
+        (fun () ->
+          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+              (match state.data_file with
+              | Some file ->
+                  Eio.File.sync file;
+                  Eio.Resource.close file
+              | None -> ());
+              save_index state.root state.index;
+              state.data_file <- None));
+    }
+
+  let create_sha1 ~sw root =
+    create_with_hash ~sw root Hash.to_hex Hash.sha1_of_hex Hash.equal
+
+  let create_sha256 ~sw root =
+    create_with_hash ~sw root Hash.to_hex Hash.sha256_of_hex Hash.equal
+end
