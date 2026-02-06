@@ -9,18 +9,18 @@
 val import_git :
   sw:Eio.Switch.t ->
   fs:Eio.Fs.dir_ty Eio.Path.t ->
-  git_dir:Fpath.t ->
+  git_dir:string ->
   Store.Git.t
 (** [import_git ~sw ~fs ~git_dir] opens a bare .git directory as an Irmin store.
     Supports both loose objects and pack files. *)
 
 val open_git :
-  sw:Eio.Switch.t -> fs:Eio.Fs.dir_ty Eio.Path.t -> path:Fpath.t -> Store.Git.t
+  sw:Eio.Switch.t -> fs:Eio.Fs.dir_ty Eio.Path.t -> path:string -> Store.Git.t
 (** [open_git ~sw ~fs ~path] opens a Git repository (with .git subdirectory) as
     an Irmin store. Supports both loose objects and pack files. *)
 
 val init_git :
-  sw:Eio.Switch.t -> fs:Eio.Fs.dir_ty Eio.Path.t -> path:Fpath.t -> Store.Git.t
+  sw:Eio.Switch.t -> fs:Eio.Fs.dir_ty Eio.Path.t -> path:string -> Store.Git.t
 (** [init_git ~sw ~fs ~path] initializes a new Git repository at [path] and
     returns an Irmin store for it. *)
 
@@ -29,7 +29,7 @@ val init_git :
 val read_object :
   sw:Eio.Switch.t ->
   fs:Eio.Fs.dir_ty Eio.Path.t ->
-  git_dir:Fpath.t ->
+  git_dir:string ->
   Hash.sha1 ->
   (string * string, [> `Msg of string ]) result
 (** [read_object ~sw ~fs ~git_dir hash] reads a Git object, returning
@@ -39,7 +39,7 @@ val read_object :
 val write_object :
   sw:Eio.Switch.t ->
   fs:Eio.Fs.dir_ty Eio.Path.t ->
-  git_dir:Fpath.t ->
+  git_dir:string ->
   typ:string ->
   string ->
   Hash.sha1
@@ -51,7 +51,7 @@ val write_object :
 val read_ref :
   sw:Eio.Switch.t ->
   fs:Eio.Fs.dir_ty Eio.Path.t ->
-  git_dir:Fpath.t ->
+  git_dir:string ->
   string ->
   Hash.sha1 option
 (** [read_ref ~sw ~fs ~git_dir name] reads a Git reference. Follows symbolic
@@ -60,7 +60,7 @@ val read_ref :
 val write_ref :
   sw:Eio.Switch.t ->
   fs:Eio.Fs.dir_ty Eio.Path.t ->
-  git_dir:Fpath.t ->
+  git_dir:string ->
   string ->
   Hash.sha1 ->
   unit
@@ -69,6 +69,6 @@ val write_ref :
 val list_refs :
   sw:Eio.Switch.t ->
   fs:Eio.Fs.dir_ty Eio.Path.t ->
-  git_dir:Fpath.t ->
+  git_dir:string ->
   string list
 (** [list_refs ~sw ~fs ~git_dir] lists all references. *)

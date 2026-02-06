@@ -111,7 +111,7 @@ module Git : SHA1 = struct
     let user_of_string s =
       (* Parse "Name <email>" format *)
       match String.index_opt s '<' with
-      | None -> Git.User.v ~name:s ~email:"" ~date:timestamp ()
+      | None -> Git.User.make ~name:s ~email:"" ~date:timestamp ()
       | Some i ->
           let name = String.trim (String.sub s 0 i) in
           let rest = String.sub s (i + 1) (String.length s - i - 1) in
@@ -120,9 +120,9 @@ module Git : SHA1 = struct
             | None -> rest
             | Some j -> String.sub rest 0 j
           in
-          Git.User.v ~name ~email ~date:timestamp ()
+          Git.User.make ~name ~email ~date:timestamp ()
     in
-    Git.Commit.v ~tree:(git_hash_of_sha1 tree)
+    Git.Commit.make ~tree:(git_hash_of_sha1 tree)
       ~parents:(List.map git_hash_of_sha1 parents)
       ~author:(user_of_string author) ~committer:(user_of_string committer)
       (Some message)

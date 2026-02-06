@@ -15,7 +15,7 @@ let run ~repo ~branch ~output () =
       1
   | Config.Git -> (
       (* Export as bundle or tar - for now just list what would be exported *)
-      let git_dir = Fpath.(v config.store_path / ".git") in
+      let git_dir = snd Eio.Path.(fs / config.store_path / ".git") in
       let store = Irmin.Git_interop.import_git ~sw ~fs ~git_dir in
       match Irmin.Store.Git.checkout store ~branch with
       | None ->
