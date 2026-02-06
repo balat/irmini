@@ -62,7 +62,7 @@ module Git : BACKEND = struct
   type hash = Hash.sha1
 
   let open_store ~sw ~fs ~config =
-    let git_dir = snd Eio.Path.(fs / config.Config.store_path / ".git") in
+    let git_dir = Fpath.(v config.Config.store_path / ".git") in
     Git_interop.import_git ~sw ~fs ~git_dir
 
   let checkout store ~branch = Store.Git.checkout store ~branch
