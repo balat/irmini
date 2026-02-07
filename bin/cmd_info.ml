@@ -40,7 +40,7 @@ let run_store ~repo () =
   Fmt.pr "Branch:  %s@." config.default_branch;
   match config.backend with
   | Config.Git ->
-      let git_dir = Fpath.(v config.store_path / ".git") in
+      let git_dir = snd Eio.Path.(fs / config.store_path / ".git") in
       let store = Irmin.Git_interop.import_git ~sw ~fs ~git_dir in
       let branches = Irmin.Store.Git.branches store in
       Fmt.pr "Branches: %d@." (List.length branches);
