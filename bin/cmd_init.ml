@@ -6,7 +6,7 @@ let run ~backend path =
   Eio_main.run @@ fun env ->
   let fs = Eio.Stdenv.cwd env in
   Eio.Switch.run @@ fun sw ->
-  let path' = snd Eio.Path.(fs / path) in
+  let path' = Fpath.v path in
   match backend with
   | `Git ->
       let _store = Git_interop.init_git ~sw ~fs ~path:path' in
