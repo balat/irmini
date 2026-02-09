@@ -364,7 +364,7 @@ let main_cmd =
       `P "$(b,git)(1)";
     ]
   in
-  let info = Cmd.info "irmin" ~version:"%%VERSION%%" ~doc ~man in
+  let info = Cmd.info "irmin" ~version:Mono_info.version ~doc ~man in
   Cmd.group info
     [
       init_cmd;
