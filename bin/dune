@@ -1,7 +1,7 @@
 (executable
  (name main)
  (public_name irmin)
- (libraries irmin atp cmdliner vlog tty eio_main fmt unix ocaml-build-info)
+ (libraries irmin atp cmdliner vlog tty eio_main fmt unix monopam-info)
  (modules
   config
   common
