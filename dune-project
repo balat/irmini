@@ -1,4 +1,4 @@
-(lang dune 3.17)
+(lang dune 3.21)
 (name irmin)
 (version 2.0.0~dev)
 
@@ -7,8 +7,8 @@
 (license ISC)
 (authors "Thomas Gazagnaire <thomas@gazagnaire.org>")
 (maintainers "Thomas Gazagnaire <thomas@gazagnaire.org>")
-(source
- (uri https://tangled.org/gazagnaire.org/irmin))
+
+(source (tangled gazagnaire.org/irmin))
 
 (package
  (name irmin)

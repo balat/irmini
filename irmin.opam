@@ -9,9 +9,11 @@ bidirectional Git compatibility and first-class subtree operations."""
 maintainer: ["Thomas Gazagnaire <thomas@gazagnaire.org>"]
 authors: ["Thomas Gazagnaire <thomas@gazagnaire.org>"]
 license: "ISC"
+homepage: "https://tangled.org/gazagnaire.org/irmin"
+bug-reports: "https://tangled.org/gazagnaire.org/irmin/issues"
 depends: [
   "ocaml" {>= "5.2"}
-  "dune" {>= "3.17" & >= "3.17"}
+  "dune" {>= "3.21" & >= "3.17"}
   "eio" {>= "1.2"}
   "eio_main" {>= "1.2"}
   "digestif" {>= "1.2"}
@@ -37,4 +39,5 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "https://tangled.org/gazagnaire.org/irmin"
+dev-repo: "git+https://tangled.org/gazagnaire.org/irmin"
+x-maintenance-intent: ["(latest)"]
