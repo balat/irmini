@@ -1,1 +1,1 @@
-(* empty *)
+(** MST proof benchmark executable. *)

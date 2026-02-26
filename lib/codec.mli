@@ -78,11 +78,22 @@ module type S = sig
   (** Create a commit. *)
 
   val commit_tree : commit -> hash
+  (** Tree hash of the commit. *)
+
   val commit_parents : commit -> hash list
+  (** Parent commit hashes. *)
+
   val commit_author : commit -> string
+  (** Author name. *)
+
   val commit_committer : commit -> string
+  (** Committer name. *)
+
   val commit_message : commit -> string
+  (** Commit message. *)
+
   val commit_timestamp : commit -> int64
+  (** Commit timestamp. *)
 
   val commit_of_bytes : string -> (commit, [> `Msg of string ]) result
   (** Parse a commit from bytes. *)

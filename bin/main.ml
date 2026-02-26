@@ -61,7 +61,7 @@ let init_cmd =
 
 (* === get === *)
 
-let get_path =
+let path =
   let doc = "Path to read." in
   Arg.(required & pos 0 (some string) None & info [] ~docv:"PATH" ~doc)
 
@@ -78,7 +78,7 @@ let get_cmd =
     Term.(
       const (fun () repo branch output path ->
           exit (Cmd_get.run ~repo ~branch ~output path))
-      $ setup $ repo $ branch $ output $ get_path)
+      $ setup $ repo $ branch $ output $ path)
 
 (* === set === *)
 
@@ -191,7 +191,7 @@ let checkout_branch =
   let doc = "Branch to checkout or create." in
   Arg.(required & pos 0 (some string) None & info [] ~docv:"BRANCH" ~doc)
 
-let create_flag =
+let flag =
   let doc = "Create a new branch." in
   Arg.(value & flag & info [ "c"; "create" ] ~doc)
 
@@ -209,7 +209,7 @@ let checkout_cmd =
     Term.(
       const (fun () repo create branch ->
           exit (Cmd_checkout.run ~repo ~create branch))
-      $ setup $ repo $ create_flag $ checkout_branch)
+      $ setup $ repo $ flag $ checkout_branch)
 
 (* === proof === *)
 
