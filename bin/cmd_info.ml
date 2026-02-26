@@ -1,29 +1,26 @@
 (** Info command - show store or file information. *)
 
+let print_car_info file data =
+  let header, blocks = Atp.Car.of_string ~cid_format:`Atproto data in
+  let block_count = List.length blocks in
+  let total_size =
+    List.fold_left (fun acc (_, d) -> acc + String.length d) 0 blocks
+  in
+  Fmt.pr "File:    %s@." file;
+  Fmt.pr "Format:  CAR v%d@." header.Atp.Car.version;
+  Fmt.pr "Roots:   %d@." (List.length header.roots);
+  List.iter (fun cid -> Fmt.pr "  %s@." (Atp.Cid.to_string cid)) header.roots;
+  Fmt.pr "Blocks:  %d@." block_count;
+  Fmt.pr "Size:    %d bytes@." total_size;
+  0
+
 let run_file file =
   Eio_main.run @@ fun env ->
   let fs = Eio.Stdenv.cwd env in
   Eio.Switch.run @@ fun _sw ->
   let file_path = Eio.Path.(fs / file) in
   let data = Eio.Path.load file_path in
-  let is_car =
-    String.length file > 4
-    && String.sub file (String.length file - 4) 4 = ".car"
-  in
-  if is_car then begin
-    let header, blocks = Atp.Car.of_string ~cid_format:`Atproto data in
-    let block_count = List.length blocks in
-    let total_size =
-      List.fold_left (fun acc (_, d) -> acc + String.length d) 0 blocks
-    in
-    Fmt.pr "File:    %s@." file;
-    Fmt.pr "Format:  CAR v%d@." header.Atp.Car.version;
-    Fmt.pr "Roots:   %d@." (List.length header.roots);
-    List.iter (fun cid -> Fmt.pr "  %s@." (Atp.Cid.to_string cid)) header.roots;
-    Fmt.pr "Blocks:  %d@." block_count;
-    Fmt.pr "Size:    %d bytes@." total_size;
-    0
-  end
+  if Filename.check_suffix file ".car" then print_car_info file data
   else begin
     Fmt.pr "File:    %s@." file;
     Fmt.pr "Size:    %d bytes@." (String.length data);

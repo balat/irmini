@@ -40,7 +40,7 @@ let get l =
   | In_memory x | Both (x, _) -> x
   | At addr -> (
       match l.content.fetch addr with
-      | None -> failwith (Printf.sprintf "Link.get: address not found: %s" addr)
+      | None -> Fmt.failwith "Link.get: address not found: %s" addr
       | Some data ->
           let x = decode data in
           l.location <- Both (x, addr);
@@ -62,9 +62,9 @@ let is_val l =
 
 let pp ppf l =
   match l.location with
-  | In_memory _ -> Format.fprintf ppf "<mem>"
+  | In_memory _ -> Fmt.string ppf "<mem>"
   | At addr | Both (_, addr) ->
-      Format.fprintf ppf "%s" (String.sub addr 0 (min 7 (String.length addr)))
+      Fmt.string ppf (String.sub addr 0 (min 7 (String.length addr)))
 
 (* Store operations *)
 

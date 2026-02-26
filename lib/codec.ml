@@ -248,7 +248,8 @@ module Mst : SHA256 = struct
 
   let node_of_bytes data : (node, [> `Msg of string ]) result =
     try Ok (Atp.Mst.Raw.decode_bytes data)
-    with _ -> Error (`Msg "failed to decode MST node")
+    with exn ->
+      Error (`Msg ("failed to decode MST node: " ^ Printexc.to_string exn))
 
   let hash_node node =
     let data = bytes_of_node node in

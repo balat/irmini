@@ -1,5 +1,5 @@
 (test
- (name test_irmin)
+ (name test)
  (libraries irmin alcotest eio_main))
 
 (executable

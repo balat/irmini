@@ -241,9 +241,16 @@ module Disk = struct
       (Bytes.to_string (Bloom.to_bytes bloom));
     Eio.Path.rename tmp_path path
 
+  let load_ref of_hex acc full_name entry_path =
+    let hex = String.trim (Eio.Path.load entry_path) in
+    match of_hex hex with
+    | Ok hash -> StringMap.add full_name hash acc
+    | Error _ -> acc
+
   let load_refs root of_hex =
     let refs_root = refs_path root in
-    if Eio.Path.is_directory refs_root then
+    if not (Eio.Path.is_directory refs_root) then StringMap.empty
+    else
       let rec scan_dir prefix path acc =
         let entries = Eio.Path.read_dir path in
         List.fold_left
@@ -251,17 +258,13 @@ module Disk = struct
             let entry_path = Eio.Path.(path / name) in
             let full_name = if prefix = "" then name else prefix ^ "/" ^ name in
             if Eio.Path.is_file entry_path then
-              let hex = String.trim (Eio.Path.load entry_path) in
-              match of_hex hex with
-              | Ok hash -> StringMap.add full_name hash acc
-              | Error _ -> acc
+              load_ref of_hex acc full_name entry_path
             else if Eio.Path.is_directory entry_path then
               scan_dir full_name entry_path acc
             else acc)
           acc entries
       in
       scan_dir "" refs_root StringMap.empty
-    else StringMap.empty
 
   let save_ref root name hash to_hex =
     let path = refs_path root in

@@ -351,7 +351,7 @@ let info_cmd =
 
 (* === Main === *)
 
-let main_cmd =
+let cmd =
   let doc = "Content-addressed storage" in
   let man =
     [
@@ -382,4 +382,4 @@ let main_cmd =
       proof_cmd;
     ]
 
-let () = exit (Cmd.eval main_cmd)
+let () = exit (Cmd.eval cmd)

@@ -87,13 +87,13 @@ val mst_depth : sha256 -> int
 type any = Any : _ t -> any  (** Type-erased hash for mixed-hash stores. *)
 
 val any_algorithm : any -> algorithm
-(** [any_algorithm (Any h)] returns the algorithm of the erased hash. *)
+(** [any_algorithm a] returns the algorithm of the erased hash. *)
 
 val any_to_bytes : any -> string
-(** [any_to_bytes (Any h)] returns the raw bytes. *)
+(** [any_to_bytes a] returns the raw bytes. *)
 
 val any_to_hex : any -> string
-(** [any_to_hex (Any h)] returns the hex representation. *)
+(** [any_to_hex a] returns the hex representation. *)
 
 val equal_any : any -> any -> bool
 (** [equal_any a1 a2] compares two type-erased hashes. *)

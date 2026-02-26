@@ -43,7 +43,7 @@ let parse_config_file path =
     in
     loop []
 
-let config_of_pairs pairs =
+let of_pairs pairs =
   List.fold_left
     (fun cfg (key, value) ->
       match key with
@@ -66,7 +66,7 @@ let detect_backend ~cwd =
     (* Check for config in .irmin/ *)
     let config_path = Filename.concat irmin_dir "config" in
     match parse_config_file config_path with
-    | Some pairs -> Some (config_of_pairs pairs)
+    | Some pairs -> Some (of_pairs pairs)
     | None -> Some { default with backend = Mst; store_path = irmin_dir }
   else None
 
@@ -77,13 +77,13 @@ let load ?config_file ~repo () =
   match config_file with
   | Some path -> (
       match parse_config_file path with
-      | Some pairs -> config_of_pairs pairs
+      | Some pairs -> of_pairs pairs
       | None -> default)
   | None -> (
       (* Try .irmin/config in repo *)
       let irmin_config = Filename.concat repo ".irmin/config" in
       match parse_config_file irmin_config with
-      | Some pairs -> config_of_pairs pairs
+      | Some pairs -> of_pairs pairs
       | None -> (
           (* Auto-detect from directory structure *)
           match detect_backend ~cwd:repo with

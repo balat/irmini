@@ -21,6 +21,23 @@ let before p = p.before
 let after p = p.after
 let state p = p.state
 
+let pp pp_hash pp_contents fmt p =
+  let pp_kinded fmt = function
+    | `Contents h -> Fmt.pf fmt "contents:%a" pp_hash h
+    | `Node h -> Fmt.pf fmt "node:%a" pp_hash h
+  in
+  let rec pp_tree fmt = function
+    | Contents c -> Fmt.pf fmt "(%a)" pp_contents c
+    | Blinded_contents h -> Fmt.pf fmt "#(%a)" pp_hash h
+    | Node entries ->
+        Fmt.pf fmt "{%a}"
+          Fmt.(list ~sep:(any ", ") (pair ~sep:(any ":") string pp_tree))
+          entries
+    | Blinded_node h -> Fmt.pf fmt "#{%a}" pp_hash h
+  in
+  Fmt.pf fmt "@[<2>proof{before=%a;@ after=%a;@ state=%a}@]" pp_kinded p.before
+    pp_kinded p.after pp_tree p.state
+
 module Make (C : Codec.S) = struct
   type hash = C.hash
   type contents = string

@@ -57,6 +57,14 @@ val after : ('hash, _) t -> 'hash kinded_hash
 val state : ('hash, 'contents) t -> ('hash, 'contents) tree
 (** [state p] is the sparse tree proving the computation. *)
 
+val pp :
+  (Format.formatter -> 'hash -> unit) ->
+  (Format.formatter -> 'contents -> unit) ->
+  Format.formatter ->
+  ('hash, 'contents) t ->
+  unit
+(** [pp pp_hash pp_contents fmt p] pretty-prints a proof. *)
+
 (** {1 Producing and Verifying Proofs}
 
     These operations are parameterized by a codec for hashing. *)
