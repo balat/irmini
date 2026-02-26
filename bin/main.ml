@@ -65,7 +65,7 @@ let path =
   let doc = "Path to read." in
   Arg.(required & pos 0 (some string) None & info [] ~docv:"PATH" ~doc)
 
-let get_cmd =
+let read_cmd =
   let doc = "Read content at a path." in
   let man =
     [
@@ -368,7 +368,7 @@ let cmd =
   Cmd.group info
     [
       init_cmd;
-      get_cmd;
+      read_cmd;
       set_cmd;
       del_cmd;
       list_cmd;

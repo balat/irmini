@@ -8,24 +8,20 @@ let run ~repo ~create branch =
   Eio.Switch.run @@ fun sw ->
   let store = B.open_store ~sw ~fs ~config in
   let existing = B.branches store in
-  if not create then begin
-    if not (List.mem branch existing) then begin
+  let exists = List.mem branch existing in
+  match (create, exists) with
+  | false, false ->
       Common.error "Branch %a not found" Common.styled_cyan branch;
       1
-    end
-    else begin
+  | false, true ->
       Common.success "Switched to branch %a" Common.styled_cyan branch;
       0
-    end
-  end
-  else if List.mem branch existing then begin
-    Common.error "Branch %a already exists" Common.styled_cyan branch;
-    1
-  end
-  else begin
-    let candidates = "main" :: List.filter (( <> ) "main") existing in
-    let head = List.find_map (fun b -> B.head store ~branch:b) candidates in
-    (match head with Some h -> B.set_head store ~branch h | None -> ());
-    Common.success "Created branch %a" Common.styled_cyan branch;
-    0
-  end
+  | true, true ->
+      Common.error "Branch %a already exists" Common.styled_cyan branch;
+      1
+  | true, false ->
+      let candidates = "main" :: List.filter (( <> ) "main") existing in
+      let head = List.find_map (fun b -> B.head store ~branch:b) candidates in
+      (match head with Some h -> B.set_head store ~branch h | None -> ());
+      Common.success "Created branch %a" Common.styled_cyan branch;
+      0

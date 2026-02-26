@@ -18,6 +18,27 @@ let detect_object_type data =
     `Tree
   else `Blob
 
+let git_value_of_data data =
+  match detect_object_type data with
+  | `Blob -> Git.Value.blob (Git.Blob.of_string data)
+  | `Tree -> Git.Value.tree (Git.Tree.of_string_exn data)
+  | `Commit -> Git.Value.commit (Git.Commit.of_string_exn data)
+
+let test_and_set_ref repo name ~test ~set =
+  let current = Git.Repository.read_ref repo name in
+  let matches =
+    match (test, current) with
+    | None, None -> true
+    | Some t, Some c -> Git.Hash.equal (git_hash_of_sha1 t) c
+    | _ -> false
+  in
+  if matches then (
+    (match set with
+    | None -> Git.Repository.delete_ref repo name
+    | Some h -> Git.Repository.write_ref repo name (git_hash_of_sha1 h));
+    true)
+  else false
+
 (* Create Git backend from a Git.Repository.t *)
 let git_backend (repo : Git.Repository.t) : Hash.sha1 Backend.t =
   {
@@ -29,15 +50,7 @@ let git_backend (repo : Git.Repository.t) : Hash.sha1 Backend.t =
         | Error _ -> None);
     write =
       (fun _expected_hash data ->
-        (* Detect object type and write with correct Git wrapper *)
-        let value =
-          match detect_object_type data with
-          | `Blob -> Git.Value.blob (Git.Blob.of_string data)
-          | `Tree -> Git.Value.tree (Git.Tree.of_string_exn data)
-          | `Commit -> Git.Value.commit (Git.Commit.of_string_exn data)
-        in
-        let _git_hash = Git.Repository.write repo value in
-        ());
+        ignore (Git.Repository.write repo (git_value_of_data data)));
     exists =
       (fun hash ->
         let git_hash = git_hash_of_sha1 hash in
@@ -48,34 +61,13 @@ let git_backend (repo : Git.Repository.t) : Hash.sha1 Backend.t =
     set_ref =
       (fun name hash ->
         Git.Repository.write_ref repo name (git_hash_of_sha1 hash));
-    test_and_set_ref =
-      (fun name ~test ~set ->
-        let current = Git.Repository.read_ref repo name in
-        let matches =
-          match (test, current) with
-          | None, None -> true
-          | Some t, Some c -> Git.Hash.equal (git_hash_of_sha1 t) c
-          | _ -> false
-        in
-        if matches then (
-          (match set with
-          | None -> Git.Repository.delete_ref repo name
-          | Some h -> Git.Repository.write_ref repo name (git_hash_of_sha1 h));
-          true)
-        else false);
+    test_and_set_ref = test_and_set_ref repo;
     list_refs = (fun () -> Git.Repository.list_refs repo);
     write_batch =
       (fun objects ->
         List.iter
           (fun (_expected_hash, data) ->
-            let value =
-              match detect_object_type data with
-              | `Blob -> Git.Value.blob (Git.Blob.of_string data)
-              | `Tree -> Git.Value.tree (Git.Tree.of_string_exn data)
-              | `Commit -> Git.Value.commit (Git.Commit.of_string_exn data)
-            in
-            let _git_hash = Git.Repository.write repo value in
-            ())
+            ignore (Git.Repository.write repo (git_value_of_data data)))
           objects);
     flush = (fun () -> ());
     close = (fun () -> ());
