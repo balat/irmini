@@ -231,8 +231,8 @@ module Disk = struct
     if Eio.Path.is_file path then
       match Bloom.of_bytes (Bytes.of_string (Eio.Path.load path)) with
       | Ok bloom -> bloom
-      | Error _ -> Bloom.create bloom_expected_size
-    else Bloom.create bloom_expected_size
+      | Error _ -> Bloom.v bloom_expected_size
+    else Bloom.v bloom_expected_size
 
   let save_bloom root bloom =
     let path = bloom_path root in
