@@ -189,7 +189,7 @@ def generate_chart(scale="linear"):
     lines.append(f'<text x="{svg_w/2}" y="28" text-anchor="middle" font-size="16" '
                  f'font-weight="bold">Benchmark comparison (ops/s, {scale_label} scale)</text>')
     lines.append(f'<text x="{svg_w/2}" y="46" text-anchor="middle" font-size="11" '
-                 f'fill="#666">50 commits x 500 adds, depth 10, 5000 reads, 100-byte values</text>')
+                 f'fill="#666">50 commits × 500 adds, depth 10, 5000 reads — 100-byte values (30-byte for +inline, 10 KiB for large-values)</text>')
 
     # Chart area
     ox, oy = margin_left, margin_top
@@ -300,7 +300,8 @@ timestamp = int(time.time())
 
 # Remove previous chart files
 for old in glob.glob("bench/bench_chart_*.svg") + glob.glob("bench/bench_chart_log_*.svg"):
-    os.remove(old)
+    if os.path.exists(old):
+        os.remove(old)
 
 charts = {
     "linear": f"bench/bench_chart_{timestamp}.svg",

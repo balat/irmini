@@ -62,9 +62,9 @@ Run on 2026-03-06, AMD 12-core, 50 commits × 500 adds, depth 10, 5000 reads,
 
 ### Overview
 
-![Benchmark comparison](bench_chart_1772814977.svg)
+![Benchmark comparison](bench_chart_1772815113.svg)
 
-![Benchmark comparison (log scale)](bench_chart_log_1772814977.svg)
+![Benchmark comparison (log scale)](bench_chart_log_1772815113.svg)
 
 To regenerate the charts after updating the data in `gen_chart.py`:
 
