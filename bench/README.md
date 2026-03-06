@@ -39,8 +39,9 @@ IRMIN_EIO_DIR=/path/to/irmin ./bench/run.sh
    the overhead of copy-on-write.
 4. **large-values** — Commits with 10 KiB values. Measures throughput on
    bigger payloads.
-5. **concurrent** *(disk and lavyek only)* — 100 fibers across 12 domains
-   doing concurrent reads/writes. Measures lock-free scalability.
+5. **concurrent** *(disk, lavyek, irmin-pack)* — 100 fibers across 12 domains
+   doing concurrent reads/writes. Measures lock-free scalability. For
+   irmin-pack, each fiber writes to its own branch to avoid CAS contention.
 
 ## Files
 
@@ -91,10 +92,11 @@ Irmin-Eio+inline (memory)     commits               167387        0.1        191
 Irmin-Eio+inline (memory)     reads                1626582        0.0        172
 Irmin-Eio+inline (memory)     incremental             2896        0.0        171
 Irmin-Eio+inline (memory)     large-values           16053        0.6        170
-Irmin-pack+inline (disk)      commits                52114        0.5        411
-Irmin-pack+inline (disk)      reads                1351345        0.0        392
-Irmin-pack+inline (disk)      incremental             1974        0.0        392
-Irmin-pack+inline (disk)      large-values            8950        1.1        392
+Irmin-pack+inline (disk)      commits                52204        0.5        530
+Irmin-pack+inline (disk)      reads                1464492        0.0        529
+Irmin-pack+inline (disk)      incremental             1867        0.0        529
+Irmin-pack+inline (disk)      large-values            7587        1.3        529
+Irmin-pack+inline (disk)      concurrent-100f/12d     1671        6.0        308
 ```
 
 ### Irmin (Eio branch, no inlining)
@@ -109,10 +111,11 @@ Irmin-Eio (memory)             commits               167735        0.1        19
 Irmin-Eio (memory)             reads                1528648        0.0        172
 Irmin-Eio (memory)             incremental             2721        0.0        171
 Irmin-Eio (memory)             large-values           15408        0.6        170
-Irmin-pack (disk)              commits                41507        0.6        410
-Irmin-pack (disk)              reads                1570312        0.0        390
-Irmin-pack (disk)              incremental             1725        0.0        390
-Irmin-pack (disk)              large-values            8702        1.1        390
+Irmin-pack (disk)              commits                51883        0.5        509
+Irmin-pack (disk)              reads                1277738        0.0        502
+Irmin-pack (disk)              incremental             1709        0.0        502
+Irmin-pack (disk)              large-values            7971        1.3        502
+Irmin-pack (disk)              concurrent-100f/12d     1514        6.6        302
 ```
 
 ### Key observations
@@ -133,7 +136,9 @@ Irmin-pack (disk)              large-values            8702        1.1        39
   (< 48 bytes) and higher I/O pressure.
 - **Concurrent workload**: Lavyek is **1700×** faster than irmini's disk
   backend under contention (100 fibers / 12 domains). Lavyek is lock-free;
-  the disk backend serializes writes behind `Eio.Mutex`.
+  the disk backend serializes writes behind `Eio.Mutex`. irmin-pack
+  achieves ~1.5–1.7 k ops/s (per-branch writes), **~6× faster** than
+  irmini's disk but **~270 000× slower** than Lavyek.
 - **Reads (irmini)**: Memory is fastest (9.6 k ops/s), Lavyek close behind
   (8.3 k), disk significantly slower (4 k). By comparison, Irmin-Eio
   reads are ~160× faster at 1.5 M ops/s.
@@ -144,4 +149,4 @@ Irmin-pack (disk)              large-values            8702        1.1        39
 - **Large values**: Irmini's disk degrades sharply (91 ops/s) while
   Irmin-Eio stays at 9–16 k ops/s across backends.
 - **Memory usage**: Irmini uses more RSS (310–475 MiB) than Irmin-Eio
-  (170–411 MiB). irmin-pack uses ~390–411 MiB due to the index and LRU.
+  (170–530 MiB). irmin-pack uses ~500–530 MiB due to the index and LRU.
