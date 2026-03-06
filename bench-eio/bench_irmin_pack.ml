@@ -8,12 +8,13 @@ module Conf = struct
   let forbid_empty_dir_persistence = true
 end
 
-module Store = Irmin_pack_unix.KV(Conf).Make (Irmin.Contents.String)
+module Maker = Irmin_pack_unix.KV (Conf)
+module Store = Maker.Make (Irmin.Contents.String)
 module B = Bench_irmin_eio.Bench (Store)
 
 let run_all ~sw ~fs conf root =
   let config =
-    Irmin_pack.Conf.init ~sw ~fs ~fresh:true root
+    Irmin_pack.Conf.init ~sw ~fs ~fresh:true Eio.Path.(fs / root)
   in
   let repo = Store.Repo.v config in
   let results = B.run_all ~name:"Irmin-pack (eio)" conf repo in

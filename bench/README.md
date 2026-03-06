@@ -79,32 +79,40 @@ Irmini (lavyek)                large-values            1286        7.8        47
 Irmini (lavyek)                concurrent-100f/12d   447187        0.0        475
 ```
 
-### Irmin (Eio branch + inline-small-objects-v2, in-memory)
+### Irmin (Eio branch + inline-small-objects-v2)
 
 Official Irmin on branch `cuihtlauac-inline-small-objects-v2` (Eio-based,
-with small object inlining). In-memory backend only.
+with small object inlining). In-memory and irmin-pack (disk) backends.
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
-Irmin-Eio+inline (memory)     commits               169489        0.1        167
-Irmin-Eio+inline (memory)     reads                1583234        0.0        149
-Irmin-Eio+inline (memory)     incremental             2771        0.0        148
-Irmin-Eio+inline (memory)     large-values           16188        0.6        147
+Irmin-Eio+inline (memory)     commits               167387        0.1        191
+Irmin-Eio+inline (memory)     reads                1626582        0.0        172
+Irmin-Eio+inline (memory)     incremental             2896        0.0        171
+Irmin-Eio+inline (memory)     large-values           16053        0.6        170
+Irmin-pack+inline (disk)      commits                52114        0.5        411
+Irmin-pack+inline (disk)      reads                1351345        0.0        392
+Irmin-pack+inline (disk)      incremental             1974        0.0        392
+Irmin-pack+inline (disk)      large-values            8950        1.1        392
 ```
 
-### Irmin (Eio branch, no inlining, in-memory)
+### Irmin (Eio branch, no inlining)
 
 Official Irmin on branch `eio` (Eio-based, without inlining). In-memory
-backend only, for baseline comparison.
+and irmin-pack (disk) backends, for baseline comparison.
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
-Irmin-Eio (memory)             commits               169262        0.1        170
-Irmin-Eio (memory)             reads                1534689        0.0        152
-Irmin-Eio (memory)             incremental             2809        0.0        151
-Irmin-Eio (memory)             large-values           15687        0.6        150
+Irmin-Eio (memory)             commits               167735        0.1        191
+Irmin-Eio (memory)             reads                1528648        0.0        172
+Irmin-Eio (memory)             incremental             2721        0.0        171
+Irmin-Eio (memory)             large-values           15408        0.6        170
+Irmin-pack (disk)              commits                41507        0.6        410
+Irmin-pack (disk)              reads                1570312        0.0        390
+Irmin-pack (disk)              incremental             1725        0.0        390
+Irmin-pack (disk)              large-values            8702        1.1        390
 ```
 
 ### Key observations
@@ -114,18 +122,26 @@ Irmin-Eio (memory)             large-values           15687        0.6        15
   inode-based tree representation with efficient structural sharing, while
   irmini's simpler tree implementation re-serializes entire nodes on each
   commit.
-- **Inlining impact on Irmin-Eio**: Marginal on these benchmarks (100-byte
-  values, in-memory backend). Inlining benefits show up on disk I/O-bound
-  workloads with many small values (< 48 bytes).
+- **Irmin-pack (disk) vs Irmin-Eio (memory)**: irmin-pack commits are
+  **~4× slower** than in-memory (42–52 k vs 167 k ops/s), but reads are
+  equally fast (~1.5 M ops/s) thanks to the LRU cache. Large-values
+  throughput drops ~2× on disk (8.7–9.0 k vs 15–16 k ops/s).
+- **Inlining impact on Irmin-Eio**: Marginal on in-memory benchmarks
+  (100-byte values). On irmin-pack, inlining gives a **~25% boost** on
+  commits (52 k vs 42 k ops/s) and slightly better incrementals.
+  Benefits are expected to be more pronounced with many small values
+  (< 48 bytes) and higher I/O pressure.
 - **Concurrent workload**: Lavyek is **1700×** faster than irmini's disk
   backend under contention (100 fibers / 12 domains). Lavyek is lock-free;
   the disk backend serializes writes behind `Eio.Mutex`.
 - **Reads (irmini)**: Memory is fastest (9.6 k ops/s), Lavyek close behind
-  (8.3 k), disk significantly slower (4 k).
+  (8.3 k), disk significantly slower (4 k). By comparison, Irmin-Eio
+  reads are ~160× faster at 1.5 M ops/s.
 - **Incremental updates**: Irmini's disk backend is extremely slow (10 ops/s)
   due to full tree re-serialization. Memory and Lavyek handle small updates
-  efficiently. Irmin-Eio handles incrementals well (~2.8 k ops/s).
+  efficiently. Irmin-Eio handles incrementals well (~1.7–2.9 k ops/s on
+  both memory and irmin-pack).
 - **Large values**: Irmini's disk degrades sharply (91 ops/s) while
-  Irmin-Eio stays at 16 k ops/s.
+  Irmin-Eio stays at 9–16 k ops/s across backends.
 - **Memory usage**: Irmini uses more RSS (310–475 MiB) than Irmin-Eio
-  (147–170 MiB), reflecting the less efficient tree representation.
+  (170–411 MiB). irmin-pack uses ~390–411 MiB due to the index and LRU.
