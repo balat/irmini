@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Generate an SVG bar chart from benchmark results, grouped by scenario."""
 
+import glob
 import math
+import os
+import re
+import time
 
 # --- Data (from README.md, eio branch results) ---
 
@@ -244,7 +248,27 @@ lines.append('</g>')
 lines.append('</svg>')
 
 svg = "\n".join(lines)
-out = "bench/bench_chart.svg"
+
+# Write SVG with a timestamp-based filename to bust caches
+# Remove previous chart files
+for old in glob.glob("bench/bench_chart_*.svg"):
+    os.remove(old)
+
+timestamp = int(time.time())
+out = f"bench/bench_chart_{timestamp}.svg"
 with open(out, "w") as f:
     f.write(svg)
 print(f"Written to {out}")
+
+# Update the README reference
+readme = "bench/README.md"
+with open(readme, "r") as f:
+    content = f.read()
+content = re.sub(
+    r'!\[Benchmark comparison\]\(bench_chart[^)]*\)',
+    f'![Benchmark comparison]({os.path.basename(out)})',
+    content,
+)
+with open(readme, "w") as f:
+    f.write(content)
+print(f"Updated {readme}")
