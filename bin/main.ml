@@ -77,7 +77,7 @@ let read_cmd =
   Cmd.v (Cmd.info "get" ~doc ~man)
     Term.(
       const (fun () repo branch output path ->
-          exit (Cmd_get.run ~repo ~branch ~output path))
+          Stdlib.exit (Cmd_get.run ~repo ~branch ~output path))
       $ setup $ repo $ branch $ output $ path)
 
 (* === set === *)
@@ -118,7 +118,7 @@ let del_cmd =
   Cmd.v (Cmd.info "del" ~doc ~man)
     Term.(
       const (fun () repo branch message path ->
-          exit (Cmd_del.run ~repo ~branch ~message path))
+          Stdlib.exit (Cmd_del.run ~repo ~branch ~message path))
       $ setup $ repo $ branch $ message $ del_path)
 
 (* === list === *)
@@ -136,7 +136,7 @@ let list_cmd =
     (Cmd.info "list" ~doc ~man)
     Term.(
       const (fun () repo branch output prefix ->
-          exit (Cmd_list.run ~repo ~branch ~output prefix))
+          Stdlib.exit (Cmd_list.run ~repo ~branch ~output prefix))
       $ setup $ repo $ branch $ output $ list_prefix)
 
 (* === tree === *)
@@ -154,7 +154,7 @@ let tree_cmd =
     (Cmd.info "tree" ~doc ~man)
     Term.(
       const (fun () repo branch output path ->
-          exit (Cmd_tree.run ~repo ~branch ~output path))
+          Stdlib.exit (Cmd_tree.run ~repo ~branch ~output path))
       $ setup $ repo $ branch $ output $ tree_path)
 
 (* === log === *)
@@ -173,7 +173,7 @@ let log_cmd =
   Cmd.v (Cmd.info "log" ~doc ~man)
     Term.(
       const (fun () repo branch output limit ->
-          exit (Cmd_log.run ~repo ~branch ~output ~limit ()))
+          Stdlib.exit (Cmd_log.run ~repo ~branch ~output ~limit ()))
       $ setup $ repo $ branch $ output $ log_limit)
 
 (* === branches === *)
@@ -182,7 +182,7 @@ let branches_cmd =
   let doc = "List branches." in
   Cmd.v (Cmd.info "branches" ~doc)
     Term.(
-      const (fun () repo output -> exit (Cmd_branches.run ~repo ~output ()))
+      const (fun () repo output -> Stdlib.exit (Cmd_branches.run ~repo ~output ()))
       $ setup $ repo $ output)
 
 (* === checkout === *)
@@ -208,7 +208,7 @@ let checkout_cmd =
     (Cmd.info "checkout" ~doc ~man)
     Term.(
       const (fun () repo create branch ->
-          exit (Cmd_checkout.run ~repo ~create branch))
+          Stdlib.exit (Cmd_checkout.run ~repo ~create branch))
       $ setup $ repo $ flag $ checkout_branch)
 
 (* === proof === *)
@@ -239,7 +239,7 @@ let proof_produce_cmd =
     (Cmd.info "produce" ~doc ~man)
     Term.(
       const (fun () output key data ->
-          exit (Cmd_proof.produce ~output ~key data))
+          Stdlib.exit (Cmd_proof.produce ~output ~key data))
       $ setup $ output $ proof_key $ proof_data)
 
 let proof_verify_cmd =
@@ -258,7 +258,7 @@ let proof_verify_cmd =
     (Cmd.info "verify" ~doc ~man)
     Term.(
       const (fun () output key data ->
-          exit (Cmd_proof.verify ~output ~key data))
+          Stdlib.exit (Cmd_proof.verify ~output ~key data))
       $ setup $ output $ proof_key $ proof_data)
 
 let proof_cmd =
@@ -298,7 +298,7 @@ let import_cmd =
     (Cmd.info "import" ~doc ~man)
     Term.(
       const (fun () repo branch file ->
-          exit (Cmd_import.run ~repo ~branch file))
+          Stdlib.exit (Cmd_import.run ~repo ~branch file))
       $ setup $ repo $ branch $ import_file)
 
 (* === export === *)
@@ -323,7 +323,7 @@ let export_cmd =
     (Cmd.info "export" ~doc ~man)
     Term.(
       const (fun () repo branch output ->
-          exit (Cmd_export.run ~repo ~branch ~output ()))
+          Stdlib.exit (Cmd_export.run ~repo ~branch ~output ()))
       $ setup $ repo $ branch $ export_output)
 
 (* === info === *)
@@ -346,7 +346,7 @@ let info_cmd =
   Cmd.v
     (Cmd.info "info" ~doc ~man)
     Term.(
-      const (fun () repo file -> exit (Cmd_info.run ~repo file))
+      const (fun () repo file -> Stdlib.exit (Cmd_info.run ~repo file))
       $ setup $ repo $ info_file)
 
 (* === Main === *)
@@ -382,4 +382,4 @@ let cmd =
       proof_cmd;
     ]
 
-let () = exit (Cmd.eval cmd)
+let () = Stdlib.exit (Cmd.eval cmd)
