@@ -67,7 +67,7 @@ let () =
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_disk") in
     rm_rf root;
-    let rs = Bench_irmin4.run_all_disk ~sw root conf in
+    let rs = Bench_irmin4.run_all_disk ~sw ~env root conf in
     List.iter (fun r -> Format.printf "%a@.@." Bench_common.pp_result r) rs;
     results := rs @ !results
   end;
@@ -77,7 +77,7 @@ let () =
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in
     rm_rf root;
-    let rs = Bench_irmin4_lavyek.run_all ~sw root conf in
+    let rs = Bench_irmin4_lavyek.run_all ~sw ~env root conf in
     List.iter (fun r -> Format.printf "%a@.@." Bench_common.pp_result r) rs;
     results := rs @ !results
   end;

@@ -221,6 +221,57 @@ let scenario_large_values ~name ~(backend : Hash.sha1 Backend.t)
     maxrss_kb = Bench_common.get_maxrss_kb ();
   }
 
+(** {1 Scenario: Concurrent backend reads/writes}
+
+    Spawns [nfibers] fibers that each write and read objects directly
+    on the backend. Tests contention and throughput under parallelism.
+    Only meaningful for backends that support concurrent access (disk, lavyek). *)
+let scenario_concurrent ~name ~(backend : Hash.sha1 Backend.t)
+    ~env (conf : Bench_common.config) =
+  let nfibers = min 8 (Domain.recommended_domain_count ()) in
+  let ops_per_fiber = conf.nreads / nfibers in
+  let total_ops = ops_per_fiber * nfibers * 2 (* read + write *) in
+  (* Pre-populate with some objects *)
+  let keys = Array.init 1000 (fun i ->
+    let data = Bench_common.make_value ~size:conf.value_size i in
+    let h = Hash.sha1 data in
+    backend.write h data;
+    h)
+  in
+  let (), total_time =
+    Bench_common.time (fun () ->
+        let dm = Eio.Stdenv.domain_mgr env in
+        let barrier = Atomic.make nfibers in
+        let tasks = List.init nfibers (fun fiber_id () ->
+          (* Spin until all fibers are ready *)
+          Atomic.decr barrier;
+          while Atomic.get barrier > 0 do Domain.cpu_relax () done;
+          for i = 0 to ops_per_fiber - 1 do
+            (* Write a new object *)
+            let data =
+              Bench_common.make_value ~size:conf.value_size
+                (fiber_id * ops_per_fiber + i + 1000)
+            in
+            let h = Hash.sha1 data in
+            backend.write h data;
+            (* Read a random existing object *)
+            let k = keys.(i mod Array.length keys) in
+            ignore (backend.read k)
+          done)
+        in
+        Eio.Fiber.all (List.map (fun task () ->
+          Eio.Domain_manager.run dm task) tasks))
+  in
+  {
+    Bench_common.name;
+    scenario = Printf.sprintf "concurrent-%d" nfibers;
+    total_ops;
+    total_time;
+    ops_per_sec = Float.of_int total_ops /. total_time;
+    details = [ ("fibers", Float.of_int nfibers) ];
+    maxrss_kb = Bench_common.get_maxrss_kb ();
+  }
+
 (** {1 Backend runners} *)
 
 let run_all_memory conf =
@@ -233,7 +284,7 @@ let run_all_memory conf =
     scenario_large_values ~name ~backend:(mk ()) conf;
   ]
 
-let run_all_disk ~sw root conf =
+let run_all_disk ~sw ~env root conf =
   let name = "Irmin4 (disk)" in
   let mk () = Backend.Disk.create_sha1 ~sw root in
   let run_one f =
@@ -245,4 +296,5 @@ let run_all_disk ~sw root conf =
     run_one (fun ~backend -> scenario_reads ~name ~backend conf);
     run_one (fun ~backend -> scenario_incremental ~name ~backend conf);
     run_one (fun ~backend -> scenario_large_values ~name ~backend conf);
+    run_one (fun ~backend -> scenario_concurrent ~name ~backend ~env conf);
   ]
