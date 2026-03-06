@@ -59,6 +59,10 @@ IRMIN_EIO_DIR=/path/to/irmin ./bench/run.sh
 Run on 2026-03-06, AMD 12-core, 50 commits × 500 adds, depth 10, 5000 reads,
 100-byte values.
 
+### Overview
+
+![Benchmark comparison](bench_chart.svg)
+
 ### Irmini (memory, disk, lavyek)
 
 ```
