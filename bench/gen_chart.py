@@ -102,18 +102,18 @@ chart_height = 400
 svg_w = margin_left + chart_width + margin_right
 svg_h = margin_top + chart_height + margin_bottom
 
-# Use log scale since values span 6 orders of magnitude
-min_val = 1
-max_val = 2_000_000
-log_min = math.log10(min_val)
-log_max = math.log10(max_val)
+# Linear scale — compute max per scenario for independent Y axes
+max_per_scenario = {}
+for name, scenario, ops in data:
+    max_per_scenario[scenario] = max(max_per_scenario.get(scenario, 0), ops)
 
 
-def y_of(val):
+def y_of_scenario(val, scenario):
     if val <= 0:
         return chart_height
-    lv = math.log10(max(val, min_val))
-    frac = (lv - log_min) / (log_max - log_min)
+    mx = max_per_scenario[scenario]
+    # Add 15% headroom for labels
+    frac = val / (mx * 1.15)
     return chart_height * (1 - frac)
 
 
@@ -144,39 +144,46 @@ for name, color in colors.items():
 
 # Title
 lines.append(f'<text x="{svg_w/2}" y="28" text-anchor="middle" font-size="16" '
-             f'font-weight="bold">Benchmark comparison (ops/s, log scale)</text>')
+             f'font-weight="bold">Benchmark comparison (ops/s, linear scale per scenario)</text>')
 lines.append(f'<text x="{svg_w/2}" y="46" text-anchor="middle" font-size="11" '
              f'fill="#666">50 commits x 500 adds, depth 10, 5000 reads, 100-byte values</text>')
 
 # Chart area
 ox, oy = margin_left, margin_top
 
-# Grid lines (log scale)
+# Chart content
 lines.append(f'<g transform="translate({ox},{oy})">')
-for exp in range(0, 7):
-    val = 10 ** exp
-    if val > max_val:
-        break
-    yy = y_of(val)
-    lines.append(f'<line x1="0" y1="{yy:.1f}" x2="{chart_width}" y2="{yy:.1f}" '
-                 f'stroke="#e0e0e0" stroke-width="1"/>')
-    lines.append(f'<text x="-8" y="{yy + 4:.1f}" text-anchor="end" font-size="10" '
-                 f'fill="#666">{fmt_ops(val)}</text>')
 
 # Y axis label
 lines.append(f'<text x="-85" y="{chart_height/2}" text-anchor="middle" '
              f'font-size="12" fill="#333" transform="rotate(-90,-85,{chart_height/2})">'
              f'ops/s</text>')
 
-# Bars per scenario
+# Bars per scenario — each scenario has its own linear Y scale
 for si, scenario in enumerate(scenarios):
     gx = si * (group_width + group_gap)
+    mx = max_per_scenario[scenario]
+    headroom = mx * 1.15
+
+    # Grid lines for this scenario (4 ticks)
+    for i in range(1, 5):
+        tick_val = headroom * i / 4
+        yy = chart_height * (1 - i / 4)
+        lines.append(f'<line x1="{gx}" y1="{yy:.1f}" '
+                     f'x2="{gx + group_width}" y2="{yy:.1f}" '
+                     f'stroke="#e0e0e0" stroke-width="0.5"/>')
+        # Only label the top tick (max) for each scenario
+        if i == 4:
+            lines.append(f'<text x="{gx - 4:.1f}" y="{yy + 4:.1f}" '
+                         f'text-anchor="end" font-size="8" fill="#999">'
+                         f'{fmt_ops(int(tick_val))}</text>')
+
     for bi, backend in enumerate(backends):
         val = lookup.get((backend, scenario))
         if val is None:
             continue
         bx = gx + bi * (bar_width + bar_gap)
-        by = y_of(val)
+        by = y_of_scenario(val, scenario)
         bh = chart_height - by
         c = colors[backend]
         if "+inline" in backend:
