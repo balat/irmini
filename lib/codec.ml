@@ -63,10 +63,10 @@ module Git : SHA1 = struct
     inlined : (string * string) list; (* name -> inlined content *)
   }
 
-  (* Threshold is 0 by default; actual inlining threshold is set at the
-     tree/store level based on the backend capabilities. Git interop backends
-     cannot store our extended format. Memory/disk backends can. *)
-  let inline_threshold = 0
+  (* Inline contents up to 48 bytes directly in tree nodes, avoiding a
+     separate content-addressable store lookup. This breaks Git interop
+     for inlined entries but improves performance on small values. *)
+  let inline_threshold = 48
 
   (* Convert between irmin Hash.sha1 and Git.Hash.t *)
   let git_hash_of_sha1 (h : hash) : Git.Hash.t =
@@ -270,7 +270,7 @@ module Mst : SHA256 = struct
   type entry =
     [ `Node of hash | `Contents of hash | `Contents_inlined of string ]
 
-  let inline_threshold = 0
+  let inline_threshold = 48
 
   (* Convert between irmin Hash.sha256 and Atp.Cid.t *)
   let cid_of_sha256 (h : hash) : Atp.Cid.t =

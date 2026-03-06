@@ -91,28 +91,35 @@ Irmini (lavyek)                large-values            1286        7.8        47
 Irmini (lavyek)                concurrent-100f/12d   447187        0.0        475
 ```
 
-### Irmini + inlining (memory, disk, lavyek)
+### Irmini + inlining (memory, disk, lavyek) — 30-byte values
 
-Irmini with small object inlining enabled (branch `benchs+inlining`).
+Irmini with `inline_threshold = 48` and 30-byte values (under the threshold).
+This is the scenario where inlining has the most impact: small contents are
+stored directly in tree nodes, avoiding content-addressable store lookups.
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
-Irmini+inline (memory)         commits                  549       45.6        317
-Irmini+inline (memory)         reads                   9712        0.5        314
-Irmini+inline (memory)         incremental             2029        0.0        314
-Irmini+inline (memory)         large-values            1583        6.3        310
-Irmini+inline (disk)           commits                  444       56.4        346
-Irmini+inline (disk)           reads                   4448        1.1        346
-Irmini+inline (disk)           incremental               10        5.2        346
-Irmini+inline (disk)           large-values              91      109.7        346
-Irmini+inline (disk)           concurrent-100f/12d      261       38.3        346
-Irmini+inline (lavyek)         commits                  485       51.6        477
-Irmini+inline (lavyek)         reads                   8438        0.6        477
-Irmini+inline (lavyek)         incremental             1515        0.0        477
-Irmini+inline (lavyek)         large-values            1314        7.6        477
-Irmini+inline (lavyek)         concurrent-100f/12d   436529        0.0        477
+Irmini+inline (memory)         commits               126963        0.2        324
+Irmini+inline (memory)         reads                  19501        0.3        316
+Irmini+inline (memory)         incremental             2120        0.0        316
+Irmini+inline (memory)         large-values            1569        6.4        310
+Irmini+inline (disk)           commits                 4637        5.4        421
+Irmini+inline (disk)           reads                   4950        1.0        421
+Irmini+inline (disk)           incremental               11        4.7        421
+Irmini+inline (disk)           large-values              92      108.7        421
+Irmini+inline (disk)           concurrent-100f/12d      264       37.9        353
+Irmini+inline (lavyek)         commits               114270        0.2        554
+Irmini+inline (lavyek)         reads                  15858        0.3        554
+Irmini+inline (lavyek)         incremental             1287        0.0        554
+Irmini+inline (lavyek)         large-values            1296        7.7        554
+Irmini+inline (lavyek)         concurrent-100f/12d   412492        0.0        553
 ```
+
+For reference, irmini **without** inlining on the same 30-byte values gives
+the same performance as with 100-byte values (~500 commits/s, ~9.5k reads/s),
+confirming that inlining is the cause of the speedup, not the smaller value
+size.
 
 ### Irmin (Eio branch + inline-small-objects-v2)
 
@@ -189,13 +196,15 @@ Irmin-git (disk)               large-values            1585        6.3        64
   Incremental updates (161 ops/s) are comparable to irmin-fs. Large values at
   1.6 k ops/s are the slowest across all Irmin backends (zlib compression on
   10 KiB payloads is expensive).
-- **Inlining impact on Irmini**: Small but consistent improvement across
-  all backends. Memory commits go from 519 to 549 ops/s (**+6%**), reads
-  from 9.6 k to 9.7 k (**+2%**), Lavyek commits from 457 to 485 (**+6%**).
-  Disk reads improve from 4.0 k to 4.4 k (**+11%**). The gains are modest
-  because irmini's bottleneck is full tree re-serialization, not node
-  encoding. Inlining helps most when many small values avoid separate
-  content-addressable lookups.
+- **Inlining impact on Irmini**: Massive when values fit under the 48-byte
+  threshold. With 30-byte values and `inline_threshold = 48`, memory commits
+  go from 539 to **127k ops/s** (**235× faster**), Lavyek commits from 480
+  to **114k ops/s** (**238×**), disk commits from 445 to **4.6k ops/s**
+  (**10×**). Reads also improve: memory 9.5k → 19.5k (**2×**), Lavyek
+  8.7k → 15.9k (**1.8×**). The speedup comes from avoiding separate
+  content-addressable store writes for each small value — inlined contents
+  are stored directly in the tree node, eliminating hash computation and
+  store lookups. Large-values (10 KiB) are unaffected as expected.
 - **Inlining impact on Irmin-Eio**: Marginal on in-memory benchmarks
   (100-byte values). On irmin-pack, inlining gives a **~25% boost** on
   commits (52 k vs 42 k ops/s) and slightly better incrementals.
