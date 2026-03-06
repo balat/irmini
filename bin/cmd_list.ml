@@ -30,7 +30,7 @@ let run ~repo ~branch ~output prefix =
                 let k =
                   match kind with `Node -> "dir" | `Contents -> "file"
                 in
-                Printf.sprintf {|{"name":%S,"type":%S}|} name k)
+                Fmt.str {|{"name":%S,"type":%S}|} name k)
               entries
           in
           Fmt.pr "[%s]@." (String.concat "," json_entries));

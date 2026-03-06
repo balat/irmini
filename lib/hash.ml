@@ -30,7 +30,7 @@ let to_hex h =
   let bytes = to_bytes h in
   let buf = Buffer.create (String.length bytes * 2) in
   String.iter
-    (fun c -> Buffer.add_string buf (Printf.sprintf "%02x" (Char.code c)))
+    (fun c -> Buffer.add_string buf (Fmt.str "%02x" (Char.code c)))
     bytes;
   Buffer.contents buf
 
@@ -54,9 +54,7 @@ let hex_to_bytes hex =
         | Some h, Some l ->
             Bytes.set bytes (i / 2) (Char.chr ((h lsl 4) lor l));
             loop (i + 2)
-        | _ ->
-            Error
-              (`Msg (Printf.sprintf "invalid hex character at position %d" i))
+        | _ -> Error (`Msg (Fmt.str "invalid hex character at position %d" i))
     in
     loop 0
 
@@ -122,8 +120,8 @@ let any_algorithm (Any h) = algorithm_of h
 let any_to_bytes (Any h) = to_bytes h
 let any_to_hex (Any h) = to_hex h
 let equal_any (Any h1) (Any h2) = any_to_bytes (Any h1) = any_to_bytes (Any h2)
-let pp fmt h = Format.fprintf fmt "%s" (to_hex h)
+let pp fmt h = Fmt.pf fmt "%s" (to_hex h)
 
 let pp_short fmt h =
   let hex = to_hex h in
-  Format.fprintf fmt "%s" (String.sub hex 0 (min 7 (String.length hex)))
+  Fmt.pf fmt "%s" (String.sub hex 0 (min 7 (String.length hex)))

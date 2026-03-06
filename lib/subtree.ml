@@ -103,8 +103,7 @@ module Make (F : Codec.S) = struct
             in
 
             let message =
-              Printf.sprintf "Add '%s' from external source"
-                (String.concat "/" prefix)
+              Fmt.str "Add '%s' from external source" (String.concat "/" prefix)
             in
 
             let new_head =
@@ -148,7 +147,7 @@ module Make (F : Codec.S) = struct
             in
 
             let message =
-              Printf.sprintf "Pull updates into '%s'" (String.concat "/" prefix)
+              Fmt.str "Pull updates into '%s'" (String.concat "/" prefix)
             in
 
             let new_head =
@@ -177,7 +176,7 @@ module Make (F : Codec.S) = struct
                 in
 
                 let message =
-                  Printf.sprintf "Push from '%s'" (String.concat "/" prefix)
+                  Fmt.str "Push from '%s'" (String.concat "/" prefix)
                 in
 
                 let new_head =

@@ -47,7 +47,7 @@ let produce ~output ~key data =
   | `Json ->
       Fmt.pr {|{"root":%S,"key":%S,"value":%s,"before":%S,"after":%S}@.|}
         (Hash.to_hex root) key
-        (match result with Some v -> Printf.sprintf "%S" v | None -> "null")
+        (match result with Some v -> Fmt.str "%S" v | None -> "null")
         before_hash after_hash);
   0
 
@@ -84,7 +84,7 @@ let verify ~output ~key data =
           Common.success "Verified: %s" (Option.value ~default:"<none>" v)
       | `Json ->
           Fmt.pr {|{"verified":true,"value":%s}@.|}
-            (match v with Some x -> Printf.sprintf "%S" x | None -> "null"));
+            (match v with Some x -> Fmt.str "%S" x | None -> "null"));
       0
   | Error (`Proof_mismatch msg) ->
       (match output with

@@ -437,7 +437,7 @@ module Make (C : Codec.S) = struct
     | _ ->
         Error
           (`Proof_mismatch
-             (Printf.sprintf "expected %s, got %s"
+             (Fmt.str "expected %s, got %s"
                 (C.hash_to_hex
                    (match expected_after with `Node h | `Contents h -> h))
                 (C.hash_to_hex

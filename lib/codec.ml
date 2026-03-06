@@ -133,7 +133,7 @@ module Git : SHA1 = struct
   let user_to_string u =
     let name = Git.User.name u in
     let email = Git.User.email u in
-    if email = "" then name else Printf.sprintf "%s <%s>" name email
+    if email = "" then name else Fmt.str "%s <%s>" name email
 
   let commit_author c = user_to_string (Git.Commit.author c)
   let commit_committer c = user_to_string (Git.Commit.committer c)

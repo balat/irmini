@@ -219,7 +219,7 @@ module Disk = struct
     let content =
       String_map.fold
         (fun hex entry acc ->
-          Printf.sprintf "%s %d %d\n" hex entry.offset entry.length :: acc)
+          Fmt.str "%s %d %d\n" hex entry.offset entry.length :: acc)
         index []
       |> String.concat ""
     in
