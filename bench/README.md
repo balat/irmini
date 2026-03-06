@@ -1,7 +1,7 @@
 # Irmini Benchmarks
 
 Performance comparison of irmini backends (memory, disk, lavyek) and
-optionally the official Irmin-Eio (memory, irmin-pack).
+optionally the official Irmin-Eio (memory, irmin-pack, irmin-fs).
 
 ## Quick start
 
@@ -83,39 +83,47 @@ Irmini (lavyek)                concurrent-100f/12d   447187        0.0        47
 ### Irmin (Eio branch + inline-small-objects-v2)
 
 Official Irmin on branch `cuihtlauac-inline-small-objects-v2` (Eio-based,
-with small object inlining). In-memory and irmin-pack (disk) backends.
+with small object inlining). In-memory, irmin-pack and irmin-fs (disk) backends.
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
-Irmin-Eio+inline (memory)     commits               167387        0.1        191
-Irmin-Eio+inline (memory)     reads                1626582        0.0        172
-Irmin-Eio+inline (memory)     incremental             2896        0.0        171
-Irmin-Eio+inline (memory)     large-values           16053        0.6        170
-Irmin-pack+inline (disk)      commits                52204        0.5        530
-Irmin-pack+inline (disk)      reads                1464492        0.0        529
-Irmin-pack+inline (disk)      incremental             1867        0.0        529
-Irmin-pack+inline (disk)      large-values            7587        1.3        529
-Irmin-pack+inline (disk)      concurrent-100f/12d     1671        6.0        308
+Irmin-Eio+inline (memory)     commits               163665        0.2        193
+Irmin-Eio+inline (memory)     reads                1440550        0.0        173
+Irmin-Eio+inline (memory)     incremental             2777        0.0        172
+Irmin-Eio+inline (memory)     large-values           15144        0.7        172
+Irmin-pack+inline (disk)      commits                51265        0.5        520
+Irmin-pack+inline (disk)      reads                1457672        0.0        519
+Irmin-pack+inline (disk)      incremental             1624        0.0        519
+Irmin-pack+inline (disk)      large-values            7403        1.4        519
+Irmin-pack+inline (disk)      concurrent-100f/12d     1771        5.6        311
+Irmin-fs+inline (disk)        commits                38288        0.7        648
+Irmin-fs+inline (disk)        reads                 206596        0.0        648
+Irmin-fs+inline (disk)        incremental              194        0.3        648
+Irmin-fs+inline (disk)        large-values            2611        3.8        648
 ```
 
 ### Irmin (Eio branch, no inlining)
 
-Official Irmin on branch `eio` (Eio-based, without inlining). In-memory
-and irmin-pack (disk) backends, for baseline comparison.
+Official Irmin on branch `eio` (Eio-based, without inlining). In-memory,
+irmin-pack and irmin-fs (disk) backends, for baseline comparison.
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
-Irmin-Eio (memory)             commits               167735        0.1        191
-Irmin-Eio (memory)             reads                1528648        0.0        172
-Irmin-Eio (memory)             incremental             2721        0.0        171
-Irmin-Eio (memory)             large-values           15408        0.6        170
-Irmin-pack (disk)              commits                51883        0.5        509
-Irmin-pack (disk)              reads                1277738        0.0        502
-Irmin-pack (disk)              incremental             1709        0.0        502
-Irmin-pack (disk)              large-values            7971        1.3        502
-Irmin-pack (disk)              concurrent-100f/12d     1514        6.6        302
+Irmin-Eio (memory)             commits               168322        0.1        192
+Irmin-Eio (memory)             reads                1551837        0.0        173
+Irmin-Eio (memory)             incremental             2849        0.0        172
+Irmin-Eio (memory)             large-values           15930        0.6        171
+Irmin-pack (disk)              commits                49896        0.5        509
+Irmin-pack (disk)              reads                1283761        0.0        507
+Irmin-pack (disk)              incremental             2028        0.0        507
+Irmin-pack (disk)              large-values            7462        1.3        507
+Irmin-pack (disk)              concurrent-100f/12d     1251        8.0        308
+Irmin-fs (disk)                commits                37044        0.7        629
+Irmin-fs (disk)                reads                 208038        0.0        629
+Irmin-fs (disk)                incremental              193        0.3        629
+Irmin-fs (disk)                large-values            2646        3.8        629
 ```
 
 ### Key observations
@@ -125,10 +133,12 @@ Irmin-pack (disk)              concurrent-100f/12d     1514        6.6        30
   inode-based tree representation with efficient structural sharing, while
   irmini's simpler tree implementation re-serializes entire nodes on each
   commit.
-- **Irmin-pack (disk) vs Irmin-Eio (memory)**: irmin-pack commits are
-  **~4× slower** than in-memory (42–52 k vs 167 k ops/s), but reads are
-  equally fast (~1.5 M ops/s) thanks to the LRU cache. Large-values
-  throughput drops ~2× on disk (8.7–9.0 k vs 15–16 k ops/s).
+- **Irmin disk backends vs in-memory**: irmin-pack commits are **~3× slower**
+  than in-memory (50 k vs 168 k ops/s), but reads remain fast (~1.3 M ops/s)
+  thanks to the LRU cache. irmin-fs is slower still: commits at 37 k ops/s,
+  reads at 208 k ops/s (one file per object = many syscalls), and large-values
+  at 2.6 k ops/s. irmin-fs incremental is very slow (193 ops/s) due to per-key
+  file I/O overhead on each commit.
 - **Inlining impact on Irmin-Eio**: Marginal on in-memory benchmarks
   (100-byte values). On irmin-pack, inlining gives a **~25% boost** on
   commits (52 k vs 42 k ops/s) and slightly better incrementals.
@@ -155,6 +165,7 @@ Irmin-pack (disk)              concurrent-100f/12d     1514        6.6        30
   efficiently. Irmin-Eio handles incrementals well (~1.7–2.9 k ops/s on
   both memory and irmin-pack).
 - **Large values**: Irmini's disk degrades sharply (91 ops/s) while
-  Irmin-Eio stays at 9–16 k ops/s across backends.
-- **Memory usage**: Irmini uses more RSS (310–475 MiB) than Irmin-Eio
-  (170–530 MiB). irmin-pack uses ~500–530 MiB due to the index and LRU.
+  Irmin-Eio stays at 7–16 k ops/s on irmin-pack and 2.6 k ops/s on irmin-fs.
+- **Memory usage**: Irmini uses 310–475 MiB. Irmin-Eio in-memory uses
+  ~172–193 MiB, irmin-pack ~507–520 MiB (index + LRU), irmin-fs
+  ~629–648 MiB (many open file handles and directory caches).
