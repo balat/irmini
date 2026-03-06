@@ -14,11 +14,11 @@ type 'hash t = {
 type stats = { reads : int; writes : int; cache_hits : int; cache_misses : int }
 
 module Memory = struct
-  module StringMap = Map.Make (String)
+  module String_map = Map.Make (String)
 
   type 'hash state = {
-    mutable objects : string StringMap.t;
-    mutable refs : 'hash StringMap.t;
+    mutable objects : string String_map.t;
+    mutable refs : 'hash String_map.t;
     to_hex : 'hash -> string;
     equal : 'hash -> 'hash -> bool;
   }
@@ -26,27 +26,27 @@ module Memory = struct
   let create_with_hash (type h) (to_hex : h -> string) (equal : h -> h -> bool)
       : h t =
     let state =
-      { objects = StringMap.empty; refs = StringMap.empty; to_hex; equal }
+      { objects = String_map.empty; refs = String_map.empty; to_hex; equal }
     in
     {
       read =
         (fun h ->
           let key = state.to_hex h in
-          StringMap.find_opt key state.objects);
+          String_map.find_opt key state.objects);
       write =
         (fun h data ->
           let key = state.to_hex h in
-          state.objects <- StringMap.add key data state.objects);
+          state.objects <- String_map.add key data state.objects);
       exists =
         (fun h ->
           let key = state.to_hex h in
-          StringMap.mem key state.objects);
-      get_ref = (fun name -> StringMap.find_opt name state.refs);
+          String_map.mem key state.objects);
+      get_ref = (fun name -> String_map.find_opt name state.refs);
       set_ref =
-        (fun name hash -> state.refs <- StringMap.add name hash state.refs);
+        (fun name hash -> state.refs <- String_map.add name hash state.refs);
       test_and_set_ref =
         (fun name ~test ~set ->
-          let current = StringMap.find_opt name state.refs in
+          let current = String_map.find_opt name state.refs in
           let matches =
             match (test, current) with
             | None, None -> true
@@ -55,17 +55,17 @@ module Memory = struct
           in
           if matches then (
             (match set with
-            | None -> state.refs <- StringMap.remove name state.refs
-            | Some h -> state.refs <- StringMap.add name h state.refs);
+            | None -> state.refs <- String_map.remove name state.refs
+            | Some h -> state.refs <- String_map.add name h state.refs);
             true)
           else false);
-      list_refs = (fun () -> StringMap.bindings state.refs |> List.map fst);
+      list_refs = (fun () -> String_map.bindings state.refs |> List.map fst);
       write_batch =
         (fun objects ->
           List.iter
             (fun (h, data) ->
               let key = state.to_hex h in
-              state.objects <- StringMap.add key data state.objects)
+              state.objects <- String_map.add key data state.objects)
             objects);
       flush = (fun () -> ());
       close = (fun () -> ());
@@ -169,7 +169,7 @@ let stats _ = None
 
     Inspired by lavyek's append-only design and LevelDB's WAL pattern. *)
 module Disk = struct
-  module StringMap = Map.Make (String)
+  module String_map = Map.Make (String)
 
   type index_entry = { offset : int; length : int }
 
@@ -178,9 +178,9 @@ module Disk = struct
     mutable wal : Wal.t option;
     mutable data_file : Eio.File.rw_ty Eio.Resource.t option;
     mutable data_offset : int;
-    mutable index : index_entry StringMap.t;
+    mutable index : index_entry String_map.t;
     bloom : string Bloom.t;
-    mutable refs : 'hash StringMap.t;
+    mutable refs : 'hash String_map.t;
     to_hex : 'hash -> string;
     equal : 'hash -> 'hash -> bool;
     mutex : Eio.Mutex.t;
@@ -208,16 +208,16 @@ module Disk = struct
                | [ hex; off_s; len_s ] ->
                    let offset = int_of_string off_s in
                    let length = int_of_string len_s in
-                   StringMap.add hex { offset; length } idx
+                   String_map.add hex { offset; length } idx
                | _ -> idx)
-           StringMap.empty
-    else StringMap.empty
+           String_map.empty
+    else String_map.empty
 
   let save_index root index =
     let path = index_path root in
     let tmp_path = Eio.Path.(root / "objects.idx.tmp") in
     let content =
-      StringMap.fold
+      String_map.fold
         (fun hex entry acc ->
           Printf.sprintf "%s %d %d\n" hex entry.offset entry.length :: acc)
         index []
@@ -244,12 +244,12 @@ module Disk = struct
   let load_ref of_hex acc full_name entry_path =
     let hex = String.trim (Eio.Path.load entry_path) in
     match of_hex hex with
-    | Ok hash -> StringMap.add full_name hash acc
+    | Ok hash -> String_map.add full_name hash acc
     | Error _ -> acc
 
   let load_refs root of_hex =
     let refs_root = refs_path root in
-    if not (Eio.Path.is_directory refs_root) then StringMap.empty
+    if not (Eio.Path.is_directory refs_root) then String_map.empty
     else
       let rec scan_dir prefix path acc =
         let entries = Eio.Path.read_dir path in
@@ -264,7 +264,7 @@ module Disk = struct
             else acc)
           acc entries
       in
-      scan_dir "" refs_root StringMap.empty
+      scan_dir "" refs_root String_map.empty
 
   let save_ref root name hash to_hex =
     let path = refs_path root in
@@ -318,14 +318,14 @@ module Disk = struct
           match decode_wal_record record with
           | None -> (idx, blm, offset)
           | Some (hex, data) ->
-              if StringMap.mem hex idx then (idx, blm, offset)
+              if String_map.mem hex idx then (idx, blm, offset)
               else begin
                 (* Write to data file *)
                 let len = String.length data in
                 Eio.File.pwrite_all data_file
                   ~file_offset:(Optint.Int63.of_int offset)
                   [ Cstruct.of_string data ];
-                let idx' = StringMap.add hex { offset; length = len } idx in
+                let idx' = String_map.add hex { offset; length = len } idx in
                 Bloom.add blm hex;
                 (idx', blm, offset + len)
               end)
@@ -342,7 +342,7 @@ module Disk = struct
     let bloom = load_bloom root in
     (* Populate bloom from index if empty (first load after upgrade) *)
     if Bloom.size_estimate bloom = 0 then
-      StringMap.iter (fun hex _ -> Bloom.add bloom hex) index;
+      String_map.iter (fun hex _ -> Bloom.add bloom hex) index;
     let refs = load_refs root of_hex in
     let file, offset = open_data_file ~sw root in
     let data_file = (file :> Eio.File.rw_ty Eio.Resource.t) in
@@ -368,7 +368,7 @@ module Disk = struct
       read =
         (fun h ->
           let key = state.to_hex h in
-          match StringMap.find_opt key state.index with
+          match String_map.find_opt key state.index with
           | None -> None
           | Some entry -> (
               match state.data_file with
@@ -384,8 +384,8 @@ module Disk = struct
           Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
               let key = state.to_hex h in
               (* Fast path: bloom filter says "definitely not present" *)
-              if Bloom.mem state.bloom key && StringMap.mem key state.index then
-                ()
+              if Bloom.mem state.bloom key && String_map.mem key state.index
+              then ()
               else
                 match (state.wal, state.data_file) with
                 | Some wal, Some file ->
@@ -400,24 +400,24 @@ module Disk = struct
                       [ Cstruct.of_string data ];
                     state.data_offset <- offset + len;
                     state.index <-
-                      StringMap.add key { offset; length = len } state.index;
+                      String_map.add key { offset; length = len } state.index;
                     Bloom.add state.bloom key
                 | _ -> ()));
       exists =
         (fun h ->
           let key = state.to_hex h in
           (* Fast path: bloom filter for negative lookups *)
-          Bloom.mem state.bloom key && StringMap.mem key state.index);
-      get_ref = (fun name -> StringMap.find_opt name state.refs);
+          Bloom.mem state.bloom key && String_map.mem key state.index);
+      get_ref = (fun name -> String_map.find_opt name state.refs);
       set_ref =
         (fun name hash ->
           Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
-              state.refs <- StringMap.add name hash state.refs;
+              state.refs <- String_map.add name hash state.refs;
               save_ref state.root name hash state.to_hex));
       test_and_set_ref =
         (fun name ~test ~set ->
           Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
-              let current = StringMap.find_opt name state.refs in
+              let current = String_map.find_opt name state.refs in
               let matches =
                 match (test, current) with
                 | None, None -> true
@@ -427,15 +427,15 @@ module Disk = struct
               if matches then begin
                 (match set with
                 | None ->
-                    state.refs <- StringMap.remove name state.refs;
+                    state.refs <- String_map.remove name state.refs;
                     delete_ref state.root name
                 | Some h ->
-                    state.refs <- StringMap.add name h state.refs;
+                    state.refs <- String_map.add name h state.refs;
                     save_ref state.root name h state.to_hex);
                 true
               end
               else false));
-      list_refs = (fun () -> StringMap.bindings state.refs |> List.map fst);
+      list_refs = (fun () -> String_map.bindings state.refs |> List.map fst);
       write_batch =
         (fun objects ->
           Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
@@ -445,7 +445,7 @@ module Disk = struct
                   List.iter
                     (fun (h, data) ->
                       let key = state.to_hex h in
-                      if not (StringMap.mem key state.index) then
+                      if not (String_map.mem key state.index) then
                         Wal.append wal (encode_wal_record key data))
                     objects;
                   Wal.sync wal;
@@ -453,7 +453,7 @@ module Disk = struct
                   List.iter
                     (fun (h, data) ->
                       let key = state.to_hex h in
-                      if StringMap.mem key state.index then ()
+                      if String_map.mem key state.index then ()
                       else begin
                         let len = String.length data in
                         let offset = state.data_offset in
@@ -462,7 +462,8 @@ module Disk = struct
                           [ Cstruct.of_string data ];
                         state.data_offset <- offset + len;
                         state.index <-
-                          StringMap.add key { offset; length = len } state.index;
+                          String_map.add key { offset; length = len }
+                            state.index;
                         Bloom.add state.bloom key
                       end)
                     objects

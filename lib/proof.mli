@@ -78,13 +78,32 @@ module Make (C : Codec.S) : sig
     (** Proof-aware tree that records accesses during [produce]. *)
 
     val find : t -> string list -> contents option
+    (** [find t path] returns the contents at [path], or [None] if not found. *)
+
     val find_tree : t -> string list -> t option
+    (** [find_tree t path] returns the subtree at [path], or [None] if not
+        found. *)
+
     val mem : t -> string list -> bool
+    (** [mem t path] checks whether a value exists at [path]. *)
+
     val list : t -> string list -> (string * [ `Node | `Contents ]) list
+    (** [list t path] returns the children of [path], each tagged as either a
+        node or contents. *)
+
     val add : t -> string list -> contents -> t
+    (** [add t path contents] returns a new tree with contents added or updated
+        at [path]. *)
+
     val add_tree : t -> string list -> t -> t
+    (** [add_tree t path subtree] returns a new tree with [subtree] grafted at
+        [path]. *)
+
     val remove : t -> string list -> t
+    (** [remove t path] returns a new tree with the value at [path] removed. *)
+
     val hash : t -> hash
+    (** [hash t] computes the root hash of the tree. *)
   end
 
   val produce :

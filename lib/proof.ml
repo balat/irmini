@@ -43,7 +43,7 @@ module Make (C : Codec.S) = struct
   type contents = string
 
   (* Path set for tracking accessed paths *)
-  module PathSet = Set.Make (struct
+  module Path_set = Set.Make (struct
     type t = string list
 
     let compare = compare
@@ -54,7 +54,7 @@ module Make (C : Codec.S) = struct
     | Producing of {
         backend : hash Backend.t;
         node_hash : hash;
-        mutable accessed : PathSet.t;
+        mutable accessed : Path_set.t;
       }
     | From_proof of { tree : (hash, contents) tree }
 
@@ -62,7 +62,9 @@ module Make (C : Codec.S) = struct
     type t = { state : tree_state }
 
     let of_hash backend h =
-      { state = Producing { backend; node_hash = h; accessed = PathSet.empty } }
+      {
+        state = Producing { backend; node_hash = h; accessed = Path_set.empty };
+      }
 
     let of_proof_tree tree = { state = From_proof { tree } }
 
@@ -79,7 +81,7 @@ module Make (C : Codec.S) = struct
     (* Record access to a path *)
     let record_access t path =
       match t.state with
-      | Producing p -> p.accessed <- PathSet.add path p.accessed
+      | Producing p -> p.accessed <- Path_set.add path p.accessed
       | From_proof _ -> ()
 
     (* Navigate to a path in a backend-stored node *)
@@ -337,7 +339,7 @@ module Make (C : Codec.S) = struct
   let build_proof_tree backend node_hash accessed =
     let rec build node prefix =
       let dominated_by_access =
-        PathSet.exists
+        Path_set.exists
           (fun path ->
             let plen = List.length prefix in
             List.length path >= plen
@@ -354,14 +356,14 @@ module Make (C : Codec.S) = struct
               let child_tree =
                 match kind with
                 | `Contents h ->
-                    if PathSet.mem child_path accessed then
+                    if Path_set.mem child_path accessed then
                       match backend.Backend.read h with
                       | Some c -> Contents c
                       | None -> Blinded_contents h
                     else Blinded_contents h
                 | `Node h ->
                     if
-                      PathSet.exists
+                      Path_set.exists
                         (fun p ->
                           let clen = List.length child_path in
                           List.length p >= clen
@@ -395,7 +397,7 @@ module Make (C : Codec.S) = struct
     let accessed =
       match tree.state with
       | Producing { accessed; _ } -> accessed
-      | From_proof _ -> PathSet.empty
+      | From_proof _ -> Path_set.empty
     in
     let proof_tree = build_proof_tree backend root_hash accessed in
     let proof =
