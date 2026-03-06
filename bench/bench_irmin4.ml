@@ -223,52 +223,76 @@ let scenario_large_values ~name ~(backend : Hash.sha1 Backend.t)
 
 (** {1 Scenario: Concurrent backend reads/writes}
 
-    Spawns [nfibers] fibers that each write and read objects directly
-    on the backend. Tests contention and throughput under parallelism.
-    Only meaningful for backends that support concurrent access (disk, lavyek). *)
-let scenario_concurrent ~name ~(backend : Hash.sha1 Backend.t)
-    ~env (conf : Bench_common.config) =
-  let nfibers = min 8 (Domain.recommended_domain_count ()) in
-  let ops_per_fiber = conf.nreads / nfibers in
+    Spawns [nfibers] fibers spread across available OS domains, each doing
+    reads and writes directly on the backend. Tests contention and throughput
+    under parallelism. Only meaningful for backends that support concurrent
+    access (disk, lavyek).
+
+    [nfibers] defaults to 100. Fibers are distributed round-robin across
+    domains (capped at [Domain.recommended_domain_count]). *)
+let scenario_concurrent ?(nfibers = 100) ~name
+    ~(backend : Hash.sha1 Backend.t) ~env (conf : Bench_common.config) =
+  let ndomains = min 12 (Domain.recommended_domain_count ()) in
+  let ops_per_fiber = max 1 (conf.nreads / nfibers) in
   let total_ops = ops_per_fiber * nfibers * 2 (* read + write *) in
   (* Pre-populate with some objects *)
-  let keys = Array.init 1000 (fun i ->
-    let data = Bench_common.make_value ~size:conf.value_size i in
-    let h = Hash.sha1 data in
-    backend.write h data;
-    h)
+  let keys =
+    Array.init 1000 (fun i ->
+        let data = Bench_common.make_value ~size:conf.value_size i in
+        let h = Hash.sha1 data in
+        backend.write h data;
+        h)
   in
+  (* Group fibers by domain *)
+  let fibers_per_domain = Array.make ndomains [] in
+  for fid = 0 to nfibers - 1 do
+    let did = fid mod ndomains in
+    fibers_per_domain.(did) <- fid :: fibers_per_domain.(did)
+  done;
   let (), total_time =
     Bench_common.time (fun () ->
         let dm = Eio.Stdenv.domain_mgr env in
-        let barrier = Atomic.make nfibers in
-        let tasks = List.init nfibers (fun fiber_id () ->
-          (* Spin until all fibers are ready *)
-          Atomic.decr barrier;
-          while Atomic.get barrier > 0 do Domain.cpu_relax () done;
-          for i = 0 to ops_per_fiber - 1 do
-            (* Write a new object *)
-            let data =
-              Bench_common.make_value ~size:conf.value_size
-                (fiber_id * ops_per_fiber + i + 1000)
-            in
-            let h = Hash.sha1 data in
-            backend.write h data;
-            (* Read a random existing object *)
-            let k = keys.(i mod Array.length keys) in
-            ignore (backend.read k)
-          done)
+        let barrier = Atomic.make ndomains in
+        let domain_tasks =
+          List.init ndomains (fun did () ->
+              let my_fibers = fibers_per_domain.(did) in
+              (* Synchronize domain startup *)
+              Atomic.decr barrier;
+              while Atomic.get barrier > 0 do
+                Domain.cpu_relax ()
+              done;
+              (* Each domain runs its fibers sequentially
+                 (fibers within a domain share the same OS thread) *)
+              List.iter
+                (fun fiber_id ->
+                  for i = 0 to ops_per_fiber - 1 do
+                    let data =
+                      Bench_common.make_value ~size:conf.value_size
+                        ((fiber_id * ops_per_fiber) + i + 1000)
+                    in
+                    let h = Hash.sha1 data in
+                    backend.write h data;
+                    let k = keys.(i mod Array.length keys) in
+                    ignore (backend.read k)
+                  done)
+                my_fibers)
         in
-        Eio.Fiber.all (List.map (fun task () ->
-          Eio.Domain_manager.run dm task) tasks))
+        Eio.Fiber.all
+          (List.map
+             (fun task () -> Eio.Domain_manager.run dm task)
+             domain_tasks))
   in
   {
     Bench_common.name;
-    scenario = Printf.sprintf "concurrent-%d" nfibers;
+    scenario = Printf.sprintf "concurrent-%df/%dd" nfibers ndomains;
     total_ops;
     total_time;
     ops_per_sec = Float.of_int total_ops /. total_time;
-    details = [ ("fibers", Float.of_int nfibers) ];
+    details =
+      [
+        ("fibers", Float.of_int nfibers);
+        ("domains", Float.of_int ndomains);
+      ];
     maxrss_kb = Bench_common.get_maxrss_kb ();
   }
 
