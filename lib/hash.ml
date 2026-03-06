@@ -1,3 +1,6 @@
+let err_invalid_hex pos =
+  Error (`Msg (Fmt.str "invalid hex character at position %d" pos))
+
 type algorithm = Sha1 | Sha256
 
 type _ t =
@@ -54,7 +57,7 @@ let hex_to_bytes hex =
         | Some h, Some l ->
             Bytes.set bytes (i / 2) (Char.chr ((h lsl 4) lor l));
             loop (i + 2)
-        | _ -> Error (`Msg (Fmt.str "invalid hex character at position %d" i))
+        | _ -> err_invalid_hex i
     in
     loop 0
 
