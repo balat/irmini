@@ -138,7 +138,15 @@ Irmin-pack (disk)              concurrent-100f/12d     1514        6.6        30
   backend under contention (100 fibers / 12 domains). Lavyek is lock-free;
   the disk backend serializes writes behind `Eio.Mutex`. irmin-pack
   achieves ~1.5–1.7 k ops/s (per-branch writes), **~6× faster** than
-  irmini's disk but **~270 000× slower** than Lavyek.
+  irmini's disk but **~270 000× slower** than Lavyek. Note: this
+  comparison is not apples-to-apples — the irmini/Lavyek scenario measures
+  raw backend operations (read/write a blob), while the irmin-pack scenario
+  goes through the full Irmin stack (tree construction, inode hashing,
+  serialization, writing to the append-only pack file, index update).
+  Furthermore, irmin-pack serializes all writes behind a single writer
+  (the pack file is protected by a mutex), which nullifies the parallelism
+  of the 12 domains. Lavyek, by contrast, is lock-free (Atomic.t + KCAS)
+  and its operations are much lighter (no tree/commit/inode layer).
 - **Reads (irmini)**: Memory is fastest (9.6 k ops/s), Lavyek close behind
   (8.3 k), disk significantly slower (4 k). By comparison, Irmin-Eio
   reads are ~160× faster at 1.5 M ops/s.
