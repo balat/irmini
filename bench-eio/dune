@@ -1,0 +1,14 @@
+; This benchmark must be built from the official Irmin-Eio workspace,
+; not from the irmini monorepo (library name conflict with "irmin").
+;
+; To build:
+;   1. Copy bench-eio/ into the Irmin workspace
+;   2. Uncomment the executable stanza below
+;   3. dune build bench-eio/main.exe
+;
+; Or use the run.sh script which automates this.
+
+; (executable
+;  (name main)
+;  (libraries irmin irmin.mem irmin-pack irmin-pack.unix eio_main unix)
+;  (modules bench_common bench_irmin_eio bench_irmin_pack main))

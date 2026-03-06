@@ -1,0 +1,84 @@
+(** Common benchmark harness - standalone copy for Irmin-Eio build.
+
+    This is a standalone copy to avoid cross-workspace dependencies. *)
+
+type result = {
+  name : string;
+  scenario : string;
+  total_ops : int;
+  total_time : float;
+  ops_per_sec : float;
+  details : (string * float) list;
+  maxrss_kb : int;
+}
+
+let time f =
+  let t0 = Unix.gettimeofday () in
+  let r = f () in
+  let t1 = Unix.gettimeofday () in
+  (r, t1 -. t0)
+
+let get_maxrss_kb () =
+  let ic = open_in "/proc/self/status" in
+  let rec scan () =
+    match input_line ic with
+    | line ->
+        if String.length line > 6 && String.sub line 0 6 = "VmRSS:" then begin
+          close_in ic;
+          Scanf.sscanf line "VmRSS: %d kB" Fun.id
+        end
+        else scan ()
+    | exception End_of_file -> close_in ic; 0
+  in
+  try scan () with _ -> 0
+
+let path ~depth n =
+  let rec aux acc = function
+    | i when i = depth -> List.rev (string_of_int n :: acc)
+    | i -> aux (string_of_int i :: acc) (i + 1)
+  in
+  aux [] 0
+
+let pp_result fmt r =
+  Format.fprintf fmt
+    "@[<v>=== %s [%s] ===@,\
+     total ops:   %d@,\
+     total time:  %.3fs@,\
+     ops/sec:     %.0f@,\
+     maxrss:      %d KiB@]"
+    r.name r.scenario r.total_ops r.total_time r.ops_per_sec r.maxrss_kb;
+  List.iter
+    (fun (k, v) -> Format.fprintf fmt "@,  %-20s %.4fs" k v)
+    r.details
+
+let pp_comparison fmt results =
+  Format.fprintf fmt "@.@[<v>=== Comparison ===@,";
+  Format.fprintf fmt "%-30s %-15s %12s %12s %10s@,"
+    "Name" "Scenario" "ops/s" "total(s)" "RSS(MiB)";
+  Format.fprintf fmt "%s@,"
+    (String.make 82 '-');
+  List.iter
+    (fun r ->
+      Format.fprintf fmt "%-30s %-15s %12.0f %12.3f %10d@,"
+        r.name r.scenario r.ops_per_sec r.total_time (r.maxrss_kb / 1024))
+    results;
+  Format.fprintf fmt "@]@."
+
+type config = {
+  ncommits : int;
+  tree_add : int;
+  depth : int;
+  nreads : int;
+  value_size : int;
+}
+
+let make_value ~size i =
+  let base = Printf.sprintf "value-%d-" i in
+  if size <= String.length base then String.sub base 0 size
+  else
+    let buf = Buffer.create size in
+    Buffer.add_string buf base;
+    while Buffer.length buf < size do
+      Buffer.add_char buf 'x'
+    done;
+    Buffer.sub buf 0 size
