@@ -15,6 +15,15 @@ module type S = sig
   type hash
   (** The hash type used by this format. *)
 
+  type entry =
+    [ `Node of hash | `Contents of hash | `Contents_inlined of string ]
+  (** A node entry: subtree hash, content hash, or inlined content. *)
+
+  val inline_threshold : int
+  (** Maximum serialized size (in bytes) for inlined contents. Contents at or
+      below this size are stored directly in the node rather than as a separate
+      blob. Set to 0 to disable inlining. *)
+
   val hash_node : node -> hash
   (** [hash_node n] computes the hash of [n]. *)
 
@@ -30,16 +39,16 @@ module type S = sig
   val empty_node : node
   (** The empty node with no entries. *)
 
-  val find : node -> string -> [ `Node of hash | `Contents of hash ] option
+  val find : node -> string -> entry option
   (** [find node name] looks up an entry by name. *)
 
-  val add : node -> string -> [ `Node of hash | `Contents of hash ] -> node
+  val add : node -> string -> entry -> node
   (** [add node name entry] adds or replaces an entry. *)
 
   val remove : node -> string -> node
   (** [remove node name] removes an entry. *)
 
-  val list : node -> (string * [ `Node of hash | `Contents of hash ]) list
+  val list : node -> (string * entry) list
   (** [list node] returns all entries sorted by name. *)
 
   val is_empty : node -> bool

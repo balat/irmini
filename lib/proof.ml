@@ -91,6 +91,7 @@ module Make (C : Codec.S) = struct
       | [ key ] -> (
           match C.find node key with
           | Some (`Contents h) -> read_contents backend h
+          | Some (`Contents_inlined data) -> Some data
           | _ -> None)
       | key :: rest -> (
           match C.find node key with
@@ -130,7 +131,7 @@ module Make (C : Codec.S) = struct
               match read_node backend h with
               | Some child -> find_tree_in_node backend child rest
               | None -> None)
-          | Some (`Contents _) -> None
+          | Some (`Contents _ | `Contents_inlined _) -> None
           | None -> None)
 
     let rec find_tree_in_proof tree path =
@@ -163,7 +164,9 @@ module Make (C : Codec.S) = struct
                 C.list node
                 |> List.map (fun (k, v) ->
                     let kind =
-                      match v with `Node _ -> `Node | `Contents _ -> `Contents
+                      match v with
+                      | `Node _ -> `Node
+                      | `Contents _ | `Contents_inlined _ -> `Contents
                     in
                     (k, kind))
             | key :: rest -> (
@@ -210,9 +213,14 @@ module Make (C : Codec.S) = struct
           let rec add_to_node node = function
             | [] -> failwith "Proof.Tree.add: empty path"
             | [ key ] ->
-                let h = C.hash_contents contents in
-                backend.write h contents;
-                C.add node key (`Contents h)
+                if C.inline_threshold > 0
+                   && String.length contents <= C.inline_threshold
+                then C.add node key (`Contents_inlined contents)
+                else begin
+                  let h = C.hash_contents contents in
+                  backend.write h contents;
+                  C.add node key (`Contents h)
+                end
             | key :: rest ->
                 let child_node =
                   match C.find node key with
@@ -355,6 +363,9 @@ module Make (C : Codec.S) = struct
               let child_path = prefix @ [ key ] in
               let child_tree =
                 match kind with
+                | `Contents_inlined data ->
+                    if PathSet.mem child_path accessed then Contents data
+                    else Contents data (* inlined is always available *)
                 | `Contents h ->
                     if Path_set.mem child_path accessed then
                       match backend.Backend.read h with

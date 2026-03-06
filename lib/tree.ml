@@ -67,6 +67,8 @@ module Make (F : Codec.S) = struct
               | Some loaded -> (
                   match F.find loaded name with
                   | None -> None
+                  | Some (`Contents_inlined data) ->
+                      navigate (Contents data) rest
                   | Some (`Contents hash) -> (
                       (* Load the content blob *)
                       match node.state with
@@ -108,7 +110,7 @@ module Make (F : Codec.S) = struct
                   let k =
                     match kind with
                     | `Node _ -> `Node
-                    | `Contents _ -> `Contents
+                    | `Contents _ | `Contents_inlined _ -> `Contents
                   in
                   (name, k))
             in
@@ -154,7 +156,8 @@ module Make (F : Codec.S) = struct
                         match node.state with
                         | Lazy { backend; _ } -> of_hash ~backend hash
                         | _ -> empty ())
-                    | _ -> empty ()))
+                    | Some (`Contents _ | `Contents_inlined _) | None ->
+                        empty ()))
         in
         let new_child = add_at child rest value in
         let children =
@@ -192,7 +195,8 @@ module Make (F : Codec.S) = struct
                         match node.state with
                         | Lazy { backend; _ } -> of_hash ~backend hash
                         | _ -> empty ())
-                    | _ -> empty ()))
+                    | Some (`Contents _ | `Contents_inlined _) | None ->
+                        empty ()))
         in
         let new_child = remove child rest in
         let children =
@@ -210,12 +214,26 @@ module Make (F : Codec.S) = struct
           | None -> []
           | Some loaded ->
               F.list loaded
-              |> List.filter_map (fun (name, _kind) ->
+              |> List.filter_map (fun (name, kind) ->
                   if List.mem name node.removed then None
                   else if List.mem_assoc name node.children then None
                   else
-                    (* Would need to recursively load - simplified here *)
-                    None)
+                    match kind with
+                    | `Contents_inlined data ->
+                        Some (name, `Contents data)
+                    | `Contents hash -> (
+                        match node.state with
+                        | Lazy { backend; _ } -> (
+                            match backend.read hash with
+                            | Some data -> Some (name, `Contents data)
+                            | None -> None)
+                        | _ -> None)
+                    | `Node hash -> (
+                        match node.state with
+                        | Lazy { backend; _ } ->
+                            let child = of_hash ~backend hash in
+                            Some (name, to_concrete child)
+                        | _ -> None))
         in
         let child_entries =
           List.map
@@ -230,7 +248,7 @@ module Make (F : Codec.S) = struct
         `Tree all
 
   (* Write tree to backend and return hash *)
-  let rec write_tree t ~(backend : hash Backend.t) : hash =
+  let rec write_tree t ~inline_threshold ~(backend : hash Backend.t) : hash =
     match t with
     | Contents s ->
         let h = F.hash_contents s in
@@ -249,13 +267,20 @@ module Make (F : Codec.S) = struct
         let final =
           List.fold_left
             (fun n (name, child) ->
-              let child_hash = write_tree child ~backend in
-              let kind =
-                match child with
-                | Contents _ -> `Contents child_hash
-                | Node _ -> `Node child_hash
-              in
-              F.add n name kind)
+              match child with
+              | Contents s when inline_threshold > 0
+                                && String.length s <= inline_threshold ->
+                  (* Inline small contents directly in the node *)
+                  F.add n name (`Contents_inlined s)
+              | Contents s ->
+                  let h = F.hash_contents s in
+                  backend.write h s;
+                  F.add n name (`Contents h)
+              | Node _ ->
+                  let child_hash =
+                    write_tree child ~inline_threshold ~backend
+                  in
+                  F.add n name (`Node child_hash))
             base node.children
         in
         let data = F.bytes_of_node final in
@@ -263,7 +288,8 @@ module Make (F : Codec.S) = struct
         backend.write h data;
         h
 
-  let hash t ~backend = write_tree t ~backend
+  let hash ?(inline_threshold = F.inline_threshold) t ~backend =
+    write_tree t ~inline_threshold ~backend
 
   type 'a force = [ `True | `False of hash -> 'a | `Shallow of hash -> 'a ]
 

@@ -2,15 +2,19 @@ module type S = sig
   type node
   type hash
 
+  type entry =
+    [ `Node of hash | `Contents of hash | `Contents_inlined of string ]
+
+  val inline_threshold : int
   val hash_node : node -> hash
   val hash_contents : string -> hash
   val node_of_bytes : string -> (node, [> `Msg of string ]) result
   val bytes_of_node : node -> string
   val empty_node : node
-  val find : node -> string -> [ `Node of hash | `Contents of hash ] option
-  val add : node -> string -> [ `Node of hash | `Contents of hash ] -> node
+  val find : node -> string -> entry option
+  val add : node -> string -> entry -> node
   val remove : node -> string -> node
-  val list : node -> (string * [ `Node of hash | `Contents of hash ]) list
+  val list : node -> (string * entry) list
   val is_empty : node -> bool
 
   (* Hash operations *)
@@ -49,7 +53,20 @@ module type SHA256 = S with type hash = Hash.sha256
 (** Git tree object format using ocaml-git. *)
 module Git : SHA1 = struct
   type hash = Hash.sha1
-  type node = Git.Tree.t
+
+  type entry =
+    [ `Node of hash | `Contents of hash | `Contents_inlined of string ]
+
+  (* Node wraps a Git tree plus a map of inlined small contents *)
+  type node = {
+    tree : Git.Tree.t;
+    inlined : (string * string) list; (* name -> inlined content *)
+  }
+
+  (* Threshold is 0 by default; actual inlining threshold is set at the
+     tree/store level based on the backend capabilities. Git interop backends
+     cannot store our extended format. Memory/disk backends can. *)
+  let inline_threshold = 0
 
   (* Convert between irmin Hash.sha1 and Git.Hash.t *)
   let git_hash_of_sha1 (h : hash) : Git.Hash.t =
@@ -58,42 +75,136 @@ module Git : SHA1 = struct
   let sha1_of_git_hash (h : Git.Hash.t) : hash =
     Hash.sha1_of_bytes (Git.Hash.to_raw_string h)
 
-  let empty_node = Git.Tree.empty
-  let is_empty = Git.Tree.is_empty
+  let empty_node = { tree = Git.Tree.empty; inlined = [] }
+  let is_empty node = Git.Tree.is_empty node.tree && node.inlined = []
 
   let find node name =
-    match Git.Tree.find ~name node with
-    | None -> None
-    | Some entry -> (
-        let h = sha1_of_git_hash entry.hash in
-        match entry.perm with `Dir -> Some (`Node h) | _ -> Some (`Contents h))
+    match List.assoc_opt name node.inlined with
+    | Some data -> Some (`Contents_inlined data)
+    | None -> (
+        match Git.Tree.find ~name node.tree with
+        | None -> None
+        | Some entry -> (
+            let h = sha1_of_git_hash entry.hash in
+            match entry.perm with
+            | `Dir -> Some (`Node h)
+            | _ -> Some (`Contents h)))
 
   let add node name kind =
-    let perm, hash =
-      match kind with
-      | `Node h -> (`Dir, git_hash_of_sha1 h)
-      | `Contents h -> (`Normal, git_hash_of_sha1 h)
-    in
-    let entry = Git.Tree.entry ~perm ~name hash in
-    Git.Tree.add entry node
+    match kind with
+    | `Contents_inlined data ->
+        let tree = Git.Tree.remove ~name node.tree in
+        let inlined =
+          (name, data) :: List.filter (fun (n, _) -> n <> name) node.inlined
+        in
+        { tree; inlined }
+    | `Node h ->
+        let inlined = List.filter (fun (n, _) -> n <> name) node.inlined in
+        let entry = Git.Tree.entry ~perm:`Dir ~name (git_hash_of_sha1 h) in
+        { tree = Git.Tree.add entry node.tree; inlined }
+    | `Contents h ->
+        let inlined = List.filter (fun (n, _) -> n <> name) node.inlined in
+        let entry =
+          Git.Tree.entry ~perm:`Normal ~name (git_hash_of_sha1 h)
+        in
+        { tree = Git.Tree.add entry node.tree; inlined }
 
-  let remove node name = Git.Tree.remove ~name node
+  let remove node name =
+    let inlined = List.filter (fun (n, _) -> n <> name) node.inlined in
+    { tree = Git.Tree.remove ~name node.tree; inlined }
 
   let list node =
-    Git.Tree.to_list node
-    |> List.map (fun (entry : Git.Tree.entry) ->
-        let h = sha1_of_git_hash entry.hash in
-        let kind = match entry.perm with `Dir -> `Node h | _ -> `Contents h in
-        (entry.name, kind))
+    let tree_entries =
+      Git.Tree.to_list node.tree
+      |> List.map (fun (entry : Git.Tree.entry) ->
+          let h = sha1_of_git_hash entry.hash in
+          let kind =
+            match entry.perm with `Dir -> `Node h | _ -> `Contents h
+          in
+          (entry.name, kind))
+    in
+    let inlined_entries =
+      List.map
+        (fun (name, data) -> (name, `Contents_inlined data))
+        node.inlined
+    in
+    List.sort
+      (fun (a, _) (b, _) -> String.compare a b)
+      (tree_entries @ inlined_entries)
 
-  let bytes_of_node = Git.Tree.to_string
+  (* Serialization format:
+     - Version 0 (backward compat): raw Git tree bytes (starts with ASCII digit)
+     - Version 1: \x01 + 4-byte Git tree length + Git tree bytes + inlined entries
+       Each inlined entry: 2-byte name length + name + 4-byte data length + data
+     Standard Git trees always start with a mode digit (0-9), never \x01. *)
+
+  let bytes_of_node node =
+    let tree_bytes = Git.Tree.to_string node.tree in
+    if node.inlined = [] then tree_bytes
+    else
+      let buf = Buffer.create (String.length tree_bytes + 64) in
+      Buffer.add_char buf '\x01';
+      Buffer.add_int32_be buf (Int32.of_int (String.length tree_bytes));
+      Buffer.add_string buf tree_bytes;
+      let sorted =
+        List.sort (fun (a, _) (b, _) -> String.compare a b) node.inlined
+      in
+      List.iter
+        (fun (name, data) ->
+          let nlen = String.length name in
+          let dlen = String.length data in
+          Buffer.add_uint16_be buf nlen;
+          Buffer.add_string buf name;
+          Buffer.add_int32_be buf (Int32.of_int dlen);
+          Buffer.add_string buf data)
+        sorted;
+      Buffer.contents buf
+
+  let parse_inlined_entries s offset =
+    let len = String.length s in
+    let rec loop pos acc =
+      if pos >= len then List.rev acc
+      else
+        let nlen = Char.code s.[pos] lsl 8 lor Char.code s.[pos + 1] in
+        let name = String.sub s (pos + 2) nlen in
+        let dpos = pos + 2 + nlen in
+        let dlen =
+          Char.code s.[dpos] lsl 24
+          lor (Char.code s.[dpos + 1] lsl 16)
+          lor (Char.code s.[dpos + 2] lsl 8)
+          lor Char.code s.[dpos + 3]
+        in
+        let data = String.sub s (dpos + 4) dlen in
+        loop (dpos + 4 + dlen) ((name, data) :: acc)
+    in
+    loop offset []
 
   let node_of_bytes s : (node, [> `Msg of string ]) result =
-    match Git.Tree.of_string s with
-    | Ok n -> Ok n
-    | Error (`Msg m) -> Error (`Msg m)
+    if String.length s = 0 then Ok { tree = Git.Tree.empty; inlined = [] }
+    else if Char.code s.[0] = 0x01 then begin
+      (* Version 1: has inlined entries *)
+      let tree_len =
+        Char.code s.[1] lsl 24
+        lor (Char.code s.[2] lsl 16)
+        lor (Char.code s.[3] lsl 8)
+        lor Char.code s.[4]
+      in
+      let tree_bytes = String.sub s 5 tree_len in
+      let inlined_start = 5 + tree_len in
+      let inlined = parse_inlined_entries s inlined_start in
+      match Git.Tree.of_string tree_bytes with
+      | Ok tree -> Ok { tree; inlined }
+      | Error (`Msg m) -> Error (`Msg m)
+    end
+    else
+      (* Version 0: standard Git tree, no inlined entries *)
+      match Git.Tree.of_string s with
+      | Ok tree -> Ok { tree; inlined = [] }
+      | Error (`Msg m) -> Error (`Msg m)
 
-  let hash_node node = sha1_of_git_hash (Git.Tree.digest node)
+  let hash_node node =
+    let data = bytes_of_node node in
+    sha1_of_git_hash (Git.Hash.digest_string ~kind:`Tree data)
 
   let hash_contents data =
     sha1_of_git_hash (Git.Hash.digest_string ~kind:`Blob data)
@@ -156,6 +267,11 @@ end
 module Mst : SHA256 = struct
   type hash = Hash.sha256
 
+  type entry =
+    [ `Node of hash | `Contents of hash | `Contents_inlined of string ]
+
+  let inline_threshold = 0
+
   (* Convert between irmin Hash.sha256 and Atp.Cid.t *)
   let cid_of_sha256 (h : hash) : Atp.Cid.t =
     Atp.Cid.of_digest `Dag_cbor (Hash.to_bytes h)
@@ -212,14 +328,14 @@ module Mst : SHA256 = struct
 
   let add (node : node) name kind =
     let entries = decompress_keys node.e in
-    let v, t =
+    let v =
       match kind with
-      | `Contents h -> (cid_of_sha256 h, None)
-      | `Node h -> (cid_of_sha256 h, None)
-      (* TODO: Handle subtree pointers *)
+      | `Contents h -> cid_of_sha256 h
+      | `Node h -> cid_of_sha256 h
+      | `Contents_inlined s ->
+          (* Fallback: hash the content and store as CID *)
+          cid_of_sha256 (Hash.sha256 s)
     in
-    let _ = t in
-    (* suppress unused warning *)
     let entries = List.filter (fun (k, _) -> k <> name) entries in
     let entries =
       (name, (v, None))
