@@ -53,6 +53,7 @@ IRMIN_EIO_DIR=/path/to/irmin ./bench/run.sh
 | `backend_lavyek.ml`       | Lavyek adapter to `Backend.t`             |
 | `bench_irmin4_main.ml`    | CLI runner for all irmini backends        |
 | `run.sh`                  | Full comparison script (irmini + Irmin)   |
+| `gen_chart.py`            | Generate `bench_chart.svg` from results   |
 
 ## Results
 
@@ -62,6 +63,12 @@ Run on 2026-03-06, AMD 12-core, 50 commits × 500 adds, depth 10, 5000 reads,
 ### Overview
 
 ![Benchmark comparison](bench_chart.svg)
+
+To regenerate the chart after updating the data in `gen_chart.py`:
+
+```
+python3 bench/gen_chart.py
+```
 
 ### Irmini (memory, disk, lavyek)
 
