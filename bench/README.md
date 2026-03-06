@@ -91,6 +91,29 @@ Irmini (lavyek)                large-values            1286        7.8        47
 Irmini (lavyek)                concurrent-100f/12d   447187        0.0        475
 ```
 
+### Irmini + inlining (memory, disk, lavyek)
+
+Irmini with small object inlining enabled (branch `benchs+inlining`).
+
+```
+Name                           Scenario               ops/s     total(s)   RSS(MiB)
+----------------------------------------------------------------------------------
+Irmini+inline (memory)         commits                  549       45.6        317
+Irmini+inline (memory)         reads                   9712        0.5        314
+Irmini+inline (memory)         incremental             2029        0.0        314
+Irmini+inline (memory)         large-values            1583        6.3        310
+Irmini+inline (disk)           commits                  444       56.4        346
+Irmini+inline (disk)           reads                   4448        1.1        346
+Irmini+inline (disk)           incremental               10        5.2        346
+Irmini+inline (disk)           large-values              91      109.7        346
+Irmini+inline (disk)           concurrent-100f/12d      261       38.3        346
+Irmini+inline (lavyek)         commits                  485       51.6        477
+Irmini+inline (lavyek)         reads                   8438        0.6        477
+Irmini+inline (lavyek)         incremental             1515        0.0        477
+Irmini+inline (lavyek)         large-values            1314        7.6        477
+Irmini+inline (lavyek)         concurrent-100f/12d   436529        0.0        477
+```
+
 ### Irmin (Eio branch + inline-small-objects-v2)
 
 Official Irmin on branch `cuihtlauac-inline-small-objects-v2` (Eio-based,
@@ -166,6 +189,13 @@ Irmin-git (disk)               large-values            1585        6.3        64
   Incremental updates (161 ops/s) are comparable to irmin-fs. Large values at
   1.6 k ops/s are the slowest across all Irmin backends (zlib compression on
   10 KiB payloads is expensive).
+- **Inlining impact on Irmini**: Small but consistent improvement across
+  all backends. Memory commits go from 519 to 549 ops/s (**+6%**), reads
+  from 9.6 k to 9.7 k (**+2%**), Lavyek commits from 457 to 485 (**+6%**).
+  Disk reads improve from 4.0 k to 4.4 k (**+11%**). The gains are modest
+  because irmini's bottleneck is full tree re-serialization, not node
+  encoding. Inlining helps most when many small values avoid separate
+  content-addressable lookups.
 - **Inlining impact on Irmin-Eio**: Marginal on in-memory benchmarks
   (100-byte values). On irmin-pack, inlining gives a **~25% boost** on
   commits (52 k vs 42 k ops/s) and slightly better incrementals.
