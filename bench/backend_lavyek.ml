@@ -8,7 +8,7 @@ open Irmin
 let ref_prefix = "ref:"
 
 let create ~sw root : Hash.sha1 Backend.t =
-  let db = Lavyek.open_out ~sw root in
+  let db = Lavyek.create ~sw root in
   {
     read = (fun h -> Lavyek.find db ~key:(Hash.to_hex h));
     write = (fun h data -> Lavyek.put db (Hash.to_hex h) data);

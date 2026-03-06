@@ -1,10 +1,15 @@
-(** Benchmark Irmin4 with Lavyek backend across all scenarios. *)
+(** Benchmark Irmin4 with Lavyek backend across all scenarios.
+
+    Each scenario gets a fresh Lavyek store in a separate subdirectory
+    to avoid WAL replay issues between runs. *)
 
 let run_all ~sw root (conf : Bench_common.config) =
   let name = "Irmin4 (lavyek)" in
-  let mk () = Backend_lavyek.create ~sw root in
+  let n = ref 0 in
   let run_one f =
-    let backend = mk () in
+    incr n;
+    let subdir = Eio.Path.(root / Printf.sprintf "scenario_%d" !n) in
+    let backend = Backend_lavyek.create ~sw subdir in
     Fun.protect
       ~finally:(fun () -> backend.Irmin.Backend.close ())
       (fun () -> f ~backend)
