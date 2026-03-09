@@ -36,9 +36,9 @@ module Make (F : Codec.S) = struct
         | None -> None
         | Some commit -> Some (read_tree t (Commit.tree commit)))
 
-  let commit ?inline_threshold t ~tree ~parents ~message ~author =
+  let commit ?inline_threshold ?inode t ~tree ~parents ~message ~author =
     (* This is where delayed writes happen *)
-    let tree_hash = Tree.hash ?inline_threshold tree ~backend:t.backend in
+    let tree_hash = Tree.hash ?inline_threshold ?inode tree ~backend:t.backend in
     let c = Commit.v ~tree:tree_hash ~parents ~author ~message () in
     let data = Commit.to_bytes c in
     let h = Commit.hash c in

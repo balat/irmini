@@ -269,7 +269,7 @@ module Make (F : Codec.S) = struct
         `Tree all
 
   (* Write tree to backend and return hash *)
-  let rec write_tree t ~inline_threshold ~(backend : hash Backend.t) : hash =
+  let rec write_tree t ~inline_threshold ~inode ~(backend : hash Backend.t) : hash =
     match t with
     | Contents s ->
         let h = F.hash_contents s in
@@ -292,16 +292,36 @@ module Make (F : Codec.S) = struct
                   (name, (`Contents h : F.entry))
               | Node _ ->
                   let child_hash =
-                    write_tree child ~inline_threshold ~backend
+                    write_tree child ~inline_threshold ~inode ~backend
                   in
                   (name, (`Node child_hash : F.entry)))
             node.children
         in
         (match node.state with
-        | Inode { hash; _ } ->
+        | Inode { hash; backend = ib } when inode ->
             (* Incremental update: only modify affected inode buckets *)
             Inode.update ~backend hash ~additions:child_entries
               ~removals:node.removed
+        | Inode { hash; backend = ib } ->
+            (* Inodes disabled: expand to flat node *)
+            let base_entries = Inode.list_all ~backend:ib hash in
+            let base =
+              List.fold_left
+                (fun n (name, entry) -> F.add n name entry)
+                F.empty_node base_entries
+            in
+            let base =
+              List.fold_left (fun n name -> F.remove n name) base node.removed
+            in
+            let final =
+              List.fold_left
+                (fun n (name, entry) -> F.add n name entry)
+                base child_entries
+            in
+            let data = F.bytes_of_node final in
+            let h = F.hash_node final in
+            backend.write h data;
+            h
         | _ ->
             (* Flat node: apply modifications, promote to inode if too large *)
             let base =
@@ -317,18 +337,25 @@ module Make (F : Codec.S) = struct
                 (fun n (name, entry) -> F.add n name entry)
                 base child_entries
             in
-            let entries = F.list final in
-            if List.length entries > Inode.max_entries then
-              Inode.write entries ~backend
-            else begin
+            if inode then begin
+              let entries = F.list final in
+              if List.length entries > Inode.max_entries then
+                Inode.write entries ~backend
+              else begin
+                let data = F.bytes_of_node final in
+                let h = F.hash_node final in
+                backend.write h data;
+                h
+              end
+            end else begin
               let data = F.bytes_of_node final in
               let h = F.hash_node final in
               backend.write h data;
               h
             end)
 
-  let hash ?(inline_threshold = F.inline_threshold) t ~backend =
-    write_tree t ~inline_threshold ~backend
+  let hash ?(inline_threshold = F.inline_threshold) ?(inode = true) t ~backend =
+    write_tree t ~inline_threshold ~inode ~backend
 
   type 'a force = [ `True | `False of hash -> 'a | `Shallow of hash -> 'a ]
 

@@ -33,16 +33,19 @@ module Make (F : Codec.S) : sig
 
   val commit :
     ?inline_threshold:int ->
+    ?inode:bool ->
     t ->
     tree:Tree.t ->
     parents:hash list ->
     message:string ->
     author:string ->
     hash
-  (** [commit ?inline_threshold t ~tree ~parents ~message ~author] creates a
-      commit. This is when delayed tree writes actually happen. If
+  (** [commit ?inline_threshold ?inode t ~tree ~parents ~message ~author]
+      creates a commit. This is when delayed tree writes actually happen. If
       [inline_threshold] is given, contents smaller than that are stored
-      inline in tree nodes. *)
+      inline in tree nodes. If [inode] is [false], inodes are disabled and
+      large trees are written as flat nodes (required for git compatibility).
+      Defaults to [true]. *)
 
   (** {2 Branch Operations} *)
 

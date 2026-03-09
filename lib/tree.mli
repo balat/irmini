@@ -78,12 +78,14 @@ module Make (F : Codec.S) : sig
   (** [to_concrete t] fully materializes the tree. Forces all lazy nodes to be
       loaded. *)
 
-  val hash : ?inline_threshold:int -> t -> backend:hash Backend.t -> hash
-  (** [hash ?inline_threshold t ~backend] computes the tree hash. Writes all
+  val hash : ?inline_threshold:int -> ?inode:bool -> t -> backend:hash Backend.t -> hash
+  (** [hash ?inline_threshold ?inode t ~backend] computes the tree hash. Writes all
       accumulated changes to the backend. If [inline_threshold] is given,
       contents at or below that size (in bytes) are stored directly in the
       parent node rather than as separate blobs. Defaults to the codec's
-      [inline_threshold]. *)
+      [inline_threshold]. If [inode] is [false], large tree nodes are never
+      split into inode tries — they are always written as flat nodes. This is
+      required for git-compatible output. Defaults to [true]. *)
 
   (** {2 Force Control} *)
 
