@@ -22,26 +22,26 @@ module Make (F : Codec.S) = struct
     backend : hash Backend.t option;
     mutable children : (string * tree_node) list; (* modifications *)
     mutable removed : string list;
-    mutable resolved : (string * tree_node) list; (* read cache *)
+    resolved : (string, tree_node) Hashtbl.t; (* read cache *)
   }
 
   type t = tree_node
 
   let empty () =
     Node { state = Loaded F.empty_node; backend = None;
-           children = []; removed = []; resolved = [] }
+           children = []; removed = []; resolved = Hashtbl.create 0 }
 
   let of_hash ~backend hash =
     Node { state = Lazy { backend; hash }; backend = Some backend;
-           children = []; removed = []; resolved = [] }
+           children = []; removed = []; resolved = Hashtbl.create 0 }
 
   let shallow hash =
     Node { state = Shallow hash; backend = None;
-           children = []; removed = []; resolved = [] }
+           children = []; removed = []; resolved = Hashtbl.create 0 }
 
   let pruned hash =
     Node { state = Pruned hash; backend = None;
-           children = []; removed = []; resolved = [] }
+           children = []; removed = []; resolved = Hashtbl.create 0 }
 
   let rec of_concrete : concrete -> t = function
     | `Contents s -> Contents s
@@ -50,7 +50,7 @@ module Make (F : Codec.S) = struct
           List.map (fun (name, c) -> (name, of_concrete c)) entries
         in
         Node { state = Loaded F.empty_node; backend = None;
-               children; removed = []; resolved = [] }
+               children; removed = []; resolved = Hashtbl.create 0 }
 
   (* Resolve a lazy node: load from backend, detect inode format. *)
   let resolve_state node =
@@ -98,7 +98,7 @@ module Make (F : Codec.S) = struct
             if List.mem name node.removed then None
             else
               (* Check read cache *)
-              match List.assoc_opt name node.resolved with
+              match Hashtbl.find_opt node.resolved name with
               | Some child -> navigate child rest
               | None ->
                   let resolved =
@@ -121,7 +121,7 @@ module Make (F : Codec.S) = struct
                   match resolved with
                   | None -> None
                   | Some child ->
-                      node.resolved <- (name, child) :: node.resolved;
+                      Hashtbl.replace node.resolved name child;
                       navigate child rest))
 
   let find t path =
