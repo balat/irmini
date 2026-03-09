@@ -29,6 +29,7 @@ IRMIN_EIO_DIR=/path/to/irmin ./bench/run.sh
 | `--value-size`   | 100     | Size of values in bytes            |
 | `--skip-lavyek`  | false   | Skip the Lavyek backend            |
 | `--skip-disk`    | false   | Skip the disk backend              |
+| `--cache`        | 0       | LRU cache capacity (0 = no cache)  |
 
 ## Scenarios
 
@@ -62,9 +63,9 @@ Run on 2026-03-06, AMD 12-core, 50 commits × 500 adds, depth 10, 5000 reads,
 
 ### Overview
 
-![Benchmark comparison](bench_chart_1772815113.svg)
+![Benchmark comparison](bench_chart_1773050531.svg)
 
-![Benchmark comparison (log scale)](bench_chart_log_1772815113.svg)
+![Benchmark comparison (log scale)](bench_chart_log_1773050531.svg)
 
 To regenerate the charts after updating the data in `gen_chart.py`:
 
@@ -122,6 +123,36 @@ For reference, irmini **without** inlining on the same 30-byte values gives
 the same performance as with 100-byte values (~500 commits/s, ~9.5k reads/s),
 confirming that inlining is the cause of the speedup, not the smaller value
 size.
+
+### Irmini + LRU cache (memory, disk, lavyek)
+
+Irmini with `Backend.cached ~capacity:100_000` wrapping the backend.
+The LRU cache stores raw serialized objects by hash, avoiding repeated
+disk reads and deserialization.
+
+```
+Name                           Scenario               ops/s     total(s)   RSS(MiB)
+----------------------------------------------------------------------------------
+Irmini+cache (memory)          commits                  512       48.8        323
+Irmini+cache (memory)          reads                  13399        0.4        322
+Irmini+cache (memory)          incremental             2270        0.0        321
+Irmini+cache (memory)          large-values            1470        6.8        316
+Irmini+cache (disk)            commits                  435       57.5        389
+Irmini+cache (disk)            reads                  14013        0.4        388
+Irmini+cache (disk)            incremental               10        5.0        383
+Irmini+cache (disk)            large-values              94      106.6        377
+Irmini+cache (disk)            concurrent-100f/12d      266       37.6        353
+Irmini+cache (lavyek)          commits                  471       53.0        618
+Irmini+cache (lavyek)          reads                  12574        0.4        618
+Irmini+cache (lavyek)          incremental             1003        0.1        757
+Irmini+cache (lavyek)          large-values            1257        8.0        618
+Irmini+cache (lavyek)          concurrent-100f/12d   686252        0.0        520
+```
+
+The cache improves **reads** significantly: disk goes from 4k to **14k
+ops/s** (**3.4×**), memory from 9.5k to **13.4k** (**1.4×**), lavyek from
+8.5k to **12.6k** (**1.5×**). Disk+cache is now faster than memory without
+cache for reads. Commits and large-values are unaffected (write-bound).
 
 ### Irmin (Eio branch + inline-small-objects-v2)
 
@@ -225,9 +256,15 @@ Irmin-git (disk)               large-values            1585        6.3        64
   (the pack file is protected by a mutex), which nullifies the parallelism
   of the 12 domains. Lavyek, by contrast, is lock-free (Atomic.t + KCAS)
   and its operations are much lighter (no tree/commit/inode layer).
-- **Reads (irmini)**: Memory is fastest (9.6 k ops/s), Lavyek close behind
-  (8.3 k), disk significantly slower (4 k). By comparison, Irmin-Eio
-  reads are ~140× faster at 1.3 M ops/s.
+- **LRU cache impact**: Adding a 100k-entry LRU cache (`Backend.cached`)
+  improves reads dramatically on disk (**3.4×**, 4k → 14k ops/s) by
+  avoiding repeated file reads. Memory and Lavyek also benefit (~1.4–1.5×)
+  by skipping deserialization of cached objects. Commits are unaffected
+  (write-bound). Disk+cache now outperforms uncached memory for reads.
+- **Reads (irmini)**: Without cache, memory is fastest (9.6 k ops/s),
+  Lavyek close behind (8.3 k), disk significantly slower (4 k). With
+  cache, all three converge around 12–14 k ops/s. By comparison, Irmin-Eio
+  reads are ~100× faster at 1.3 M ops/s.
 - **Incremental updates**: Irmini's disk backend is extremely slow (10 ops/s)
   due to full tree re-serialization. Memory and Lavyek handle small updates
   efficiently. Irmin-Eio handles incrementals well (~1.7–2.9 k ops/s on

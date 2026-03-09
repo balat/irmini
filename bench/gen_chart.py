@@ -41,6 +41,21 @@ data = [
     ("Irmini+inline (lavyek)",  "incremental",  1287),
     ("Irmini+inline (lavyek)",  "large-values", 1296),
     ("Irmini+inline (lavyek)",  "concurrent",   412492),
+    # Irmini + LRU cache (100k entries)
+    ("Irmini+cache (memory)",  "commits",      512),
+    ("Irmini+cache (memory)",  "reads",        13399),
+    ("Irmini+cache (memory)",  "incremental",  2270),
+    ("Irmini+cache (memory)",  "large-values", 1470),
+    ("Irmini+cache (disk)",    "commits",      435),
+    ("Irmini+cache (disk)",    "reads",        14013),
+    ("Irmini+cache (disk)",    "incremental",  10),
+    ("Irmini+cache (disk)",    "large-values", 94),
+    ("Irmini+cache (disk)",    "concurrent",   266),
+    ("Irmini+cache (lavyek)",  "commits",      471),
+    ("Irmini+cache (lavyek)",  "reads",        12574),
+    ("Irmini+cache (lavyek)",  "incremental",  1003),
+    ("Irmini+cache (lavyek)",  "large-values", 1257),
+    ("Irmini+cache (lavyek)",  "concurrent",   686252),
     # Irmin-Eio (eio branch)
     ("Irmin (memory)",    "commits",      158192),
     ("Irmin (memory)",    "reads",        1348477),
@@ -63,19 +78,22 @@ data = [
 
 scenarios = ["commits", "reads", "incremental", "large-values", "concurrent"]
 backends = [
-    "Irmini (memory)", "Irmini+inline (memory)",
-    "Irmini (disk)", "Irmini+inline (disk)",
-    "Irmini (lavyek)", "Irmini+inline (lavyek)",
+    "Irmini (memory)", "Irmini+inline (memory)", "Irmini+cache (memory)",
+    "Irmini (disk)", "Irmini+inline (disk)", "Irmini+cache (disk)",
+    "Irmini (lavyek)", "Irmini+inline (lavyek)", "Irmini+cache (lavyek)",
     "Irmin (memory)", "Irmin-pack", "Irmin-fs", "Irmin-git",
 ]
 
 colors = {
     "Irmini (memory)":          "#4e79a7",
     "Irmini+inline (memory)":   "#7eadd4",
+    "Irmini+cache (memory)":    "#a3c4e0",
     "Irmini (disk)":            "#59a14f",
     "Irmini+inline (disk)":     "#8ed485",
+    "Irmini+cache (disk)":      "#b8e8ab",
     "Irmini (lavyek)":          "#9c755f",
     "Irmini+inline (lavyek)":   "#c9a48e",
+    "Irmini+cache (lavyek)":    "#dfc4b5",
     "Irmin (memory)":           "#f28e2b",
     "Irmin-pack":               "#e15759",
     "Irmin-fs":                 "#76b7b2",
@@ -131,7 +149,7 @@ def pattern_id(name):
 
 def bar_fill(backend):
     c = colors[backend]
-    if "+inline" in backend:
+    if "+inline" in backend or "+cache" in backend:
         return f'url(#{pattern_id(backend)})'
     return c
 
@@ -175,7 +193,7 @@ def generate_chart(scale="linear"):
     # Background
     lines.append(f'<rect width="{svg_w}" height="{svg_h}" fill="white"/>')
 
-    # Stripe patterns for +inline variants
+    # Stripe patterns for +inline variants (diagonal) and +cache (horizontal)
     for name, color in colors.items():
         if "+inline" in name:
             pid = pattern_id(name)
@@ -183,6 +201,13 @@ def generate_chart(scale="linear"):
                          f'patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
                          f'<rect width="4" height="4" fill="{color}"/>'
                          f'<line x1="0" y1="0" x2="0" y2="4" stroke="white" stroke-width="1" opacity="0.4"/>'
+                         f'</pattern></defs>')
+        elif "+cache" in name:
+            pid = pattern_id(name)
+            lines.append(f'<defs><pattern id="{pid}" width="4" height="4" '
+                         f'patternUnits="userSpaceOnUse">'
+                         f'<rect width="4" height="4" fill="{color}"/>'
+                         f'<line x1="0" y1="2" x2="4" y2="2" stroke="white" stroke-width="1" opacity="0.5"/>'
                          f'</pattern></defs>')
 
     # Title
@@ -286,7 +311,7 @@ def generate_chart(scale="linear"):
     total_rows = (len(legend_items) - 1) // cols + 1
     ny = total_rows * 20 + 6
     lines.append(f'<text x="0" y="{ny + 10}" font-size="9" fill="#888" font-style="italic">'
-                 f'Striped bars = +inlining variant (lighter shade of same color)</text>')
+                 f'Diagonal stripes = +inlining, horizontal stripes = +cache (lighter shade of same color)</text>')
 
     lines.append('</g>')
     lines.append('</svg>')
