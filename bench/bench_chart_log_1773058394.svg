@@ -226,9 +226,9 @@
 <text x="206" y="10" font-size="10" fill="#333">Irmini (disk)</text>
 <rect x="380" y="0" width="12" height="12" fill="#9c755f" rx="2"/>
 <text x="396" y="10" font-size="10" fill="#333">Irmini (lavyek)</text>
-<rect x="570" y="0" width="12" height="12" fill="#1a3d5c" rx="2"/>
+<rect x="570" y="0" width="12" height="12" fill="url(#Irminipall_memory)" rx="2"/>
 <text x="586" y="10" font-size="10" fill="#333">Irmini+all (memory)</text>
-<rect x="0" y="20" width="12" height="12" fill="#6b4430" rx="2"/>
+<rect x="0" y="20" width="12" height="12" fill="url(#Irminipall_lavyek)" rx="2"/>
 <text x="16" y="30" font-size="10" fill="#333">Irmini+all (lavyek)</text>
 <rect x="190" y="20" width="12" height="12" fill="#f28e2b" rx="2"/>
 <text x="206" y="30" font-size="10" fill="#333">Irmin (memory)</text>

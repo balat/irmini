@@ -353,7 +353,8 @@ def generate_chart(scale="linear"):
         row = i // cols
         x = col * 190
         y = row * 20
-        lines.append(f'<rect x="{x}" y="{y}" width="12" height="12" fill="{color}" rx="2"/>')
+        fill = bar_fill(label)
+        lines.append(f'<rect x="{x}" y="{y}" width="12" height="12" fill="{fill}" rx="2"/>')
         lines.append(f'<text x="{x+16}" y="{y+10}" font-size="10" fill="#333">{label}</text>')
 
     total_rows = (len(legend_items) - 1) // cols + 1
