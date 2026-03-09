@@ -15,6 +15,9 @@ module Make (F : Codec.S) = struct
   let max_entries = 32
   let branching = 32
   let log_branching = 5
+  (* Hashtbl.hash returns 30 usable bits; beyond this depth all names
+     map to bucket 0, so we must stop splitting. *)
+  let max_depth = 30 / log_branching
 
   let inode_tag = 0x02
 
@@ -79,7 +82,7 @@ module Make (F : Codec.S) = struct
   (* --- Write an inode trie from a flat list of entries --- *)
 
   let rec write_entries ~depth entries ~(backend : hash Backend.t) =
-    if List.length entries <= max_entries then
+    if List.length entries <= max_entries || depth >= max_depth then
       write_flat entries ~backend
     else begin
       let buckets = Array.make branching [] in
@@ -212,7 +215,7 @@ module Make (F : Codec.S) = struct
         in
         let entries = entries_of_node node in
         let count = List.length entries in
-        if count > max_entries then
+        if count > max_entries && depth < max_depth then
           write_entries ~depth entries ~backend
         else begin
           let new_data = F.bytes_of_node node in
