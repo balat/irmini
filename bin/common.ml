@@ -74,7 +74,10 @@ module Git : BACKEND = struct
   let head store ~branch = Store.Git.head store ~branch
 
   let commit store ~tree ~parents ~message ~author =
-    Store.Git.commit store ~tree ~parents ~message ~author
+    (* Disable inlining for git interop: inlined contents use a format
+       (version byte \x01) that is not valid git, so git tools cannot
+       read the tree objects. *)
+    Store.Git.commit ~inline_threshold:0 store ~tree ~parents ~message ~author
 
   let set_head store ~branch hash = Store.Git.set_head store ~branch hash
   let branches store = Store.Git.branches store

@@ -10,12 +10,20 @@ let sha1_of_git_hash (h : Git.Hash.t) : Hash.sha1 =
   Hash.sha1_of_bytes (Git.Hash.to_raw_string h)
 
 (* Detect object type from content.
-   Commits start with "tree ", trees have binary format with mode prefixes. *)
+   Commits start with "tree ", trees have binary format with mode prefixes.
+   Inode marker \x02 and inlined-tree marker \x01 are internal formats
+   that cannot be stored in a git repository. *)
 let detect_object_type data =
   if String.length data >= 5 && String.sub data 0 5 = "tree " then `Commit
   else if String.length data >= 2 && data.[0] >= '1' && data.[0] <= '7' then
     (* Tree entries start with mode like "100644 " or "40000 " *)
     `Tree
+  else if
+    String.length data >= 1 && (data.[0] = '\x01' || data.[0] = '\x02')
+  then
+    failwith
+      "git_interop: cannot write internal tree format (inlined or inode) to \
+       git; use inline_threshold:0 for git backends"
   else `Blob
 
 let git_value_of_data data =

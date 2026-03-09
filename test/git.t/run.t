@@ -42,7 +42,7 @@ Git to Irmin - verify irmin can read git-created content:
   $ cd ..
   $ mkdir git-repo
   $ cd git-repo
-  $ git init -q
+  $ git init -q -b main
   $ git config user.email "test@example.com"
   $ git config user.name "Test User"
   $ mkdir -p src
