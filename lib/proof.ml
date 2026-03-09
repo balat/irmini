@@ -331,6 +331,10 @@ module Make (C : Codec.S) = struct
                       let kind =
                         match v with
                         | Node _ | Blinded_node _ -> `Node (hash_tree v)
+                        | Contents c
+                          when C.inline_threshold > 0
+                               && String.length c <= C.inline_threshold ->
+                            `Contents_inlined c
                         | Contents _ | Blinded_contents _ ->
                             `Contents (hash_tree v)
                       in
@@ -425,12 +429,18 @@ module Make (C : Codec.S) = struct
         let node =
           List.fold_left
             (fun n (k, v) ->
-              let h =
-                match hash_of_tree v with
-                | `Contents h -> `Contents h
-                | `Node h -> `Node h
+              let entry =
+                match v with
+                | Contents c
+                  when C.inline_threshold > 0
+                       && String.length c <= C.inline_threshold ->
+                    `Contents_inlined c
+                | _ -> (
+                    match hash_of_tree v with
+                    | `Contents h -> `Contents h
+                    | `Node h -> `Node h)
               in
-              C.add n k h)
+              C.add n k entry)
             C.empty_node entries
         in
         `Node (C.hash_node node)

@@ -274,7 +274,10 @@ module Mst : SHA256 = struct
   type entry =
     [ `Node of hash | `Contents of hash | `Contents_inlined of string ]
 
-  let inline_threshold = 48
+  (* MST/DAG-CBOR stores all values as CID references. Inlining is not
+     supported: Contents_inlined is converted to a hash in [add], so the
+     data would be lost if not written separately to the backend. *)
+  let inline_threshold = 0
 
   (* Convert between irmin Hash.sha256 and Atp.Cid.t *)
   let cid_of_sha256 (h : hash) : Atp.Cid.t =
