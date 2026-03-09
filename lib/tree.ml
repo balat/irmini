@@ -1,4 +1,6 @@
 module Make (F : Codec.S) = struct
+  module Inode = Inode.Make (F)
+
   type hash = F.hash
   type path = string list
   type concrete = [ `Contents of string | `Tree of (string * concrete) list ]
@@ -6,28 +8,37 @@ module Make (F : Codec.S) = struct
   (* Internal tree representation with lazy loading *)
   type node_state =
     | Loaded of F.node
+    | Inode of { backend : hash Backend.t; hash : hash }
     | Lazy of { backend : hash Backend.t; hash : hash }
     | Shallow of hash
     | Pruned of hash
 
   type tree_node =
     | Contents of string
-    | Node of {
-        mutable state : node_state;
-        mutable children : (string * tree_node) list; (* modifications *)
-        mutable removed : string list;
-      }
+    | Node of node_record
+
+  and node_record = {
+    mutable state : node_state;
+    backend : hash Backend.t option;
+    mutable children : (string * tree_node) list; (* modifications *)
+    mutable removed : string list;
+  }
 
   type t = tree_node
 
   let empty () =
-    Node { state = Loaded F.empty_node; children = []; removed = [] }
+    Node { state = Loaded F.empty_node; backend = None;
+           children = []; removed = [] }
 
   let of_hash ~backend hash =
-    Node { state = Lazy { backend; hash }; children = []; removed = [] }
+    Node { state = Lazy { backend; hash }; backend = Some backend;
+           children = []; removed = [] }
 
-  let shallow hash = Node { state = Shallow hash; children = []; removed = [] }
-  let pruned hash = Node { state = Pruned hash; children = []; removed = [] }
+  let shallow hash =
+    Node { state = Shallow hash; backend = None; children = []; removed = [] }
+
+  let pruned hash =
+    Node { state = Pruned hash; backend = None; children = []; removed = [] }
 
   let rec of_concrete : concrete -> t = function
     | `Contents s -> Contents s
@@ -35,19 +46,39 @@ module Make (F : Codec.S) = struct
         let children =
           List.map (fun (name, c) -> (name, of_concrete c)) entries
         in
-        Node { state = Loaded F.empty_node; children; removed = [] }
+        Node { state = Loaded F.empty_node; backend = None;
+               children; removed = [] }
 
-  (* Force loading of a lazy node *)
-  let force_node state =
-    match state with
-    | Loaded n -> Some n
+  (* Resolve a lazy node: load from backend, detect inode format. *)
+  let resolve_state node =
+    match node.state with
+    | Loaded _ | Inode _ | Shallow _ | Pruned _ -> ()
     | Lazy { backend; hash } -> (
         match backend.read hash with
-        | Some data -> (
-            match F.node_of_bytes data with Ok n -> Some n | Error _ -> None)
-        | None -> None)
-    | Shallow _ -> None
-    | Pruned _ -> None
+        | None -> ()
+        | Some data ->
+            if Inode.is_inode data then
+              node.state <- Inode { backend; hash }
+            else (
+              match F.node_of_bytes data with
+              | Ok n -> node.state <- Loaded n
+              | Error _ -> ()))
+
+  (* Look up a single entry by name, handling both flat nodes and inodes. *)
+  let resolve_entry node name =
+    resolve_state node;
+    match node.state with
+    | Loaded n -> F.find n name
+    | Inode { backend; hash } -> Inode.find ~backend hash name
+    | _ -> None
+
+  (* List all entries, handling both flat nodes and inodes. *)
+  let resolve_entries node =
+    resolve_state node;
+    match node.state with
+    | Loaded n -> Some (F.list n)
+    | Inode { backend; hash } -> Some (Inode.list_all ~backend hash)
+    | _ -> None
 
   (* Navigate to a path, returning the node and remaining path *)
   let rec navigate t path =
@@ -61,28 +92,23 @@ module Make (F : Codec.S) = struct
         | None -> (
             if List.mem name node.removed then None
             else
-              (* Try to load from underlying node *)
-              match force_node node.state with
+              match resolve_entry node name with
               | None -> None
-              | Some loaded -> (
-                  match F.find loaded name with
-                  | None -> None
-                  | Some (`Contents_inlined data) ->
-                      navigate (Contents data) rest
-                  | Some (`Contents hash) -> (
-                      (* Load the content blob *)
-                      match node.state with
-                      | Lazy { backend; _ } -> (
-                          match backend.read hash with
-                          | Some data -> navigate (Contents data) rest
-                          | None -> None)
-                      | _ -> None)
-                  | Some (`Node hash) -> (
-                      match node.state with
-                      | Lazy { backend; _ } ->
-                          let child = of_hash ~backend hash in
-                          navigate child rest
-                      | _ -> None))))
+              | Some (`Contents_inlined data) ->
+                  navigate (Contents data) rest
+              | Some (`Contents hash) -> (
+                  match node.backend with
+                  | Some backend -> (
+                      match backend.read hash with
+                      | Some data -> navigate (Contents data) rest
+                      | None -> None)
+                  | None -> None)
+              | Some (`Node hash) -> (
+                  match node.backend with
+                  | Some backend ->
+                      let child = of_hash ~backend hash in
+                      navigate child rest
+                  | None -> None)))
 
   let find t path =
     match navigate t path with Some (Contents s, []) -> Some s | _ -> None
@@ -97,12 +123,12 @@ module Make (F : Codec.S) = struct
 
   let list t path =
     match navigate t path with
-    | Some (Node node, []) -> (
-        match force_node node.state with
-        | None -> []
-        | Some loaded ->
-            let base_entries =
-              F.list loaded
+    | Some (Node node, []) ->
+        let base_entries =
+          match resolve_entries node with
+          | None -> []
+          | Some entries ->
+              entries
               |> List.filter (fun (name, _) ->
                   (not (List.mem name node.removed))
                   && not (List.mem_assoc name node.children))
@@ -113,20 +139,34 @@ module Make (F : Codec.S) = struct
                     | `Contents _ | `Contents_inlined _ -> `Contents
                   in
                   (name, k))
-            in
-            let child_entries =
-              List.map
-                (fun (name, child) ->
-                  let k =
-                    match child with Node _ -> `Node | Contents _ -> `Contents
-                  in
-                  (name, k))
-                node.children
-            in
-            List.sort
-              (fun (a, _) (b, _) -> String.compare a b)
-              (base_entries @ child_entries))
+        in
+        let child_entries =
+          List.map
+            (fun (name, child) ->
+              let k =
+                match child with Node _ -> `Node | Contents _ -> `Contents
+              in
+              (name, k))
+            node.children
+        in
+        List.sort
+          (fun (a, _) (b, _) -> String.compare a b)
+          (base_entries @ child_entries)
     | _ -> []
+
+  (* Resolve a child node for modification (add/remove at depth). *)
+  let resolve_child node name =
+    match List.assoc_opt name node.children with
+    | Some c -> c
+    | None -> (
+        if List.mem name node.removed then empty ()
+        else
+          match resolve_entry node name with
+          | Some (`Node hash) -> (
+              match node.backend with
+              | Some backend -> of_hash ~backend hash
+              | None -> empty ())
+          | Some (`Contents _ | `Contents_inlined _) | None -> empty ())
 
   (* Add contents at path, creating intermediate nodes as needed *)
   let rec add_at t path value =
@@ -142,23 +182,7 @@ module Make (F : Codec.S) = struct
         let removed = List.filter (( <> ) name) node.removed in
         Node { node with children; removed }
     | Node node, name :: rest ->
-        let child =
-          match List.assoc_opt name node.children with
-          | Some c -> c
-          | None -> (
-              if List.mem name node.removed then empty ()
-              else
-                match force_node node.state with
-                | None -> empty ()
-                | Some loaded -> (
-                    match F.find loaded name with
-                    | Some (`Node hash) -> (
-                        match node.state with
-                        | Lazy { backend; _ } -> of_hash ~backend hash
-                        | _ -> empty ())
-                    | Some (`Contents _ | `Contents_inlined _) | None ->
-                        empty ()))
-        in
+        let child = resolve_child node name in
         let new_child = add_at child rest value in
         let children =
           (name, new_child)
@@ -181,23 +205,7 @@ module Make (F : Codec.S) = struct
         in
         Node { node with children; removed }
     | Node node, name :: rest ->
-        let child =
-          match List.assoc_opt name node.children with
-          | Some c -> c
-          | None -> (
-              if List.mem name node.removed then empty ()
-              else
-                match force_node node.state with
-                | None -> empty ()
-                | Some loaded -> (
-                    match F.find loaded name with
-                    | Some (`Node hash) -> (
-                        match node.state with
-                        | Lazy { backend; _ } -> of_hash ~backend hash
-                        | _ -> empty ())
-                    | Some (`Contents _ | `Contents_inlined _) | None ->
-                        empty ()))
-        in
+        let child = resolve_child node name in
         let new_child = remove child rest in
         let children =
           (name, new_child)
@@ -210,30 +218,29 @@ module Make (F : Codec.S) = struct
     | Contents s -> `Contents s
     | Node node ->
         let entries =
-          match force_node node.state with
+          match resolve_entries node with
           | None -> []
-          | Some loaded ->
-              F.list loaded
+          | Some all_entries ->
+              all_entries
               |> List.filter_map (fun (name, kind) ->
                   if List.mem name node.removed then None
                   else if List.mem_assoc name node.children then None
                   else
                     match kind with
-                    | `Contents_inlined data ->
-                        Some (name, `Contents data)
+                    | `Contents_inlined data -> Some (name, `Contents data)
                     | `Contents hash -> (
-                        match node.state with
-                        | Lazy { backend; _ } -> (
+                        match node.backend with
+                        | Some backend -> (
                             match backend.read hash with
                             | Some data -> Some (name, `Contents data)
                             | None -> None)
-                        | _ -> None)
+                        | None -> None)
                     | `Node hash -> (
-                        match node.state with
-                        | Lazy { backend; _ } ->
+                        match node.backend with
+                        | Some backend ->
                             let child = of_hash ~backend hash in
                             Some (name, to_concrete child)
-                        | _ -> None))
+                        | None -> None))
         in
         let child_entries =
           List.map
@@ -255,38 +262,56 @@ module Make (F : Codec.S) = struct
         backend.write h s;
         h
     | Node node ->
-        (* First, get the base node *)
-        let base =
-          match force_node node.state with Some n -> n | None -> F.empty_node
-        in
-        (* Apply removals *)
-        let base =
-          List.fold_left (fun n name -> F.remove n name) base node.removed
-        in
-        (* Apply additions (recursively writing children) *)
-        let final =
-          List.fold_left
-            (fun n (name, child) ->
+        resolve_state node;
+        (* Compute child entries (recursively writing children) *)
+        let child_entries =
+          List.map
+            (fun (name, child) ->
               match child with
-              | Contents s when inline_threshold > 0
-                                && String.length s <= inline_threshold ->
-                  (* Inline small contents directly in the node *)
-                  F.add n name (`Contents_inlined s)
+              | Contents s
+                when inline_threshold > 0
+                     && String.length s <= inline_threshold ->
+                  (name, (`Contents_inlined s : F.entry))
               | Contents s ->
                   let h = F.hash_contents s in
                   backend.write h s;
-                  F.add n name (`Contents h)
+                  (name, (`Contents h : F.entry))
               | Node _ ->
                   let child_hash =
                     write_tree child ~inline_threshold ~backend
                   in
-                  F.add n name (`Node child_hash))
-            base node.children
+                  (name, (`Node child_hash : F.entry)))
+            node.children
         in
-        let data = F.bytes_of_node final in
-        let h = F.hash_node final in
-        backend.write h data;
-        h
+        (match node.state with
+        | Inode { hash; _ } ->
+            (* Incremental update: only modify affected inode buckets *)
+            Inode.update ~backend hash ~additions:child_entries
+              ~removals:node.removed
+        | _ ->
+            (* Flat node: apply modifications, promote to inode if too large *)
+            let base =
+              match node.state with
+              | Loaded n -> n
+              | _ -> F.empty_node
+            in
+            let base =
+              List.fold_left (fun n name -> F.remove n name) base node.removed
+            in
+            let final =
+              List.fold_left
+                (fun n (name, entry) -> F.add n name entry)
+                base child_entries
+            in
+            let entries = F.list final in
+            if List.length entries > Inode.max_entries then
+              Inode.write entries ~backend
+            else begin
+              let data = F.bytes_of_node final in
+              let h = F.hash_node final in
+              backend.write h data;
+              h
+            end)
 
   let hash ?(inline_threshold = F.inline_threshold) t ~backend =
     write_tree t ~inline_threshold ~backend
@@ -301,19 +326,19 @@ module Make (F : Codec.S) = struct
           let acc = f path `Tree acc in
           match force with
           | `True -> (
-              match force_node node.state with
-              | None -> acc
-              | Some _loaded ->
-                  (* Fold over children *)
+              resolve_state node;
+              match node.state with
+              | Loaded _ | Inode _ ->
                   List.fold_left
                     (fun acc (name, child) -> go (path @ [ name ]) child acc)
-                    acc node.children)
+                    acc node.children
+              | _ -> acc)
           | `False fn -> (
               match node.state with
               | Lazy { hash; _ } -> fn hash
               | Shallow hash -> fn hash
               | Pruned hash -> fn hash
-              | Loaded _ ->
+              | Loaded _ | Inode _ ->
                   List.fold_left
                     (fun acc (name, child) -> go (path @ [ name ]) child acc)
                     acc node.children)
