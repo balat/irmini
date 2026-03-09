@@ -24,6 +24,12 @@ val init_git :
 (** [init_git ~sw ~fs ~path] initializes a new Git repository at [path] and
     returns an Irmin store for it. *)
 
+(** {1 Backend} *)
+
+val git_backend : Git.Repository.t -> Hash.sha1 Backend.t
+(** [git_backend repo] creates a content-addressable backend that stores
+    objects as Git objects in [repo]. *)
+
 (** {1 Object Operations} *)
 
 val read_object :

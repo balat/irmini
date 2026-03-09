@@ -17,6 +17,7 @@ let () =
   let value_size = ref 100 in
   let skip_lavyek = ref false in
   let skip_disk = ref false in
+  let skip_git = ref false in
   let cache = ref 0 in
   let inline_threshold = ref (-1) in
   let json_file = ref "" in
@@ -32,6 +33,7 @@ let () =
        "Size of values in bytes (default: 100)");
       ("--skip-lavyek", Arg.Set skip_lavyek, "Skip Lavyek backend benchmark");
       ("--skip-disk", Arg.Set skip_disk, "Skip disk backend benchmark");
+      ("--skip-git", Arg.Set skip_git, "Skip git backend benchmark");
       ("--cache", Arg.Set_int cache,
        "LRU cache capacity (default: 0 = no cache)");
       ("--inline-threshold", Arg.Set_int inline_threshold,
@@ -88,7 +90,15 @@ let () =
     rm_rf root;
     run "Irmini (disk)" (Bench_irmin4.run_all_disk ?inline_threshold ~cache ~sw ~env root conf)
   end;
-  (* 3. Irmini + Lavyek *)
+  (* 3. Irmini git *)
+  if not !skip_git then begin
+    Eio.Switch.run @@ fun sw ->
+    let root = Eio.Path.(cwd / "_build/_bench_git") in
+    rm_rf root;
+    Eio.Path.mkdirs ~exists_ok:true ~perm:0o755 root;
+    run "Irmini (git)" (Bench_irmin4.run_all_git ~cache ~sw ~fs:cwd root conf)
+  end;
+  (* 4. Irmini + Lavyek *)
   if not !skip_lavyek then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in

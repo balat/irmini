@@ -2,10 +2,9 @@
 """Generate SVG bar charts from JSON benchmark results.
 
 Produces three charts grouped by backend type:
-  - Memory backends: irmin-lwt-memory, irmin-eio-memory, irmini-thomas-memory, irmini-memory
-  - Disk backends: irmin-lwt-{fs,pack}, irmin-eio-{fs,pack}, irmini-thomas-{fs,disk},
-                   irmini-{fs,disk,lavyek}
-  - Git backends: irmin-lwt-git, irmin-eio-git, irmini-thomas-git(?), irmini-git(?)
+  - Disk backends: irmin-lwt-{fs,pack}, irmin-eio-{fs,pack}, irmini-{disk,lavyek}
+  - Memory backends: irmin-lwt-memory, irmin-eio-memory, irmini-memory
+  - Git backends: irmin-lwt-git, irmin-eio-git, irmini-git
 
 Usage: gen_chart_all.py <results_dir> [timestamp]
 
@@ -47,64 +46,42 @@ def classify_backend(name):
         return "disk"
 
 
-# --- Colors for each implementation family ---
-FAMILY_COLORS = {
-    # irmin-lwt (main branch)
-    "Irmin-Lwt": "#f28e2b",
-    # irmin-eio (cuihtlauac branch)
-    "Irmin-Eio": "#e15759",
-    # irmini-thomas (original, no optimizations)
-    "Irmini-thomas": "#76b7b2",
-    # irmini (inode branch, all optimizations)
-    "Irmini": "#4e79a7",
-}
-
-# Shade variants within families
-VARIANT_SHADES = {
-    "memory": 0,
-    "fs": 1,
-    "disk": 1,
-    "pack": 2,
-    "git": 3,
-    "lavyek": 4,
+# --- Colors for each backend name ---
+COLORS = {
+    "Irmin-Lwt (memory)": "#f28e2b",
+    "Irmin-Lwt (pack)":   "#f5a623",
+    "Irmin-Lwt (fs)":     "#f7c96e",
+    "Irmin-Lwt (git)":    "#f9dda0",
+    "Irmin-Eio (memory)": "#e15759",
+    "Irmin-Eio (pack)":   "#e87c7e",
+    "Irmin-Eio (fs)":     "#f0a1a2",
+    "Irmin-Eio (git)":    "#f5c0c1",
+    "Irmini (memory)":    "#4e79a7",
+    "Irmini (disk)":      "#6d9dc5",
+    "Irmini (lavyek)":    "#59a14f",
+    "Irmini (git)":       "#8bc584",
 }
 
 
-def name_to_family(name):
-    """Map a result name to its implementation family."""
+def family_sort_key(name):
+    """Sort backends: Irmin-Lwt first, then Irmin-Eio, then Irmini."""
     n = name.lower()
-    if "irmini-thomas" in n or "irmini-thomas" in n:
-        return "Irmini-thomas"
+    if "irmin-lwt" in n:
+        return (0, name)
+    elif "irmin-eio" in n or "irmin-pack" in n or "irmin-fs" in n or "irmin-git" in n:
+        return (1, name)
     elif "irmini" in n:
-        return "Irmini"
-    elif "irmin-lwt" in n or "irmin-lwt" in n:
-        return "Irmin-Lwt"
-    elif "irmin-eio" in n or "irmin-eio" in n or "irmin-pack" in n or "irmin-fs" in n or "irmin-git" in n:
-        return "Irmin-Eio"
-    elif "irmin" in n:
-        return "Irmin-Lwt"  # fallback
-    return "Irmini"
+        return (2, name)
+    return (3, name)
 
 
 def get_color(name):
-    """Get a color for a given result name."""
-    family = name_to_family(name)
-    base = FAMILY_COLORS.get(family, "#888888")
-    # Adjust brightness based on variant
-    n = name.lower()
-    shade = 0
-    for key, val in VARIANT_SHADES.items():
-        if key in n:
-            shade = val
-            break
-    # Lighten/darken based on shade
-    # Parse hex
-    r, g, b = int(base[1:3], 16), int(base[3:5], 16), int(base[5:7], 16)
-    factor = 1.0 + shade * 0.15
-    r = min(255, int(r * factor))
-    g = min(255, int(g * factor))
-    b = min(255, int(b * factor))
-    return f"#{r:02x}{g:02x}{b:02x}"
+    """Get a color for a given backend name."""
+    if name in COLORS:
+        return COLORS[name]
+    # Fallback: hash-based color
+    h = hash(name) % 360
+    return f"hsl({h}, 60%, 55%)"
 
 
 def fmt_ops(v):
@@ -134,11 +111,10 @@ def generate_chart(title, results, backends):
 
     # Layout
     margin_left = 120
-    margin_right = 30
+    margin_right = 40
     margin_top = 60
-    margin_bottom = 120
     group_gap = 50
-    bar_width = max(8, min(20, 200 // max(1, len(backends))))
+    bar_width = max(10, min(22, 250 // max(1, len(backends))))
     bar_gap = 2
 
     n_backends = len(backends)
@@ -146,7 +122,13 @@ def generate_chart(title, results, backends):
     chart_width = len(scenarios) * (group_width + group_gap) - group_gap
     chart_height = 400
 
-    svg_w = margin_left + chart_width + margin_right
+    # Legend layout
+    legend_col_width = 180
+    legend_cols = max(1, min(4, (margin_left + chart_width + margin_right) // legend_col_width))
+    legend_rows = (n_backends + legend_cols - 1) // legend_cols
+    margin_bottom = 50 + legend_rows * 20
+
+    svg_w = max(margin_left + chart_width + margin_right, legend_cols * legend_col_width + margin_left)
     svg_h = margin_top + chart_height + margin_bottom
 
     # Precompute per-scenario max
@@ -227,12 +209,11 @@ def generate_chart(title, results, backends):
     ly = oy + chart_height + 40
     lines.append(f'<g transform="translate({lx},{ly})">')
 
-    cols = min(4, len(backends))
     for i, backend in enumerate(backends):
-        col = i % cols
-        row = i // cols
-        x = col * 220
-        y = row * 18
+        col = i % legend_cols
+        row = i // legend_cols
+        x = col * legend_col_width
+        y = row * 20
         color = get_color(backend)
         lines.append(f'<rect x="{x}" y="{y}" width="12" height="12" fill="{color}" rx="2"/>')
         lines.append(f'<text x="{x+16}" y="{y+10}" font-size="10" fill="#333">{backend}</text>')
@@ -266,42 +247,37 @@ def main():
         cat = classify_backend(r["name"])
         groups[cat].append(r)
 
-    # Get ordered backend names for each group
     def ordered_backends(results):
-        seen = []
+        """Get unique backend names, sorted by family then name."""
+        seen = set()
+        names = []
         for r in results:
             if r["name"] not in seen:
-                seen.append(r["name"])
-        return seen
+                names.append(r["name"])
+                seen.add(r["name"])
+        return sorted(names, key=family_sort_key)
 
-    chart_dir = os.path.dirname(results_dir) if not os.path.isabs(results_dir) else results_dir
-    # Write charts next to the results
     chart_dir = results_dir
 
-    charts = {
-        "memory": {
-            "title": "Memory backends — ops/s comparison",
-            "file": f"chart_memory_{timestamp}.svg",
-        },
-        "disk": {
-            "title": "Disk backends (fs, pack, lavyek) — ops/s comparison",
-            "file": f"chart_disk_{timestamp}.svg",
-        },
-        "git": {
-            "title": "Git backends — ops/s comparison",
-            "file": f"chart_git_{timestamp}.svg",
-        },
-    }
+    # Charts in order: disk, memory, git (as requested by user)
+    chart_specs = [
+        ("disk", "Disk backends (fs, pack, lavyek) — ops/s comparison",
+         f"chart_disk_{timestamp}.svg"),
+        ("memory", "Memory backends — ops/s comparison",
+         f"chart_memory_{timestamp}.svg"),
+        ("git", "Git backends — ops/s comparison",
+         f"chart_git_{timestamp}.svg"),
+    ]
 
-    for cat, info in charts.items():
+    for cat, title, filename in chart_specs:
         results = groups[cat]
         if not results:
             print(f"  No results for {cat}, skipping")
             continue
         backends = ordered_backends(results)
-        svg = generate_chart(info["title"], results, backends)
+        svg = generate_chart(title, results, backends)
         if svg:
-            path = os.path.join(chart_dir, info["file"])
+            path = os.path.join(chart_dir, filename)
             with open(path, "w") as f:
                 f.write(svg)
             print(f"  Written {path} ({len(backends)} backends, {len(results)} results)")
