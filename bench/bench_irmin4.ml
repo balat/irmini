@@ -6,7 +6,7 @@ open Irmin
 
     Each commit adds [tree_add] entries to the tree at [depth]-level paths.
     Measures write throughput and commit overhead. *)
-let scenario_commits ~name ~(backend : Hash.sha1 Backend.t)
+let scenario_commits ?inline_threshold ~name ~(backend : Hash.sha1 Backend.t)
     (conf : Bench_common.config) =
   let store = Store.Git.create ~backend () in
   let paths =
@@ -38,7 +38,7 @@ let scenario_commits ~name ~(backend : Hash.sha1 Backend.t)
           let (), ct =
             Bench_common.time (fun () ->
                 let h =
-                  Store.Git.commit store ~tree ~parents
+                  Store.Git.commit ?inline_threshold store ~tree ~parents
                     ~message:(Printf.sprintf "commit %d" i)
                     ~author:"bench"
                 in
@@ -67,7 +67,7 @@ let scenario_commits ~name ~(backend : Hash.sha1 Backend.t)
 (** {1 Scenario: Random reads after populating the store}
 
     Populates a tree, then reads random entries. Measures read throughput. *)
-let scenario_reads ~name ~(backend : Hash.sha1 Backend.t)
+let scenario_reads ?inline_threshold ~name ~(backend : Hash.sha1 Backend.t)
     (conf : Bench_common.config) =
   let store = Store.Git.create ~backend () in
   let paths =
@@ -84,7 +84,7 @@ let scenario_reads ~name ~(backend : Hash.sha1 Backend.t)
     !t
   in
   let h =
-    Store.Git.commit store ~tree ~parents:[] ~message:"init" ~author:"bench"
+    Store.Git.commit ?inline_threshold store ~tree ~parents:[] ~message:"init" ~author:"bench"
   in
   Store.Git.set_head store ~branch:"main" h;
   (* Read phase - get a fresh tree from the store *)
@@ -114,7 +114,7 @@ let scenario_reads ~name ~(backend : Hash.sha1 Backend.t)
 
     Updates a single entry per commit across many commits.
     Measures overhead of small updates on a large tree. *)
-let scenario_incremental ~name ~(backend : Hash.sha1 Backend.t)
+let scenario_incremental ?inline_threshold ~name ~(backend : Hash.sha1 Backend.t)
     (conf : Bench_common.config) =
   let store = Store.Git.create ~backend () in
   let paths =
@@ -129,7 +129,7 @@ let scenario_incremental ~name ~(backend : Hash.sha1 Backend.t)
     !t
   in
   let h =
-    Store.Git.commit store ~tree ~parents:[] ~message:"init" ~author:"bench"
+    Store.Git.commit ?inline_threshold store ~tree ~parents:[] ~message:"init" ~author:"bench"
   in
   Store.Git.set_head store ~branch:"main" h;
   (* Incremental updates: modify 1 entry per commit *)
@@ -153,7 +153,7 @@ let scenario_incremental ~name ~(backend : Hash.sha1 Backend.t)
             | None -> []
           in
           let h =
-            Store.Git.commit store ~tree ~parents
+            Store.Git.commit ?inline_threshold store ~tree ~parents
               ~message:(Printf.sprintf "update %d" i) ~author:"bench"
           in
           Store.Git.set_head store ~branch:"main" h
@@ -172,7 +172,7 @@ let scenario_incremental ~name ~(backend : Hash.sha1 Backend.t)
 (** {1 Scenario: Large values}
 
     Writes large blobs (10 KiB) to test value-size sensitivity. *)
-let scenario_large_values ~name ~(backend : Hash.sha1 Backend.t)
+let scenario_large_values ?inline_threshold ~name ~(backend : Hash.sha1 Backend.t)
     (conf : Bench_common.config) =
   let large_size = 10_000 in
   let store = Store.Git.create ~backend () in
@@ -204,7 +204,7 @@ let scenario_large_values ~name ~(backend : Hash.sha1 Backend.t)
             | None -> []
           in
           let h =
-            Store.Git.commit store ~tree ~parents
+            Store.Git.commit ?inline_threshold store ~tree ~parents
               ~message:(Printf.sprintf "large %d" i) ~author:"bench"
           in
           Store.Git.set_head store ~branch:"main" h
@@ -298,7 +298,7 @@ let scenario_concurrent ?(nfibers = 100) ~name
 
 (** {1 Backend runners} *)
 
-let run_all_memory ?(cache = 0) conf =
+let run_all_memory ?inline_threshold ?(cache = 0) conf =
   let suffix = if cache > 0 then "+cache" else "" in
   let name = "Irmini" ^ suffix ^ " (memory)" in
   let mk () =
@@ -306,13 +306,13 @@ let run_all_memory ?(cache = 0) conf =
     if cache > 0 then Backend.cached ~capacity:cache b else b
   in
   [
-    scenario_commits ~name ~backend:(mk ()) conf;
-    scenario_reads ~name ~backend:(mk ()) conf;
-    scenario_incremental ~name ~backend:(mk ()) conf;
-    scenario_large_values ~name ~backend:(mk ()) conf;
+    scenario_commits ?inline_threshold ~name ~backend:(mk ()) conf;
+    scenario_reads ?inline_threshold ~name ~backend:(mk ()) conf;
+    scenario_incremental ?inline_threshold ~name ~backend:(mk ()) conf;
+    scenario_large_values ?inline_threshold ~name ~backend:(mk ()) conf;
   ]
 
-let run_all_disk ?(cache = 0) ~sw ~env root conf =
+let run_all_disk ?inline_threshold ?(cache = 0) ~sw ~env root conf =
   let suffix = if cache > 0 then "+cache" else "" in
   let name = "Irmini" ^ suffix ^ " (disk)" in
   let mk () =
@@ -324,9 +324,9 @@ let run_all_disk ?(cache = 0) ~sw ~env root conf =
     Fun.protect ~finally:(fun () -> backend.close ()) (fun () -> f ~backend)
   in
   [
-    run_one (fun ~backend -> scenario_commits ~name ~backend conf);
-    run_one (fun ~backend -> scenario_reads ~name ~backend conf);
-    run_one (fun ~backend -> scenario_incremental ~name ~backend conf);
-    run_one (fun ~backend -> scenario_large_values ~name ~backend conf);
+    run_one (fun ~backend -> scenario_commits ?inline_threshold ~name ~backend conf);
+    run_one (fun ~backend -> scenario_reads ?inline_threshold ~name ~backend conf);
+    run_one (fun ~backend -> scenario_incremental ?inline_threshold ~name ~backend conf);
+    run_one (fun ~backend -> scenario_large_values ?inline_threshold ~name ~backend conf);
     run_one (fun ~backend -> scenario_concurrent ~name ~backend ~env conf);
   ]

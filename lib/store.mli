@@ -32,14 +32,17 @@ module Make (F : Codec.S) : sig
   (** {2 Commit Operations} *)
 
   val commit :
+    ?inline_threshold:int ->
     t ->
     tree:Tree.t ->
     parents:hash list ->
     message:string ->
     author:string ->
     hash
-  (** [commit t ~tree ~parents ~message ~author] creates a commit. This is when
-      delayed tree writes actually happen. *)
+  (** [commit ?inline_threshold t ~tree ~parents ~message ~author] creates a
+      commit. This is when delayed tree writes actually happen. If
+      [inline_threshold] is given, contents smaller than that are stored
+      inline in tree nodes. *)
 
   (** {2 Branch Operations} *)
 

@@ -18,6 +18,7 @@ let () =
   let skip_lavyek = ref false in
   let skip_disk = ref false in
   let cache = ref 0 in
+  let inline_threshold = ref (-1) in
   Arg.parse
     [
       ("--ncommits", Arg.Set_int ncommits, "Number of commits (default: 100)");
@@ -32,6 +33,8 @@ let () =
       ("--skip-disk", Arg.Set skip_disk, "Skip disk backend benchmark");
       ("--cache", Arg.Set_int cache,
        "LRU cache capacity (default: 0 = no cache)");
+      ("--inline-threshold", Arg.Set_int inline_threshold,
+       "Inline threshold in bytes (default: codec default, -1 = use default)");
     ]
     (fun _ -> ())
     "bench_irmin4 - Irmini performance benchmarks";
@@ -45,11 +48,17 @@ let () =
     }
   in
   let cache = !cache in
+  let inline_threshold =
+    if !inline_threshold >= 0 then Some !inline_threshold else None
+  in
   Format.printf
     "Configuration: %d commits, %d adds/commit, depth %d, %d reads, \
-     %d-byte values%s@.@."
+     %d-byte values%s%s@.@."
     conf.ncommits conf.tree_add conf.depth conf.nreads conf.value_size
-    (if cache > 0 then Printf.sprintf ", cache=%d" cache else "");
+    (if cache > 0 then Printf.sprintf ", cache=%d" cache else "")
+    (match inline_threshold with
+     | Some n -> Printf.sprintf ", inline_threshold=%d" n
+     | None -> "");
   Eio_main.run @@ fun env ->
   let cwd = Eio.Stdenv.cwd env in
   let results = ref [] in
@@ -69,13 +78,13 @@ let () =
     results := rs @ !results
   in
   (* 1. Irmini memory *)
-  run "Irmini (memory)" (Bench_irmin4.run_all_memory ~cache conf);
+  run "Irmini (memory)" (Bench_irmin4.run_all_memory ?inline_threshold ~cache conf);
   (* 2. Irmini disk *)
   if not !skip_disk then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_disk") in
     rm_rf root;
-    run "Irmini (disk)" (Bench_irmin4.run_all_disk ~cache ~sw ~env root conf)
+    run "Irmini (disk)" (Bench_irmin4.run_all_disk ?inline_threshold ~cache ~sw ~env root conf)
   end;
   (* 3. Irmini + Lavyek *)
   if not !skip_lavyek then begin
@@ -83,7 +92,7 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in
     rm_rf root;
     run "Irmini (lavyek)"
-      (Bench_irmin4_lavyek.run_all ~cache ~sw ~env root conf)
+      (Bench_irmin4_lavyek.run_all ?inline_threshold ~cache ~sw ~env root conf)
   end;
   (* Summary *)
   Bench_common.pp_comparison Format.std_formatter (List.rev !results)
