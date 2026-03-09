@@ -101,14 +101,16 @@ module Git : SHA1 = struct
         { tree; inlined }
     | `Node h ->
         let inlined = List.filter (fun (n, _) -> n <> name) node.inlined in
+        let tree = Git.Tree.remove ~name node.tree in
         let entry = Git.Tree.entry ~perm:`Dir ~name (git_hash_of_sha1 h) in
-        { tree = Git.Tree.add entry node.tree; inlined }
+        { tree = Git.Tree.add entry tree; inlined }
     | `Contents h ->
         let inlined = List.filter (fun (n, _) -> n <> name) node.inlined in
+        let tree = Git.Tree.remove ~name node.tree in
         let entry =
           Git.Tree.entry ~perm:`Normal ~name (git_hash_of_sha1 h)
         in
-        { tree = Git.Tree.add entry node.tree; inlined }
+        { tree = Git.Tree.add entry tree; inlined }
 
   let remove node name =
     let inlined = List.filter (fun (n, _) -> n <> name) node.inlined in
