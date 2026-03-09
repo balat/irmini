@@ -1,0 +1,18 @@
+[
+  {"name": "Irmin-Lwt (memory)", "scenario": "large-values", "total_ops": 10000, "total_time": 0.645160, "ops_per_sec": 15500.0, "maxrss_kb": 190980},
+  {"name": "Irmin-Lwt (memory)", "scenario": "incremental", "total_ops": 50, "total_time": 0.017941, "ops_per_sec": 2786.9, "maxrss_kb": 54128},
+  {"name": "Irmin-Lwt (memory)", "scenario": "reads", "total_ops": 5000, "total_time": 0.003999, "ops_per_sec": 1250314.2, "maxrss_kb": 53136},
+  {"name": "Irmin-Lwt (memory)", "scenario": "commits", "total_ops": 25000, "total_time": 0.151399, "ops_per_sec": 165126.4, "maxrss_kb": 52816},
+  {"name": "Irmin-Lwt (pack)", "scenario": "large-values", "total_ops": 10000, "total_time": 0.987393, "ops_per_sec": 10127.7, "maxrss_kb": 414740},
+  {"name": "Irmin-Lwt (pack)", "scenario": "incremental", "total_ops": 50, "total_time": 0.016878, "ops_per_sec": 2962.4, "maxrss_kb": 214764},
+  {"name": "Irmin-Lwt (pack)", "scenario": "reads", "total_ops": 5000, "total_time": 0.003550, "ops_per_sec": 1408429.8, "maxrss_kb": 213496},
+  {"name": "Irmin-Lwt (pack)", "scenario": "commits", "total_ops": 25000, "total_time": 0.204217, "ops_per_sec": 122418.8, "maxrss_kb": 212460},
+  {"name": "Irmin-Lwt (fs)", "scenario": "large-values", "total_ops": 10000, "total_time": 2.838105, "ops_per_sec": 3523.5, "maxrss_kb": 539204},
+  {"name": "Irmin-Lwt (fs)", "scenario": "incremental", "total_ops": 50, "total_time": 0.201648, "ops_per_sec": 248.0, "maxrss_kb": 431972},
+  {"name": "Irmin-Lwt (fs)", "scenario": "reads", "total_ops": 5000, "total_time": 0.034617, "ops_per_sec": 144436.9, "maxrss_kb": 425884},
+  {"name": "Irmin-Lwt (fs)", "scenario": "commits", "total_ops": 25000, "total_time": 0.803632, "ops_per_sec": 31108.8, "maxrss_kb": 425020},
+  {"name": "Irmin-Lwt (git)", "scenario": "large-values", "total_ops": 10000, "total_time": 7.589164, "ops_per_sec": 1317.7, "maxrss_kb": 469592},
+  {"name": "Irmin-Lwt (git)", "scenario": "incremental", "total_ops": 50, "total_time": 0.299509, "ops_per_sec": 166.9, "maxrss_kb": 479064},
+  {"name": "Irmin-Lwt (git)", "scenario": "reads", "total_ops": 5000, "total_time": 0.030160, "ops_per_sec": 165782.8, "maxrss_kb": 477704},
+  {"name": "Irmin-Lwt (git)", "scenario": "commits", "total_ops": 25000, "total_time": 10.976034, "ops_per_sec": 2277.7, "maxrss_kb": 476000}
+]

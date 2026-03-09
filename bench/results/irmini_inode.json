@@ -1,0 +1,114 @@
+[
+  {
+    "name": "Irmini (memory)",
+    "scenario": "commits",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 82255.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (memory)",
+    "scenario": "reads",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 1481040.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (memory)",
+    "scenario": "incremental",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 12228.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (memory)",
+    "scenario": "large-values",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 18007.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "commits",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 66453.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "reads",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 1303429.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "incremental",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 8443.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "large-values",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 10048.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "concurrent",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 764763.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (disk)",
+    "scenario": "commits",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 429.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (disk)",
+    "scenario": "reads",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 4001.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (disk)",
+    "scenario": "incremental",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 10.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (disk)",
+    "scenario": "large-values",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 91.0,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (disk)",
+    "scenario": "concurrent",
+    "total_ops": 0,
+    "total_time": 0.0,
+    "ops_per_sec": 263.0,
+    "maxrss_kb": 0
+  }
+]
