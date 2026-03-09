@@ -44,6 +44,7 @@ IRMIN_EIO_DIR=/path/to/irmin ./bench/run.sh
 | `--value-size`   | 100     | Size of values in bytes            |
 | `--skip-lavyek`  | false   | Skip the Lavyek backend            |
 | `--skip-disk`    | false   | Skip the disk backend              |
+| `--skip-git`     | false   | Skip the git backend               |
 | `--cache`        | 0       | LRU cache capacity (0 = no cache)  |
 | `--json`         | —       | Write JSON results to file         |
 
@@ -76,12 +77,55 @@ IRMIN_EIO_DIR=/path/to/irmin ./bench/run.sh
 
 ## Results
 
-Run on 2026-03-09, AMD 12-core, 50 commits × 500 adds, depth 10, 5000 reads,
+Run on 2026-03-09, AMD 12-core, 100 commits × 1000 adds, depth 10, 10000 reads,
 100-byte values.
+
+### Disk backends (fs, pack, lavyek)
+
+![Disk backends](results/chart_disk_1773074715.svg)
+
+```
+Name                           Scenario               ops/s     total(s)   RSS(MiB)
+----------------------------------------------------------------------------------
+Irmin-Lwt (fs)                 commits                31109        0.804        415
+Irmin-Lwt (fs)                 reads                 144437        0.035        415
+Irmin-Lwt (fs)                 incremental              248        0.202        421
+Irmin-Lwt (fs)                 large-values            3523        2.838        526
+Irmin-Lwt (pack)               commits               122419        0.204        207
+Irmin-Lwt (pack)               reads                1408430        0.004        208
+Irmin-Lwt (pack)               incremental             2962        0.017        209
+Irmin-Lwt (pack)               large-values           10128        0.987        405
+Irmin-Eio (fs)                 commits                36907        0.7          679
+Irmin-Eio (fs)                 reads                 200104        0.0          679
+Irmin-Eio (fs)                 incremental              196        0.3          679
+Irmin-Eio (fs)                 large-values            2683        3.7          679
+Irmin-Eio (pack)               commits                46304        0.5          539
+Irmin-Eio (pack)               reads                1416803        0.0          539
+Irmin-Eio (pack)               incremental             2030        0.0          539
+Irmin-Eio (pack)               large-values            7613        1.3          539
+Irmini (disk)                  commits                  429       58.2          346
+Irmini (disk)                  reads                   4001        1.3          346
+Irmini (disk)                  incremental               10        5.2          346
+Irmini (disk)                  large-values              91      110.0          346
+Irmini (lavyek)                commits                66453        1.5          410
+Irmini (lavyek)                reads                1303429        0.0          538
+Irmini (lavyek)                incremental             8443        0.0          594
+Irmini (lavyek)                large-values           10048        2.0          576
+```
+
+- **irmin-pack**: Best persistent backend for Irmin — reads at 1.4M ops/s,
+  commits at 46–122k ops/s. Irmin-Lwt significantly faster than Irmin-Eio
+  on commits (122k vs 46k).
+- **Irmini lavyek**: Lock-free persistent backend — reads **1.3M ops/s**,
+  commits **66k ops/s**, competitive with irmin-pack.
+- **Irmini disk**: Append-only backend without indexing — much slower than
+  irmin-pack/lavyek. Incremental is only 10 ops/s (full tree re-serialization).
+- **irmin-fs**: One-file-per-object filesystem backend. Decent reads (144–200k)
+  but slow commits (31–37k) and very slow incrementals (196–248 ops/s).
 
 ### Memory backends
 
-![Memory backends](chart_memory_1773073234.svg)
+![Memory backends](results/chart_memory_1773074715.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -108,52 +152,9 @@ Irmini (memory)                large-values           18007        1.1          
   (~2.8k) thanks to inode structural sharing.
 - **Large-values**: All three are comparable (15–18k ops/s).
 
-### Disk backends (fs, pack, lavyek)
-
-![Disk backends](chart_disk_1773073234.svg)
-
-```
-Name                           Scenario               ops/s     total(s)   RSS(MiB)
-----------------------------------------------------------------------------------
-Irmin-Lwt (pack)               commits               122419        0.204        207
-Irmin-Lwt (pack)               reads                1408430        0.004        208
-Irmin-Lwt (pack)               incremental             2962        0.017        209
-Irmin-Lwt (pack)               large-values           10128        0.987        405
-Irmin-Lwt (fs)                 commits                31109        0.804        415
-Irmin-Lwt (fs)                 reads                 144437        0.035        415
-Irmin-Lwt (fs)                 incremental              248        0.202        421
-Irmin-Lwt (fs)                 large-values            3523        2.838        526
-Irmin-Eio (pack)               commits                46304        0.5          539
-Irmin-Eio (pack)               reads                1416803        0.0          539
-Irmin-Eio (pack)               incremental             2030        0.0          539
-Irmin-Eio (pack)               large-values            7613        1.3          539
-Irmin-Eio (fs)                 commits                36907        0.7          679
-Irmin-Eio (fs)                 reads                 200104        0.0          679
-Irmin-Eio (fs)                 incremental              196        0.3          679
-Irmin-Eio (fs)                 large-values            2683        3.7          679
-Irmini (disk)                  commits                  429       58.2          346
-Irmini (disk)                  reads                   4001        1.3          346
-Irmini (disk)                  incremental               10        5.2          346
-Irmini (disk)                  large-values              91      110.0          346
-Irmini (lavyek)                commits                66453        1.5          410
-Irmini (lavyek)                reads                1303429        0.0          538
-Irmini (lavyek)                incremental             8443        0.0          594
-Irmini (lavyek)                large-values           10048        2.0          576
-```
-
-- **irmin-pack**: Best persistent backend for Irmin — reads at 1.4M ops/s,
-  commits at 46–122k ops/s. Irmin-Lwt significantly faster than Irmin-Eio
-  on commits (122k vs 46k).
-- **Irmini lavyek**: Lock-free persistent backend — reads **1.3M ops/s**,
-  commits **66k ops/s**, competitive with irmin-pack.
-- **Irmini disk**: Append-only backend without indexing — much slower than
-  irmin-pack/lavyek. Incremental is only 10 ops/s (full tree re-serialization).
-- **irmin-fs**: One-file-per-object filesystem backend. Decent reads (144–200k)
-  but slow commits (31–37k) and very slow incrementals (196–248 ops/s).
-
 ### Git backends
 
-![Git backends](chart_git_1773073234.svg)
+![Git backends](results/chart_git_1773074715.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -166,14 +167,19 @@ Irmin-Eio (git)                commits                 2164       11.6          
 Irmin-Eio (git)                reads                 145247        0.0          563
 Irmin-Eio (git)                incremental              161        0.3          552
 Irmin-Eio (git)                large-values            1585        6.3          646
+Irmini (git)                   commits                 8140       12.3          365
+Irmini (git)                   reads                  80271        0.1          365
+Irmini (git)                   incremental              178        0.6          365
+Irmini (git)                   large-values            2976        6.7          365
 ```
 
-- **Git is the slowest backend** across all scenarios. Commits at ~2.2k ops/s
-  are ~17× slower than irmin-fs due to Git object encoding overhead (zlib,
-  SHA-1, loose objects).
-- Reads are decent (~145–166k ops/s) thanks to in-memory Git object graph caching.
-- Irmin-Lwt and Irmin-Eio perform similarly on git — the Lwt/Eio difference
-  is dwarfed by ocaml-git overhead.
+- **Irmini (git)**: 100% git-compatible (inodes disabled, no inlining).
+  Commits at **8k ops/s** — **3.6× faster** than Irmin-Lwt/Eio (2.2k).
+  Large-values also ~2× faster (3k vs 1.3–1.6k).
+- **Reads**: Irmin-Lwt leads (166k) vs Irmini (80k). Irmin caches the full
+  Git object graph in memory; irmini reads directly from the Git store.
+- **Incremental**: All three are comparable (~160–178 ops/s) — dominated by
+  Git I/O overhead.
 
 ### Key observations
 
@@ -186,6 +192,8 @@ Irmin-Eio (git)                large-values            1585        6.3          
 - **Lavyek**: Irmini's lock-free persistent backend is competitive with
   irmin-pack on reads (1.3M) and commits (66k), with the added benefit
   of lock-free concurrency (764k ops/s under contention).
+- **Git compatibility**: Irmini's git backend is 100% compatible (no inodes,
+  no inlining) and 3.6× faster than Irmin on git commits.
 - **Irmini disk backend**: Needs significant work — orders of magnitude
   slower than irmin-pack or lavyek on all scenarios.
 
