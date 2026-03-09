@@ -6,9 +6,13 @@
 ;   2. Uncomment the executable stanza below
 ;   3. dune build bench-eio/main.exe
 ;
-; Or use the run.sh script which automates this.
+; Or use the bench/run_all.sh script which automates this.
 
 ; (executable
 ;  (name main)
-;  (libraries irmin irmin.mem irmin-pack irmin-pack.unix eio_main unix)
-;  (modules bench_common bench_irmin_eio bench_irmin_pack main))
+;  (libraries irmin irmin.mem irmin-pack irmin-pack.unix
+;             irmin-fs irmin-fs.unix
+;             irmin-git irmin-git.unix lwt_eio
+;             eio_main unix)
+;  (modules bench_common bench_irmin_eio bench_irmin_pack
+;           bench_irmin_fs bench_irmin_git main))

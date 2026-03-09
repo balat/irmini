@@ -1,4 +1,4 @@
-(** Common benchmark harness - standalone copy for Irmin-Eio build.
+(** Common benchmark harness - standalone copy for Irmin-Lwt build.
 
     This is a standalone copy to avoid cross-workspace dependencies. *)
 
@@ -64,14 +64,6 @@ let pp_comparison fmt results =
     results;
   Format.fprintf fmt "@]@."
 
-type config = {
-  ncommits : int;
-  tree_add : int;
-  depth : int;
-  nreads : int;
-  value_size : int;
-}
-
 let write_json oc results =
   let escape s =
     let buf = Buffer.create (String.length s) in
@@ -96,6 +88,14 @@ let write_json oc results =
         r.ops_per_sec r.maxrss_kb)
     results;
   Printf.fprintf oc "\n]\n"
+
+type config = {
+  ncommits : int;
+  tree_add : int;
+  depth : int;
+  nreads : int;
+  value_size : int;
+}
 
 let make_value ~size i =
   let base = Printf.sprintf "value-%d-" i in

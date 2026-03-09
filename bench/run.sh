@@ -1,13 +1,14 @@
 #!/bin/bash
-# Irmin benchmark comparison script.
+# Irmin benchmark comparison script (simple version).
 #
 # Runs Irmini benchmarks (memory, disk, lavyek) and Irmin-Eio benchmarks
-# (memory, irmin-pack), then displays results for comparison.
+# (memory, irmin-pack, irmin-fs, irmin-git), then displays results.
+#
+# For the full comparison across all implementations, use run_all.sh.
 #
 # Prerequisites:
 #   - Irmini: build within monopampam monorepo
 #   - Irmin-Eio: official Irmin checkout on the eio branch
-#   - Lavyek: symlinked or available in the monorepo
 #
 # Usage: ./bench/run.sh [--ncommits N] [--tree-add N] [--depth N]
 #                       [--nreads N] [--value-size N]
@@ -56,7 +57,7 @@ dune exec irmini/bench/bench_irmin4_main.exe -- $ARGS
 # --- Part 2: Irmin-Eio benchmarks ---
 echo ""
 echo "========================================="
-echo "  Irmin-Eio Benchmarks (memory/pack)"
+echo "  Irmin-Eio Benchmarks (memory/pack/fs/git)"
 echo "========================================="
 echo ""
 
@@ -64,43 +65,18 @@ if [ -d "$IRMIN_EIO_DIR" ]; then
   # Copy bench-eio files into the Irmin workspace
   BENCH_DIR="$IRMIN_EIO_DIR/bench-irmini"
   mkdir -p "$BENCH_DIR"
-  cp "$ROOT_DIR/bench-eio/bench_common.ml" "$BENCH_DIR/"
-  cp "$ROOT_DIR/bench-eio/bench_irmin_eio.ml" "$BENCH_DIR/"
-
-  # Write a simplified main.ml (memory-only, avoids irmin-pack dep issues)
-  cat > "$BENCH_DIR/main.ml" <<'OCAML'
-let () =
-  let ncommits = ref 100 in
-  let tree_add = ref 1000 in
-  let depth = ref 10 in
-  let nreads = ref 10_000 in
-  let value_size = ref 100 in
-  Arg.parse
-    [ ("--ncommits", Arg.Set_int ncommits, "Number of commits (default: 100)");
-      ("--tree-add", Arg.Set_int tree_add, "Tree entries added per commit (default: 1000)");
-      ("--depth", Arg.Set_int depth, "Depth of paths (default: 10)");
-      ("--nreads", Arg.Set_int nreads, "Number of reads in read phase (default: 10000)");
-      ("--value-size", Arg.Set_int value_size, "Size of values in bytes (default: 100)") ]
-    (fun _ -> ()) "bench_irmin_eio";
-  let conf : Bench_common.config =
-    { ncommits = !ncommits; tree_add = !tree_add; depth = !depth;
-      nreads = !nreads; value_size = !value_size }
-  in
-  Format.printf "Configuration: %d commits, %d adds/commit, depth %d, %d reads, %d-byte values@.@."
-    conf.ncommits conf.tree_add conf.depth conf.nreads conf.value_size;
-  Eio_main.run @@ fun _env ->
-  Format.printf "--- Irmin-Eio (memory) ---@.@.";
-  let rs = Bench_irmin_eio.run_all_mem conf in
-  List.iter (fun r -> Format.printf "%a@.@." Bench_common.pp_result r) rs;
-  Bench_common.pp_comparison Format.std_formatter rs
-OCAML
+  cp "$ROOT_DIR/bench-eio/"*.ml "$BENCH_DIR/"
 
   # Write dune file
   cat > "$BENCH_DIR/dune" <<'DUNE'
 (executable
  (name main)
- (libraries irmin irmin.mem eio_main unix)
- (modules bench_common bench_irmin_eio main))
+ (libraries irmin irmin.mem irmin-pack irmin-pack.unix
+            irmin-fs irmin-fs.unix
+            irmin-git irmin-git.unix lwt_eio
+            eio_main unix)
+ (modules bench_common bench_irmin_eio bench_irmin_pack
+          bench_irmin_fs bench_irmin_git main))
 DUNE
 
   cd "$IRMIN_EIO_DIR"

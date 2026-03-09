@@ -93,6 +93,31 @@ let default_config =
   { ncommits = 100; tree_add = 1000; depth = 10; nreads = 10_000;
     value_size = 100 }
 
+let write_json oc results =
+  let escape s =
+    let buf = Buffer.create (String.length s) in
+    String.iter
+      (fun c ->
+        match c with
+        | '"' -> Buffer.add_string buf "\\\""
+        | '\\' -> Buffer.add_string buf "\\\\"
+        | '\n' -> Buffer.add_string buf "\\n"
+        | c -> Buffer.add_char buf c)
+      s;
+    Buffer.contents buf
+  in
+  Printf.fprintf oc "[\n";
+  List.iteri
+    (fun i r ->
+      if i > 0 then Printf.fprintf oc ",\n";
+      Printf.fprintf oc
+        "  {\"name\": \"%s\", \"scenario\": \"%s\", \"total_ops\": %d, \
+         \"total_time\": %.6f, \"ops_per_sec\": %.1f, \"maxrss_kb\": %d}"
+        (escape r.name) (escape r.scenario) r.total_ops r.total_time
+        r.ops_per_sec r.maxrss_kb)
+    results;
+  Printf.fprintf oc "\n]\n"
+
 let make_value ~size i =
   let base = Printf.sprintf "value-%d-" i in
   if size <= String.length base then String.sub base 0 size

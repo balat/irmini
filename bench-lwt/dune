@@ -1,0 +1,19 @@
+; This benchmark must be built from the official Irmin workspace (main branch),
+; not from the irmini monorepo (library name conflict with "irmin").
+;
+; To build:
+;   1. Copy bench-lwt/ into the Irmin workspace
+;   2. Uncomment the executable stanza below
+;   3. dune build bench-lwt/main.exe
+;
+; Or use the bench/run_all.sh script which automates this.
+
+; (executable
+;  (name main)
+;  (libraries irmin irmin.mem irmin-pack irmin-pack.unix
+;             irmin-fs irmin-fs.unix
+;             irmin-git irmin-git.unix
+;             lwt lwt.unix
+;             unix)
+;  (modules bench_common bench_irmin_lwt bench_irmin_mem
+;           bench_irmin_pack bench_irmin_fs bench_irmin_git main))

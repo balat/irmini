@@ -19,6 +19,7 @@ let () =
   let skip_disk = ref false in
   let cache = ref 0 in
   let inline_threshold = ref (-1) in
+  let json_file = ref "" in
   Arg.parse
     [
       ("--ncommits", Arg.Set_int ncommits, "Number of commits (default: 100)");
@@ -35,6 +36,7 @@ let () =
        "LRU cache capacity (default: 0 = no cache)");
       ("--inline-threshold", Arg.Set_int inline_threshold,
        "Inline threshold in bytes (default: codec default, -1 = use default)");
+      ("--json", Arg.Set_string json_file, "Write JSON results to FILE");
     ]
     (fun _ -> ())
     "bench_irmin4 - Irmini performance benchmarks";
@@ -95,4 +97,12 @@ let () =
       (Bench_irmin4_lavyek.run_all ?inline_threshold ~cache ~sw ~env root conf)
   end;
   (* Summary *)
-  Bench_common.pp_comparison Format.std_formatter (List.rev !results)
+  let all = List.rev !results in
+  Bench_common.pp_comparison Format.std_formatter all;
+  (* JSON output *)
+  if !json_file <> "" then begin
+    let oc = open_out !json_file in
+    Bench_common.write_json oc all;
+    close_out oc;
+    Format.printf "Results written to %s@." !json_file
+  end

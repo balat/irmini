@@ -1,4 +1,4 @@
-(** Irmin-Eio (official) benchmark runner.
+(** Irmin-Lwt (official, main branch) benchmark runner.
 
     Benchmarks official Irmin with in-memory, irmin-pack, irmin-fs, and
     irmin-git backends, using the same scenarios as the irmini benchmarks
@@ -34,7 +34,7 @@ let () =
       ("--json", Arg.Set_string json_file, "Write JSON results to FILE");
     ]
     (fun _ -> ())
-    "bench_irmin_eio - Official Irmin (Eio) performance benchmarks";
+    "bench_irmin_lwt - Official Irmin (Lwt) performance benchmarks";
   let conf : Bench_common.config =
     {
       ncommits = !ncommits;
@@ -48,45 +48,35 @@ let () =
     "Configuration: %d commits, %d adds/commit, depth %d, %d reads, \
      %d-byte values@.@."
     conf.ncommits conf.tree_add conf.depth conf.nreads conf.value_size;
-  Eio_main.run @@ fun env ->
-  let fs = Eio.Stdenv.cwd env in
-  let clock = Eio.Stdenv.clock env in
   let results = ref [] in
-  let rm_rf path =
-    let rec rm path =
-      if Eio.Path.is_directory path then begin
-        List.iter (fun n -> rm Eio.Path.(path / n)) (Eio.Path.read_dir path);
-        Eio.Path.rmdir path
-      end
-      else if Eio.Path.is_file path then Eio.Path.unlink path
-    in
-    (try rm path with _ -> ())
+  let rm_rf dir =
+    if Sys.file_exists dir then
+      ignore (Sys.command (Printf.sprintf "rm -rf %s" (Filename.quote dir)))
   in
   let run name rs =
     Format.printf "--- %s ---@.@." name;
     List.iter (fun r -> Format.printf "%a@.@." Bench_common.pp_result r) rs;
     results := rs @ !results
   in
-  (* 1. Irmin-Eio memory *)
-  run "Irmin-Eio (memory)" (Bench_irmin_eio.run_all_mem conf);
+  (* 1. Irmin-Lwt memory *)
+  run "Irmin-Lwt (memory)" (Bench_irmin_mem.run_all conf);
   (* 2. Irmin-pack *)
   if not !skip_pack then begin
-    Eio.Switch.run @@ fun sw ->
-    let root = "_build/_bench_pack" in
-    rm_rf Eio.Path.(fs / root);
-    run "Irmin-pack (eio)" (Bench_irmin_pack.run_all ~sw ~fs conf root)
+    let root = "_build/_bench_pack_lwt" in
+    rm_rf root;
+    run "Irmin-Lwt (pack)" (Bench_irmin_pack.run_all conf root)
   end;
   (* 3. Irmin-fs *)
   if not !skip_fs then begin
-    let root = "_build/_bench_irmin_fs" in
-    rm_rf Eio.Path.(fs / root);
-    run "Irmin-fs (disk)" (Bench_irmin_fs.run_all ~clock ~fs conf root)
+    let root = "_build/_bench_irmin_fs_lwt" in
+    rm_rf root;
+    run "Irmin-Lwt (fs)" (Bench_irmin_fs.run_all conf root)
   end;
   (* 4. Irmin-git *)
   if not !skip_git then begin
-    let root = "_build/_bench_irmin_git" in
-    rm_rf Eio.Path.(fs / root);
-    run "Irmin-git (disk)" (Bench_irmin_git.run_all ~clock conf root)
+    let root = "_build/_bench_irmin_git_lwt" in
+    rm_rf root;
+    run "Irmin-Lwt (git)" (Bench_irmin_git.run_all conf root)
   end;
   (* Summary *)
   let all = List.rev !results in
