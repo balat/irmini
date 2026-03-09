@@ -8,7 +8,7 @@ open Irmin
     Measures write throughput and commit overhead. *)
 let scenario_commits ~name ~(backend : Hash.sha1 Backend.t)
     (conf : Bench_common.config) =
-  let store = Store.Git.create ~backend in
+  let store = Store.Git.create ~backend () in
   let paths =
     Array.init (conf.tree_add + 1) (Bench_common.path ~depth:conf.depth)
   in
@@ -69,7 +69,7 @@ let scenario_commits ~name ~(backend : Hash.sha1 Backend.t)
     Populates a tree, then reads random entries. Measures read throughput. *)
 let scenario_reads ~name ~(backend : Hash.sha1 Backend.t)
     (conf : Bench_common.config) =
-  let store = Store.Git.create ~backend in
+  let store = Store.Git.create ~backend () in
   let paths =
     Array.init (conf.tree_add + 1) (Bench_common.path ~depth:conf.depth)
   in
@@ -116,7 +116,7 @@ let scenario_reads ~name ~(backend : Hash.sha1 Backend.t)
     Measures overhead of small updates on a large tree. *)
 let scenario_incremental ~name ~(backend : Hash.sha1 Backend.t)
     (conf : Bench_common.config) =
-  let store = Store.Git.create ~backend in
+  let store = Store.Git.create ~backend () in
   let paths =
     Array.init (conf.tree_add + 1) (Bench_common.path ~depth:conf.depth)
   in
@@ -175,7 +175,7 @@ let scenario_incremental ~name ~(backend : Hash.sha1 Backend.t)
 let scenario_large_values ~name ~(backend : Hash.sha1 Backend.t)
     (conf : Bench_common.config) =
   let large_size = 10_000 in
-  let store = Store.Git.create ~backend in
+  let store = Store.Git.create ~backend () in
   let npaths = min conf.tree_add 200 in
   let paths =
     Array.init (npaths + 1) (Bench_common.path ~depth:conf.depth)
@@ -298,9 +298,13 @@ let scenario_concurrent ?(nfibers = 100) ~name
 
 (** {1 Backend runners} *)
 
-let run_all_memory conf =
-  let name = "Irmin4 (memory)" in
-  let mk () = Backend.Memory.create_sha1 () in
+let run_all_memory ?(cache = 0) conf =
+  let suffix = if cache > 0 then "+cache" else "" in
+  let name = "Irmini" ^ suffix ^ " (memory)" in
+  let mk () =
+    let b = Backend.Memory.create_sha1 () in
+    if cache > 0 then Backend.cached ~capacity:cache b else b
+  in
   [
     scenario_commits ~name ~backend:(mk ()) conf;
     scenario_reads ~name ~backend:(mk ()) conf;
@@ -308,9 +312,13 @@ let run_all_memory conf =
     scenario_large_values ~name ~backend:(mk ()) conf;
   ]
 
-let run_all_disk ~sw ~env root conf =
-  let name = "Irmin4 (disk)" in
-  let mk () = Backend.Disk.create_sha1 ~sw root in
+let run_all_disk ?(cache = 0) ~sw ~env root conf =
+  let suffix = if cache > 0 then "+cache" else "" in
+  let name = "Irmini" ^ suffix ^ " (disk)" in
+  let mk () =
+    let b = Backend.Disk.create_sha1 ~sw root in
+    if cache > 0 then Backend.cached ~capacity:cache b else b
+  in
   let run_one f =
     let backend = mk () in
     Fun.protect ~finally:(fun () -> backend.close ()) (fun () -> f ~backend)

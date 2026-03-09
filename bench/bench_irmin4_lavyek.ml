@@ -3,13 +3,17 @@
     Each scenario gets a fresh Lavyek store in a separate subdirectory
     to avoid WAL replay issues between runs. *)
 
-let run_all ~sw ~env root (conf : Bench_common.config) =
-  let name = "Irmin4 (lavyek)" in
+let run_all ?(cache = 0) ~sw ~env root (conf : Bench_common.config) =
+  let suffix = if cache > 0 then "+cache" else "" in
+  let name = "Irmini" ^ suffix ^ " (lavyek)" in
   let n = ref 0 in
   let run_one f =
     incr n;
     let subdir = Eio.Path.(root / Printf.sprintf "scenario_%d" !n) in
-    let backend = Backend_lavyek.create ~sw subdir in
+    let b = Backend_lavyek.create ~sw subdir in
+    let backend =
+      if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b
+    in
     Fun.protect
       ~finally:(fun () -> backend.Irmin.Backend.close ())
       (fun () -> f ~backend)

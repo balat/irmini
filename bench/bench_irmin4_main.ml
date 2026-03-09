@@ -1,11 +1,13 @@
-(** Irmin4 benchmark runner.
+(** Irmini benchmark runner.
 
-    Benchmarks Irmin4 with memory, disk, and lavyek backends across
+    Benchmarks Irmini with memory, disk, and lavyek backends across
     multiple scenarios: commits, reads, incremental updates, large values.
+    Optionally runs with LRU cache enabled.
 
     Usage: bench_irmin4_main [--ncommits N] [--tree-add N] [--depth N]
                              [--nreads N] [--value-size N]
-                             [--skip-lavyek] [--skip-disk] *)
+                             [--skip-lavyek] [--skip-disk]
+                             [--cache N] *)
 
 let () =
   let ncommits = ref 100 in
@@ -15,6 +17,7 @@ let () =
   let value_size = ref 100 in
   let skip_lavyek = ref false in
   let skip_disk = ref false in
+  let cache = ref 0 in
   Arg.parse
     [
       ("--ncommits", Arg.Set_int ncommits, "Number of commits (default: 100)");
@@ -27,9 +30,11 @@ let () =
        "Size of values in bytes (default: 100)");
       ("--skip-lavyek", Arg.Set skip_lavyek, "Skip Lavyek backend benchmark");
       ("--skip-disk", Arg.Set skip_disk, "Skip disk backend benchmark");
+      ("--cache", Arg.Set_int cache,
+       "LRU cache capacity (default: 0 = no cache)");
     ]
     (fun _ -> ())
-    "bench_irmin4 - Irmin4 performance benchmarks";
+    "bench_irmin4 - Irmini performance benchmarks";
   let conf : Bench_common.config =
     {
       ncommits = !ncommits;
@@ -39,10 +44,12 @@ let () =
       value_size = !value_size;
     }
   in
+  let cache = !cache in
   Format.printf
     "Configuration: %d commits, %d adds/commit, depth %d, %d reads, \
-     %d-byte values@.@."
-    conf.ncommits conf.tree_add conf.depth conf.nreads conf.value_size;
+     %d-byte values%s@.@."
+    conf.ncommits conf.tree_add conf.depth conf.nreads conf.value_size
+    (if cache > 0 then Printf.sprintf ", cache=%d" cache else "");
   Eio_main.run @@ fun env ->
   let cwd = Eio.Stdenv.cwd env in
   let results = ref [] in
@@ -56,30 +63,27 @@ let () =
     in
     (try rm path with _ -> ())
   in
-  (* 1. Irmin4 memory *)
-  Format.printf "--- Irmin4 (memory) ---@.@.";
-  let rs = Bench_irmin4.run_all_memory conf in
-  List.iter (fun r -> Format.printf "%a@.@." Bench_common.pp_result r) rs;
-  results := rs @ !results;
-  (* 2. Irmin4 disk *)
+  let run name rs =
+    Format.printf "--- %s ---@.@." name;
+    List.iter (fun r -> Format.printf "%a@.@." Bench_common.pp_result r) rs;
+    results := rs @ !results
+  in
+  (* 1. Irmini memory *)
+  run "Irmini (memory)" (Bench_irmin4.run_all_memory ~cache conf);
+  (* 2. Irmini disk *)
   if not !skip_disk then begin
-    Format.printf "--- Irmin4 (disk) ---@.@.";
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_disk") in
     rm_rf root;
-    let rs = Bench_irmin4.run_all_disk ~sw ~env root conf in
-    List.iter (fun r -> Format.printf "%a@.@." Bench_common.pp_result r) rs;
-    results := rs @ !results
+    run "Irmini (disk)" (Bench_irmin4.run_all_disk ~cache ~sw ~env root conf)
   end;
-  (* 3. Irmin4 + Lavyek *)
+  (* 3. Irmini + Lavyek *)
   if not !skip_lavyek then begin
-    Format.printf "--- Irmin4 (lavyek) ---@.@.";
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in
     rm_rf root;
-    let rs = Bench_irmin4_lavyek.run_all ~sw ~env root conf in
-    List.iter (fun r -> Format.printf "%a@.@." Bench_common.pp_result r) rs;
-    results := rs @ !results
+    run "Irmini (lavyek)"
+      (Bench_irmin4_lavyek.run_all ~cache ~sw ~env root conf)
   end;
   (* Summary *)
   Bench_common.pp_comparison Format.std_formatter (List.rev !results)
