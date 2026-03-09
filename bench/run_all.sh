@@ -138,7 +138,7 @@ echo ""
 # --- irmin-lwt (main branch) ---
 if [ "$SKIP_LWT" = false ]; then
   echo "--- irmin-lwt (main branch) ---"
-  run_irmin_bench "main" "bench-lwt" "bench-irmini-lwt" \
+  run_irmin_bench "main" "bench-lwt" "bench-irmin-lwt" \
     "$OUTPUT_DIR/irmin_lwt_${TIMESTAMP}.json"
   echo ""
 fi
@@ -146,7 +146,7 @@ fi
 # --- irmin-eio (cuihtlauac branch) ---
 if [ "$SKIP_EIO" = false ]; then
   echo "--- irmin-eio (cuihtlauac branch) ---"
-  run_irmin_bench "cuihtlauac-inline-small-objects-v2" "bench-eio" "bench-irmini-eio" \
+  run_irmin_bench "cuihtlauac-inline-small-objects-v2" "bench-eio" "bench-irmin-eio" \
     "$OUTPUT_DIR/irmin_eio_${TIMESTAMP}.json"
   echo ""
 fi
