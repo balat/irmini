@@ -78,17 +78,17 @@ let git_backend (repo : Git.Repository.t) : Hash.sha1 Backend.t =
 let import_git ~sw:_ ~fs ~git_dir =
   let repo = Git.Repository.open_bare ~fs git_dir in
   let backend = git_backend repo in
-  Store.Git.create ~backend
+  Store.Git.create ~backend ()
 
 let open_git ~sw:_ ~fs ~path =
   let repo = Git.Repository.open_repo ~fs path in
   let backend = git_backend repo in
-  Store.Git.create ~backend
+  Store.Git.create ~backend ()
 
 let init_git ~sw:_ ~fs ~path =
   let repo = Git.Repository.init ~fs path in
   let backend = git_backend repo in
-  Store.Git.create ~backend
+  Store.Git.create ~backend ()
 
 let read_object ~sw:_ ~fs ~git_dir hash :
     (string * string, [> `Msg of string ]) result =

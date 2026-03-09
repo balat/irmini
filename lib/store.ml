@@ -6,7 +6,13 @@ module Make (F : Codec.S) = struct
 
   type t = { backend : hash Backend.t }
 
-  let create ~backend = { backend }
+  let create ?cache ~backend () =
+    let backend =
+      match cache with
+      | Some n when n > 0 -> Backend.cached ~capacity:n backend
+      | _ -> backend
+    in
+    { backend }
   let backend t = t.backend
 
   let tree t ?at () =

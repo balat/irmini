@@ -23,7 +23,7 @@ module Make (F : Codec.S) = struct
   (* Split: Extract subtree history into a new store *)
   let split store ~prefix =
     let backend = Backend.Memory.create_with_hash F.hash_to_hex F.hash_equal in
-    let new_store = Store.create ~backend in
+    let new_store = Store.create ~backend () in
 
     (* Walk commits and rewrite those touching prefix *)
     let rec rewrite_commit old_hash rewritten =

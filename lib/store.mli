@@ -15,8 +15,10 @@ module Make (F : Codec.S) : sig
 
   (** {2 Construction} *)
 
-  val create : backend:hash Backend.t -> t
-  (** [create ~backend] creates a store backed by [backend]. *)
+  val create : ?cache:int -> backend:hash Backend.t -> unit -> t
+  (** [create ?cache ~backend ()] creates a store backed by [backend].
+      If [cache] is positive, wraps the backend with an LRU cache of that
+      capacity (number of entries). Default: no cache. *)
 
   (** {2 Tree Operations} *)
 
