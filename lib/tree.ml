@@ -22,23 +22,26 @@ module Make (F : Codec.S) = struct
     backend : hash Backend.t option;
     mutable children : (string * tree_node) list; (* modifications *)
     mutable removed : string list;
+    mutable resolved : (string * tree_node) list; (* read cache *)
   }
 
   type t = tree_node
 
   let empty () =
     Node { state = Loaded F.empty_node; backend = None;
-           children = []; removed = [] }
+           children = []; removed = []; resolved = [] }
 
   let of_hash ~backend hash =
     Node { state = Lazy { backend; hash }; backend = Some backend;
-           children = []; removed = [] }
+           children = []; removed = []; resolved = [] }
 
   let shallow hash =
-    Node { state = Shallow hash; backend = None; children = []; removed = [] }
+    Node { state = Shallow hash; backend = None;
+           children = []; removed = []; resolved = [] }
 
   let pruned hash =
-    Node { state = Pruned hash; backend = None; children = []; removed = [] }
+    Node { state = Pruned hash; backend = None;
+           children = []; removed = []; resolved = [] }
 
   let rec of_concrete : concrete -> t = function
     | `Contents s -> Contents s
@@ -47,7 +50,7 @@ module Make (F : Codec.S) = struct
           List.map (fun (name, c) -> (name, of_concrete c)) entries
         in
         Node { state = Loaded F.empty_node; backend = None;
-               children; removed = [] }
+               children; removed = []; resolved = [] }
 
   (* Resolve a lazy node: load from backend, detect inode format. *)
   let resolve_state node =
@@ -80,7 +83,9 @@ module Make (F : Codec.S) = struct
     | Inode { backend; hash } -> Some (Inode.list_all ~backend hash)
     | _ -> None
 
-  (* Navigate to a path, returning the node and remaining path *)
+  (* Navigate to a path, returning the node and remaining path.
+     Resolved children are cached in [node.resolved] to avoid repeated
+     deserialization on subsequent reads. *)
   let rec navigate t path =
     match (t, path) with
     | _, [] -> Some (t, [])
@@ -92,23 +97,32 @@ module Make (F : Codec.S) = struct
         | None -> (
             if List.mem name node.removed then None
             else
-              match resolve_entry node name with
-              | None -> None
-              | Some (`Contents_inlined data) ->
-                  navigate (Contents data) rest
-              | Some (`Contents hash) -> (
-                  match node.backend with
-                  | Some backend -> (
-                      match backend.read hash with
-                      | Some data -> navigate (Contents data) rest
-                      | None -> None)
-                  | None -> None)
-              | Some (`Node hash) -> (
-                  match node.backend with
-                  | Some backend ->
-                      let child = of_hash ~backend hash in
-                      navigate child rest
-                  | None -> None)))
+              (* Check read cache *)
+              match List.assoc_opt name node.resolved with
+              | Some child -> navigate child rest
+              | None ->
+                  let resolved =
+                    match resolve_entry node name with
+                    | None -> None
+                    | Some (`Contents_inlined data) ->
+                        Some (Contents data)
+                    | Some (`Contents hash) -> (
+                        match node.backend with
+                        | Some backend -> (
+                            match backend.read hash with
+                            | Some data -> Some (Contents data)
+                            | None -> None)
+                        | None -> None)
+                    | Some (`Node hash) -> (
+                        match node.backend with
+                        | Some backend -> Some (of_hash ~backend hash)
+                        | None -> None)
+                  in
+                  match resolved with
+                  | None -> None
+                  | Some child ->
+                      node.resolved <- (name, child) :: node.resolved;
+                      navigate child rest))
 
   let find t path =
     match navigate t path with Some (Contents s, []) -> Some s | _ -> None
