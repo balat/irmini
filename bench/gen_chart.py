@@ -41,7 +41,7 @@ data = [
     ("Irmini+inline (lavyek)",  "incremental",  1287),
     ("Irmini+inline (lavyek)",  "large-values", 1296),
     ("Irmini+inline (lavyek)",  "concurrent",   412492),
-    # Irmini + LRU cache (100k entries)
+    # Irmini + LRU cache (100k entries, no inodes)
     ("Irmini+cache (memory)",  "commits",      512),
     ("Irmini+cache (memory)",  "reads",        13399),
     ("Irmini+cache (memory)",  "incremental",  2270),
@@ -56,6 +56,21 @@ data = [
     ("Irmini+cache (lavyek)",  "incremental",  1003),
     ("Irmini+cache (lavyek)",  "large-values", 1257),
     ("Irmini+cache (lavyek)",  "concurrent",   686252),
+    # Irmini + inodes only (memory, 100-byte values)
+    ("Irmini+inode (memory)",  "commits",      114164),
+    ("Irmini+inode (memory)",  "reads",        24648),
+    ("Irmini+inode (memory)",  "incremental",  9124),
+    ("Irmini+inode (memory)",  "large-values", 18051),
+    # Irmini + all optimizations (inodes + cache + inlining, 30-byte values)
+    ("Irmini+all (memory)",    "commits",      244341),
+    ("Irmini+all (memory)",    "reads",        293394),
+    ("Irmini+all (memory)",    "incremental",  12987),
+    ("Irmini+all (memory)",    "large-values", 16958),
+    ("Irmini+all (lavyek)",    "commits",      207146),
+    ("Irmini+all (lavyek)",    "reads",        285926),
+    ("Irmini+all (lavyek)",    "incremental",  10136),
+    ("Irmini+all (lavyek)",    "large-values", 9784),
+    ("Irmini+all (lavyek)",    "concurrent",   560728),
     # Irmin-Eio (eio branch)
     ("Irmin (memory)",    "commits",      158192),
     ("Irmin (memory)",    "reads",        1348477),
@@ -79,8 +94,10 @@ data = [
 scenarios = ["commits", "reads", "incremental", "large-values", "concurrent"]
 backends = [
     "Irmini (memory)", "Irmini+inline (memory)", "Irmini+cache (memory)",
+    "Irmini+inode (memory)", "Irmini+all (memory)",
     "Irmini (disk)", "Irmini+inline (disk)", "Irmini+cache (disk)",
     "Irmini (lavyek)", "Irmini+inline (lavyek)", "Irmini+cache (lavyek)",
+    "Irmini+all (lavyek)",
     "Irmin (memory)", "Irmin-pack", "Irmin-fs", "Irmin-git",
 ]
 
@@ -88,12 +105,15 @@ colors = {
     "Irmini (memory)":          "#4e79a7",
     "Irmini+inline (memory)":   "#7eadd4",
     "Irmini+cache (memory)":    "#a3c4e0",
+    "Irmini+inode (memory)":    "#2a5f8a",
+    "Irmini+all (memory)":      "#1a3d5c",
     "Irmini (disk)":            "#59a14f",
     "Irmini+inline (disk)":     "#8ed485",
     "Irmini+cache (disk)":      "#b8e8ab",
     "Irmini (lavyek)":          "#9c755f",
     "Irmini+inline (lavyek)":   "#c9a48e",
     "Irmini+cache (lavyek)":    "#dfc4b5",
+    "Irmini+all (lavyek)":      "#6b4430",
     "Irmin (memory)":           "#f28e2b",
     "Irmin-pack":               "#e15759",
     "Irmin-fs":                 "#76b7b2",
@@ -116,7 +136,10 @@ bar_width = 14
 bar_gap = 2
 
 n_backends = len(backends)
-group_width = n_backends * (bar_width + bar_gap) - bar_gap
+separator_gap = 8  # extra gap between Irmini and Irmin groups
+# Find the index where Irmin backends start (for the separator)
+irmin_start_idx = next(i for i, b in enumerate(backends) if b.startswith("Irmin ") or b.startswith("Irmin-"))
+group_width = n_backends * (bar_width + bar_gap) - bar_gap + separator_gap
 chart_width = len(scenarios) * (group_width + group_gap) - group_gap
 chart_height = 400
 
@@ -149,7 +172,7 @@ def pattern_id(name):
 
 def bar_fill(backend):
     c = colors[backend]
-    if "+inline" in backend or "+cache" in backend:
+    if "+inline" in backend or "+cache" in backend or "+inode" in backend or "+all" in backend:
         return f'url(#{pattern_id(backend)})'
     return c
 
@@ -193,9 +216,24 @@ def generate_chart(scale="linear"):
     # Background
     lines.append(f'<rect width="{svg_w}" height="{svg_h}" fill="white"/>')
 
-    # Stripe patterns for +inline variants (diagonal) and +cache (horizontal)
+    # Stripe patterns for variants
     for name, color in colors.items():
-        if "+inline" in name:
+        if "+all" in name:
+            pid = pattern_id(name)
+            lines.append(f'<defs><pattern id="{pid}" width="4" height="4" '
+                         f'patternUnits="userSpaceOnUse">'
+                         f'<rect width="4" height="4" fill="{color}"/>'
+                         f'<line x1="0" y1="0" x2="4" y2="4" stroke="white" stroke-width="0.8" opacity="0.5"/>'
+                         f'<line x1="0" y1="4" x2="4" y2="0" stroke="white" stroke-width="0.8" opacity="0.5"/>'
+                         f'</pattern></defs>')
+        elif "+inode" in name:
+            pid = pattern_id(name)
+            lines.append(f'<defs><pattern id="{pid}" width="3" height="3" '
+                         f'patternUnits="userSpaceOnUse">'
+                         f'<rect width="3" height="3" fill="{color}"/>'
+                         f'<circle cx="1.5" cy="1.5" r="0.8" fill="white" opacity="0.5"/>'
+                         f'</pattern></defs>')
+        elif "+inline" in name:
             pid = pattern_id(name)
             lines.append(f'<defs><pattern id="{pid}" width="4" height="4" '
                          f'patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
@@ -263,6 +301,8 @@ def generate_chart(scale="linear"):
             if val is None:
                 continue
             bx = gx + bi * (bar_width + bar_gap)
+            if bi >= irmin_start_idx:
+                bx += separator_gap
             by = y_of(val, scenario)
             bh = chart_height - by
             fill = bar_fill(backend)
@@ -272,6 +312,12 @@ def generate_chart(scale="linear"):
             lines.append(f'<text x="{bx + bar_width/2:.1f}" y="{by - 3:.1f}" '
                          f'text-anchor="middle" font-size="7" fill="#333">'
                          f'{fmt_ops(val)}</text>')
+
+        # Separator line between Irmini and Irmin groups
+        sep_x = gx + irmin_start_idx * (bar_width + bar_gap) + separator_gap / 2
+        lines.append(f'<line x1="{sep_x:.1f}" y1="0" x2="{sep_x:.1f}" '
+                     f'y2="{chart_height}" stroke="#ccc" stroke-width="0.5" '
+                     f'stroke-dasharray="3,3"/>')
 
         # Scenario label below
         cx = gx + group_width / 2
@@ -293,6 +339,8 @@ def generate_chart(scale="linear"):
         ("Irmini (memory)", colors["Irmini (memory)"]),
         ("Irmini (disk)", colors["Irmini (disk)"]),
         ("Irmini (lavyek)", colors["Irmini (lavyek)"]),
+        ("Irmini+all (memory)", colors["Irmini+all (memory)"]),
+        ("Irmini+all (lavyek)", colors["Irmini+all (lavyek)"]),
         ("Irmin (memory)", colors["Irmin (memory)"]),
         ("Irmin-pack", colors["Irmin-pack"]),
         ("Irmin-fs", colors["Irmin-fs"]),
@@ -311,7 +359,7 @@ def generate_chart(scale="linear"):
     total_rows = (len(legend_items) - 1) // cols + 1
     ny = total_rows * 20 + 6
     lines.append(f'<text x="0" y="{ny + 10}" font-size="9" fill="#888" font-style="italic">'
-                 f'Diagonal stripes = +inlining, horizontal stripes = +cache (lighter shade of same color)</text>')
+                 f'Diagonal = +inline, horizontal = +cache, dots = +inode, cross-hatch = +all (inode+cache+inline)</text>')
 
     lines.append('</g>')
     lines.append('</svg>')

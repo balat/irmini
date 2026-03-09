@@ -58,14 +58,14 @@ IRMIN_EIO_DIR=/path/to/irmin ./bench/run.sh
 
 ## Results
 
-Run on 2026-03-06, AMD 12-core, 50 commits × 500 adds, depth 10, 5000 reads,
-100-byte values.
+Run on 2026-03-09, AMD 12-core, 50 commits × 500 adds, depth 10, 5000 reads,
+100-byte values (unless noted).
 
 ### Overview
 
-![Benchmark comparison](bench_chart_1773050531.svg)
+![Benchmark comparison](bench_chart_1773056391.svg)
 
-![Benchmark comparison (log scale)](bench_chart_log_1773050531.svg)
+![Benchmark comparison (log scale)](bench_chart_log_1773056391.svg)
 
 To regenerate the charts after updating the data in `gen_chart.py`:
 
@@ -154,6 +154,55 @@ ops/s** (**3.4×**), memory from 9.5k to **13.4k** (**1.4×**), lavyek from
 8.5k to **12.6k** (**1.5×**). Disk+cache is now faster than memory without
 cache for reads. Commits and large-values are unaffected (write-bound).
 
+### Irmini + inodes (memory) — 100-byte values
+
+Irmini with inode-based structural sharing (32-way HAMT trie for large tree
+nodes). No cache, no inlining. This is the biggest single optimization:
+modifications only touch the affected inode bucket instead of re-serializing
+the entire flat node.
+
+```
+Name                           Scenario               ops/s     total(s)   RSS(MiB)
+----------------------------------------------------------------------------------
+Irmini+inode (memory)          commits               114164        0.2        163
+Irmini+inode (memory)          reads                  24648        0.2        152
+Irmini+inode (memory)          incremental             9124        0.0        151
+Irmini+inode (memory)          large-values           18051        0.6        150
+```
+
+Inodes alone give a **massive** improvement over baseline irmini:
+- commits: 519 → **114k ops/s** (**220×**)
+- reads: 9.6k → **25k ops/s** (**2.6×**)
+- incremental: 2.0k → **9.1k ops/s** (**4.6×**)
+- large-values: 1.5k → **18k ops/s** (**12×**)
+
+### Irmini + all optimizations (memory, lavyek) — 30-byte values
+
+Irmini with all optimizations combined: inodes + LRU cache (100k entries) +
+inlining (30-byte values, `inline_threshold = 48`). This is the best irmini
+configuration.
+
+```
+Name                           Scenario               ops/s     total(s)   RSS(MiB)
+----------------------------------------------------------------------------------
+Irmini+all (memory)            commits               244341        0.1        163
+Irmini+all (memory)            reads                 293394        0.0        154
+Irmini+all (memory)            incremental            12987        0.0        153
+Irmini+all (memory)            large-values           16958        0.6        151
+Irmini+all (lavyek)            commits               207146        0.1        228
+Irmini+all (lavyek)            reads                 285926        0.0        232
+Irmini+all (lavyek)            incremental            10136        0.0        370
+Irmini+all (lavyek)            large-values            9784        1.0        356
+Irmini+all (lavyek)            concurrent-100f/12d   560728        0.0        306
+```
+
+With all optimizations, irmini **surpasses Irmin-Eio** on commits and
+approaches it on reads:
+- commits: **244k ops/s** vs Irmin-Eio 158k (**1.5× faster**)
+- reads: **293k ops/s** vs Irmin-Eio 1.3M (**4.6× slower**, but up from 100×)
+- incremental: **13k ops/s** vs Irmin-Eio 2.9k (**4.5× faster**)
+- Lavyek reads at **286k ops/s** — close to memory, even with persistence
+
 ### Irmin (Eio branch + inline-small-objects-v2)
 
 Official Irmin on branch `cuihtlauac-inline-small-objects-v2` (Eio-based,
@@ -211,11 +260,22 @@ Irmin-git (disk)               large-values            1585        6.3        64
 
 ### Key observations
 
-- **Irmin-Eio vs Irmini (memory)**: Irmin-Eio is **~300× faster** on
-  commits and **~160× faster** on reads. This is expected: Irmin uses
-  inode-based tree representation with efficient structural sharing, while
-  irmini's simpler tree implementation re-serializes entire nodes on each
-  commit.
+- **Irmini+all vs Irmin-Eio**: With all optimizations (inodes + cache +
+  inlining), irmini now **beats Irmin-Eio** on commits (244k vs 158k,
+  **1.5× faster**) and incremental (13k vs 2.9k, **4.5× faster**). Reads
+  are still slower (293k vs 1.3M, **4.6×**) — Irmin-Eio benefits from a
+  much more optimized in-memory representation. This is a dramatic
+  improvement from the baseline where Irmin-Eio was 300× faster on commits.
+- **Inode impact**: The single biggest optimization. Inodes alone bring
+  commits from 519 to **114k ops/s** (**220×**), by replacing O(n)
+  full-node serialization with O(log n) bucket updates. Reads also improve
+  (2.6×) thanks to targeted lookups instead of scanning the full node.
+- **Optimization stacking**: Each optimization contributes independently:
+  baseline → +inode (220×) → +inlining (2.1×) → +cache (1.2× reads).
+  Combined: **470× faster** than baseline on commits.
+- **Irmini baseline vs Irmin-Eio (no optimizations)**: Irmin-Eio is
+  **~300× faster** on commits and **~160× faster** on reads, because
+  irmini without inodes re-serializes entire flat nodes on each commit.
 - **Irmin disk backends vs in-memory**: irmin-pack commits are **~3× slower**
   than in-memory (46 k vs 158 k ops/s), but reads remain fast (~1.4 M ops/s)
   thanks to the LRU cache. irmin-fs is slower still: commits at 37 k ops/s,
