@@ -21,6 +21,7 @@ module type S = sig
   val hash_to_bytes : hash -> string
   val hash_to_hex : hash -> string
   val hash_of_hex : string -> (hash, [> `Msg of string ]) result
+  val hash_of_raw_bytes : string -> hash
   val hash_equal : hash -> hash -> bool
   val hash_compare : hash -> hash -> int
 
@@ -212,6 +213,7 @@ module Git : SHA1 = struct
   let hash_to_bytes = Hash.to_bytes
   let hash_to_hex = Hash.to_hex
   let hash_of_hex s : (hash, [> `Msg of string ]) result = Hash.sha1_of_hex s
+  let hash_of_raw_bytes = Hash.sha1_of_bytes
   let hash_equal = Hash.equal
   let hash_compare = Hash.compare
 
@@ -375,6 +377,7 @@ module Mst : SHA256 = struct
   let hash_to_bytes = Hash.to_bytes
   let hash_to_hex = Hash.to_hex
   let hash_of_hex s : (hash, [> `Msg of string ]) result = Hash.sha256_of_hex s
+  let hash_of_raw_bytes = Hash.sha256_of_bytes
   let hash_equal = Hash.equal
   let hash_compare = Hash.compare
 

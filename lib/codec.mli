@@ -65,6 +65,10 @@ module type S = sig
   val hash_of_hex : string -> (hash, [> `Msg of string ]) result
   (** [hash_of_hex s] parses a hexadecimal hash string. *)
 
+  val hash_of_raw_bytes : string -> hash
+  (** [hash_of_raw_bytes s] creates a hash from raw digest bytes. Raises
+      [Invalid_argument] if [s] has the wrong length. *)
+
   val hash_equal : hash -> hash -> bool
   (** [hash_equal h1 h2] tests hash equality. *)
 
