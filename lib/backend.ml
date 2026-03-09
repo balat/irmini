@@ -75,28 +75,8 @@ module Memory = struct
   let create_sha256 () = create_with_hash Hash.to_hex Hash.equal
 end
 
-(* Simple LRU cache *)
-module Lru = struct
-  type ('k, 'v) t = { capacity : int; mutable items : ('k * 'v) list }
-
-  let create capacity = { capacity; items = [] }
-
-  let find t key =
-    match List.assoc_opt key t.items with
-    | Some v ->
-        (* Move to front *)
-        t.items <- (key, v) :: List.remove_assoc key t.items;
-        Some v
-    | None -> None
-
-  let add t key value =
-    t.items <- (key, value) :: List.remove_assoc key t.items;
-    if List.length t.items > t.capacity then
-      t.items <- List.rev (List.tl (List.rev t.items))
-end
-
-let cached (type h) (backend : h t) : h t =
-  let cache : (h, string) Lru.t = Lru.create 1000 in
+let cached ?(capacity = 100_000) (type h) (backend : h t) : h t =
+  let cache : (h, string) Lru.t = Lru.create capacity in
   {
     backend with
     read =
@@ -107,6 +87,14 @@ let cached (type h) (backend : h t) : h t =
             let result = backend.read h in
             Option.iter (fun v -> Lru.add cache h v) result;
             result);
+    write =
+      (fun h data ->
+        backend.write h data;
+        Lru.add cache h data);
+    write_batch =
+      (fun objects ->
+        backend.write_batch objects;
+        List.iter (fun (h, data) -> Lru.add cache h data) objects);
   }
 
 let readonly (backend : 'h t) : 'h t =

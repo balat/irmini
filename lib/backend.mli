@@ -43,9 +43,10 @@ end
 
 (** {1 Backend Combinators} *)
 
-val cached : 'h t -> 'h t
-(** [cached backend] wraps a backend with an LRU cache. Reads are served from
-    cache when possible. *)
+val cached : ?capacity:int -> 'h t -> 'h t
+(** [cached ?capacity backend] wraps a backend with an LRU cache (default:
+    100 000 entries). Reads are served from cache when possible, and writes
+    populate the cache. *)
 
 val readonly : 'h t -> 'h t
 (** [readonly backend] makes a backend read-only. Write operations raise
