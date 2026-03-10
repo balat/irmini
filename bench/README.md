@@ -33,6 +33,13 @@ Simple irmini + irmin-eio comparison:
 IRMIN_EIO_DIR=/path/to/irmin ./bench/run.sh
 ```
 
+Irmini per-optimization comparison (baseline, +inline, +cache, +inode, +all):
+
+```
+cd /path/to/monopampam
+./irmini/bench/run_optims.sh
+```
+
 ## Options
 
 | Flag             | Default | Description                        |
@@ -46,6 +53,8 @@ IRMIN_EIO_DIR=/path/to/irmin ./bench/run.sh
 | `--skip-disk`    | false   | Skip the disk backend              |
 | `--skip-git`     | false   | Skip the git backend               |
 | `--cache`        | 0       | LRU cache capacity (0 = no cache)  |
+| `--no-inode`     | false   | Disable inode splitting            |
+| `--name`         | —       | Override benchmark name             |
 | `--json`         | —       | Write JSON results to file         |
 
 ## Scenarios
@@ -70,6 +79,7 @@ IRMIN_EIO_DIR=/path/to/irmin ./bench/run.sh
 | `bench_irmin4_main.ml`    | CLI runner for all irmini backends           |
 | `run.sh`                  | Simple comparison (irmini + Irmin-Eio)       |
 | `run_all.sh`              | Full comparison across all implementations   |
+| `run_optims.sh`           | Per-optimization comparison (5 variants)     |
 | `gen_chart.py`            | Chart from hardcoded data (legacy)           |
 | `gen_chart_all.py`        | Charts from JSON results by backend type     |
 | `../bench-eio/`           | Irmin-Eio benchmark adapters                 |

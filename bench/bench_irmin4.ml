@@ -298,18 +298,22 @@ let scenario_concurrent ?(nfibers = 100) ~name
 
 (** {1 Backend runners} *)
 
-let run_all_memory ?inline_threshold ?(cache = 0) conf =
-  let suffix = if cache > 0 then "+cache" else "" in
-  let name = "Irmini" ^ suffix ^ " (memory)" in
+let run_all_memory ?inline_threshold ?inode ?(cache = 0) ?name:custom_name conf =
+  let name = match custom_name with
+    | Some n -> n
+    | None ->
+      let suffix = if cache > 0 then "+cache" else "" in
+      "Irmini" ^ suffix ^ " (memory)"
+  in
   let mk () =
     let b = Backend.Memory.create_sha1 () in
     if cache > 0 then Backend.cached ~capacity:cache b else b
   in
   [
-    scenario_commits ?inline_threshold ~name ~backend:(mk ()) conf;
-    scenario_reads ?inline_threshold ~name ~backend:(mk ()) conf;
-    scenario_incremental ?inline_threshold ~name ~backend:(mk ()) conf;
-    scenario_large_values ?inline_threshold ~name ~backend:(mk ()) conf;
+    scenario_commits ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
+    scenario_reads ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
+    scenario_incremental ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
+    scenario_large_values ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
   ]
 
 let run_all_git ?(cache = 0) ~sw ~fs root conf =

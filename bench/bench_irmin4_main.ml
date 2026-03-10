@@ -20,6 +20,8 @@ let () =
   let skip_git = ref false in
   let cache = ref 0 in
   let inline_threshold = ref (-1) in
+  let no_inode = ref false in
+  let name = ref "" in
   let json_file = ref "" in
   Arg.parse
     [
@@ -38,6 +40,8 @@ let () =
        "LRU cache capacity (default: 0 = no cache)");
       ("--inline-threshold", Arg.Set_int inline_threshold,
        "Inline threshold in bytes (default: codec default, -1 = use default)");
+      ("--no-inode", Arg.Set no_inode, "Disable inode splitting");
+      ("--name", Arg.Set_string name, "Override benchmark name");
       ("--json", Arg.Set_string json_file, "Write JSON results to FILE");
     ]
     (fun _ -> ())
@@ -55,6 +59,8 @@ let () =
   let inline_threshold =
     if !inline_threshold >= 0 then Some !inline_threshold else None
   in
+  let inode = if !no_inode then Some false else None in
+  let name = if !name <> "" then Some !name else None in
   Format.printf
     "Configuration: %d commits, %d adds/commit, depth %d, %d reads, \
      %d-byte values%s%s@.@."
@@ -82,7 +88,8 @@ let () =
     results := rs @ !results
   in
   (* 1. Irmini memory *)
-  run "Irmini (memory)" (Bench_irmin4.run_all_memory ?inline_threshold ~cache conf);
+  let mem_name = match name with Some n -> n | None -> "Irmini (memory)" in
+  run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache ?name conf);
   (* 2. Irmini disk *)
   if not !skip_disk then begin
     Eio.Switch.run @@ fun sw ->
