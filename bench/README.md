@@ -142,6 +142,8 @@ Irmini runs each scenario twice: with 100-byte and 10K-byte values.
 
 ### Memory backends
 
+![Memory backends](results/chart_memory_1773144623.svg)
+
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
@@ -173,6 +175,8 @@ Irmini (memory)                incremental-10K         3604        0.028        
 
 ### Git backends
 
+![Git backends](results/chart_git_1773144623.svg)
+
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
@@ -201,6 +205,8 @@ Irmini (git)                   incremental-10K          162        0.617        
   Git I/O overhead.
 
 ### Disk backends (fs, pack)
+
+![Disk backends](results/chart_disk_1773144623.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
