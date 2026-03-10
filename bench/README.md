@@ -64,13 +64,47 @@ Each scenario runs twice: once with small values (from `--value-size`, e.g. 20B)
 and once with large values (10 KiB). Scenario names include the value size
 suffix, e.g. `commits-20B`, `commits-10K`.
 
-1. **commits** — Sequential commits, each adding `tree-add` entries at
-   `depth`-deep paths. Measures write throughput.
-2. **reads** — Random reads from a populated store. Measures read latency.
-3. **incremental** — Small updates (1 entry) on an existing tree. Measures
-   the overhead of copy-on-write.
-4. **concurrent** *(disk, lavyek, irmin-pack)* — 100 fibers across 12 domains
-   doing concurrent reads/writes. Measures lock-free scalability.
+Running with small values (below the 48-byte inline threshold) tests the
+effectiveness of **value inlining** (small values stored directly in tree
+nodes, avoiding content-addressable store lookups). Running with large
+values (10 KiB) tests raw I/O throughput where inlining cannot help.
+
+1. **commits** — Performs `ncommits` sequential commits, each adding
+   `tree-add` entries at `depth`-level paths. Each commit reads the current
+   tree, adds entries, then serializes and stores the new tree + commit
+   object. This is the primary **write throughput** benchmark: it exercises
+   tree construction, content-addressable hashing, and backend write I/O.
+   It is sensitive to **inlining** (fewer store writes when values are
+   inlined), **inodes** (O(log n) tree updates instead of O(n)
+   re-serialization), and **backend write speed**.
+
+2. **reads** — Populates a tree with `tree-add` entries, commits it, then
+   performs `nreads` random lookups by path from the committed tree. The tree
+   is loaded fresh from the store (not from memory), so each read must
+   navigate the serialized tree structure and fetch content from the backend.
+   This is the primary **read throughput** benchmark: it exercises tree
+   navigation, deserialization, and backend read I/O. It is sensitive to
+   **LRU cache** (avoids repeated deserialization), **inodes** (O(log n)
+   navigation), and **resolved-child cache** (avoids re-navigating already
+   resolved subtrees).
+
+3. **incremental** — Builds a large tree (`tree-add` entries), commits it,
+   then performs `ncommits` commits each modifying a single entry. Each
+   iteration checks out the tree, updates one path, and commits. This
+   simulates the common real-world pattern of **small updates on a large
+   tree** (e.g. updating a single file in a repository). Without structural
+   sharing (inodes), the entire tree must be re-serialized on each commit
+   even though only one entry changed. With **inodes**, only the affected
+   HAMT trie path is rewritten (O(log n) instead of O(n)). This scenario
+   is the most sensitive to inode optimization.
+
+4. **concurrent** *(disk, lavyek only)* — Pre-populates the backend with
+   1000 objects, then spawns `nfibers` (default 100) fibers distributed
+   across up to 12 OS domains. Each fiber performs `nreads / nfibers`
+   iterations of alternating write + read operations directly on the
+   backend (bypassing the tree layer). This measures **raw backend
+   throughput under contention**: lock-free data structures (lavyek),
+   mutex overhead (disk), and OS-level I/O parallelism.
 
 ## Files
 
