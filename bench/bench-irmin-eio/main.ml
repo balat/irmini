@@ -74,19 +74,19 @@ let () =
     Eio.Switch.run @@ fun sw ->
     let root = "_build/_bench_pack" in
     rm_rf Eio.Path.(fs / root);
-    run "Irmin-pack (eio)" (Bench_irmin_pack.run_all ~sw ~fs conf root)
+    run "Irmin-Eio (pack)" (Bench_irmin_pack.run_all ~sw ~fs conf root)
   end;
   (* 3. Irmin-fs *)
   if not !skip_fs then begin
     let root = "_build/_bench_irmin_fs" in
     rm_rf Eio.Path.(fs / root);
-    run "Irmin-fs (disk)" (Bench_irmin_fs.run_all ~clock ~fs conf root)
+    run "Irmin-Eio (fs)" (Bench_irmin_fs.run_all ~clock ~fs conf root)
   end;
   (* 4. Irmin-git *)
   if not !skip_git then begin
     let root = "_build/_bench_irmin_git" in
     rm_rf Eio.Path.(fs / root);
-    run "Irmin-git (disk)" (Bench_irmin_git.run_all ~clock conf root)
+    run "Irmin-Eio (git)" (Bench_irmin_git.run_all ~clock conf root)
   end;
   (* Summary *)
   let all = List.rev !results in

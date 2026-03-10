@@ -17,6 +17,6 @@ let run_all ~sw ~fs conf root =
     Irmin_pack.Conf.init ~sw ~fs ~fresh:true Eio.Path.(fs / root)
   in
   let repo = Store.Repo.v config in
-  let results = B.run_all ~name:"Irmin-pack (eio)" conf repo in
+  let results = B.run_all ~name:"Irmin-Eio (pack)" conf repo in
   Store.Repo.close repo;
   results

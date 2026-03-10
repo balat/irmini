@@ -7,7 +7,7 @@ let run_all ~clock conf root =
   Lwt_eio.with_event_loop ~clock @@ fun _ ->
   let config = Irmin_git.config ~bare:true root in
   let repo = Store.Repo.v config in
-  let results = B.run_all ~name:"Irmin-git (disk)" conf repo in
+  let results = B.run_all ~name:"Irmin-Eio (git)" conf repo in
   Store.Repo.close repo;
   results
 
@@ -16,7 +16,7 @@ let run_all_with_concurrent ~clock ~env conf root =
   let config = Irmin_git.config ~bare:true root in
   let repo = Store.Repo.v config in
   let results =
-    B.run_all_with_concurrent ~name:"Irmin-git (disk)" ~env conf repo
+    B.run_all_with_concurrent ~name:"Irmin-Eio (git)" ~env conf repo
   in
   Store.Repo.close repo;
   results
