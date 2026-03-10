@@ -375,22 +375,29 @@ Irmini+all                     incremental-10K         4702
 
 ### Tezos trace replay
 
-Replays real Tezos blockchain operations from a `.repr` trace file on
-irmini with memory and lavyek backends.
+Replays real Tezos blockchain operations from a `.repr` trace file.
+All implementations use in-memory backends (irmini memory, irmin pack-mem)
+with no GC. Irmin uses its official `tree.exe` benchmark tool.
 
 ```
 Trace: data4_10310commits.repr (267 MiB), 10310 commits, 4M operations
 
-Backend              Ops/sec    Time       RSS (MiB)
------------------------------------------------------
-Irmini (memory)       71,055     56.3s        584
-Irmini (lavyek)       67,971     58.8s        758
+Backend               Ops/sec    CPU time   Wall time  RSS (MiB)
+-----------------------------------------------------------------
+Irmin-Lwt (pack-mem)  ~131,000     30.6s      32.1s        —
+Irmin-Eio (pack-mem)   ~83,000     48.1s      57.0s        —
+Irmini (memory)         71,055     56.3s      56.3s      584
+Irmini (lavyek)         67,971     58.8s      58.8s      758
 ```
 
 - The first commit (Tezos genesis) accounts for ~309K operations (124K adds,
   78K finds, 93K mems). Subsequent blocks are much smaller (~340 ops/block).
-- **71K ops/sec** (memory) and **68K ops/sec** (lavyek) over the full trace.
-- Lavyek is within 96% of memory speed despite disk I/O.
+- **Irmin-Lwt** is fastest at 131K ops/s thanks to its highly optimized
+  pack-mem store with inode config [32, 256].
+- **Irmini (memory)** at 71K ops/s — 54% of irmin-lwt. Room for optimization
+  in tree navigation and serialization.
+- **Irmini (lavyek)** at 68K ops/s — within 96% of irmini memory speed
+  despite disk I/O.
 - Disk backend (WAL+bloom) is too slow for trace replay due to per-write fsync.
 - Path flattening (6-step Tezos hash paths → single hex string) is
   **counter-productive** for irmini: it creates very wide directories
