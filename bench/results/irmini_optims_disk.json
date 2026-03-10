@@ -3,280 +3,280 @@
     "name": "Irmini baseline (disk)",
     "scenario": "concurrent-100f/12d",
     "total_ops": 10000,
-    "total_time": 0.045727,
-    "ops_per_sec": 218689.1,
-    "maxrss_kb": 233784
+    "total_time": 37.594591,
+    "ops_per_sec": 266.0,
+    "maxrss_kb": 60500
   },
   {
     "name": "Irmini baseline (disk)",
     "scenario": "incremental-10K",
     "total_ops": 50,
-    "total_time": 0.034661,
-    "ops_per_sec": 1442.5,
-    "maxrss_kb": 246796
+    "total_time": 5.415804,
+    "ops_per_sec": 9.2,
+    "maxrss_kb": 68296
   },
   {
     "name": "Irmini baseline (disk)",
     "scenario": "reads-10K",
     "total_ops": 5000,
-    "total_time": 0.011378,
-    "ops_per_sec": 439442.6,
-    "maxrss_kb": 246792
+    "total_time": 0.036111,
+    "ops_per_sec": 138461.5,
+    "maxrss_kb": 78136
   },
   {
     "name": "Irmini baseline (disk)",
     "scenario": "commits-10K",
     "total_ops": 25000,
-    "total_time": 3.561858,
-    "ops_per_sec": 7018.8,
-    "maxrss_kb": 346904
+    "total_time": 19.532288,
+    "ops_per_sec": 1279.9,
+    "maxrss_kb": 79840
   },
   {
     "name": "Irmini baseline (disk)",
     "scenario": "incremental-20B",
     "total_ops": 50,
-    "total_time": 0.031767,
-    "ops_per_sec": 1574.0,
-    "maxrss_kb": 263200
+    "total_time": 4.95118,
+    "ops_per_sec": 10.1,
+    "maxrss_kb": 79840
   },
   {
     "name": "Irmini baseline (disk)",
     "scenario": "reads-20B",
     "total_ops": 5000,
-    "total_time": 0.005989,
-    "ops_per_sec": 834853.5,
-    "maxrss_kb": 263200
+    "total_time": 0.057269,
+    "ops_per_sec": 87307.5,
+    "maxrss_kb": 82380
   },
   {
     "name": "Irmini baseline (disk)",
     "scenario": "commits-20B",
     "total_ops": 25000,
-    "total_time": 1.278829,
-    "ops_per_sec": 19549.1,
-    "maxrss_kb": 283328
+    "total_time": 17.291548,
+    "ops_per_sec": 1445.8,
+    "maxrss_kb": 83644
   },
   {
     "name": "Irmini+inline (disk)",
     "scenario": "concurrent-100f/12d",
     "total_ops": 10000,
-    "total_time": 0.047624,
-    "ops_per_sec": 209977.7,
-    "maxrss_kb": 234060
+    "total_time": 38.094869,
+    "ops_per_sec": 262.5,
+    "maxrss_kb": 60812
   },
   {
     "name": "Irmini+inline (disk)",
     "scenario": "incremental-10K",
     "total_ops": 50,
-    "total_time": 0.037435,
-    "ops_per_sec": 1335.6,
-    "maxrss_kb": 247100
+    "total_time": 5.414314,
+    "ops_per_sec": 9.2,
+    "maxrss_kb": 68600
   },
   {
     "name": "Irmini+inline (disk)",
     "scenario": "reads-10K",
     "total_ops": 5000,
-    "total_time": 0.016325,
-    "ops_per_sec": 306278.8,
-    "maxrss_kb": 247092
+    "total_time": 0.072154,
+    "ops_per_sec": 69296.2,
+    "maxrss_kb": 78628
   },
   {
     "name": "Irmini+inline (disk)",
     "scenario": "commits-10K",
     "total_ops": 25000,
-    "total_time": 3.676843,
-    "ops_per_sec": 6799.3,
-    "maxrss_kb": 347096
+    "total_time": 19.498461,
+    "ops_per_sec": 1282.2,
+    "maxrss_kb": 80212
   },
   {
     "name": "Irmini+inline (disk)",
     "scenario": "incremental-20B",
     "total_ops": 50,
-    "total_time": 0.024395,
-    "ops_per_sec": 2049.6,
-    "maxrss_kb": 263312
+    "total_time": 4.947807,
+    "ops_per_sec": 10.1,
+    "maxrss_kb": 80212
   },
   {
     "name": "Irmini+inline (disk)",
     "scenario": "reads-20B",
     "total_ops": 5000,
-    "total_time": 0.004498,
-    "ops_per_sec": 1111603.9,
-    "maxrss_kb": 263312
+    "total_time": 0.040879,
+    "ops_per_sec": 122312.2,
+    "maxrss_kb": 81028
   },
   {
     "name": "Irmini+inline (disk)",
     "scenario": "commits-20B",
     "total_ops": 25000,
-    "total_time": 0.212682,
-    "ops_per_sec": 117546.4,
-    "maxrss_kb": 245912
+    "total_time": 16.911642,
+    "ops_per_sec": 1478.3,
+    "maxrss_kb": 80556
   },
   {
     "name": "Irmini+cache (disk)",
     "scenario": "concurrent-100f/12d",
     "total_ops": 10000,
-    "total_time": 0.026969,
-    "ops_per_sec": 370796.7,
-    "maxrss_kb": 235740
+    "total_time": 38.116054,
+    "ops_per_sec": 262.4,
+    "maxrss_kb": 60856
   },
   {
     "name": "Irmini+cache (disk)",
     "scenario": "incremental-10K",
     "total_ops": 50,
-    "total_time": 0.033246,
-    "ops_per_sec": 1503.9,
-    "maxrss_kb": 248000
+    "total_time": 5.313101,
+    "ops_per_sec": 9.4,
+    "maxrss_kb": 68808
   },
   {
     "name": "Irmini+cache (disk)",
     "scenario": "reads-10K",
     "total_ops": 5000,
-    "total_time": 0.002663,
-    "ops_per_sec": 1877486.1,
-    "maxrss_kb": 248000
+    "total_time": 0.003733,
+    "ops_per_sec": 1339434.1,
+    "maxrss_kb": 78132
   },
   {
     "name": "Irmini+cache (disk)",
     "scenario": "commits-10K",
     "total_ops": 25000,
-    "total_time": 3.526636,
-    "ops_per_sec": 7088.9,
-    "maxrss_kb": 347136
+    "total_time": 19.61675,
+    "ops_per_sec": 1274.4,
+    "maxrss_kb": 79164
   },
   {
     "name": "Irmini+cache (disk)",
     "scenario": "incremental-20B",
     "total_ops": 50,
-    "total_time": 0.027295,
-    "ops_per_sec": 1831.8,
-    "maxrss_kb": 305940
+    "total_time": 5.002409,
+    "ops_per_sec": 10.0,
+    "maxrss_kb": 80188
   },
   {
     "name": "Irmini+cache (disk)",
     "scenario": "reads-20B",
     "total_ops": 5000,
-    "total_time": 0.002838,
-    "ops_per_sec": 1761868.4,
-    "maxrss_kb": 305940
+    "total_time": 0.012517,
+    "ops_per_sec": 399457.5,
+    "maxrss_kb": 83400
   },
   {
     "name": "Irmini+cache (disk)",
     "scenario": "commits-20B",
     "total_ops": 25000,
-    "total_time": 1.497493,
-    "ops_per_sec": 16694.6,
-    "maxrss_kb": 302484
+    "total_time": 16.520098,
+    "ops_per_sec": 1513.3,
+    "maxrss_kb": 81988
   },
   {
     "name": "Irmini+inode (disk)",
     "scenario": "concurrent-100f/12d",
     "total_ops": 10000,
-    "total_time": 0.051658,
-    "ops_per_sec": 193580.3,
-    "maxrss_kb": 233688
+    "total_time": 38.156368,
+    "ops_per_sec": 262.1,
+    "maxrss_kb": 60592
   },
   {
     "name": "Irmini+inode (disk)",
     "scenario": "incremental-10K",
     "total_ops": 50,
-    "total_time": 0.016753,
-    "ops_per_sec": 2984.5,
-    "maxrss_kb": 241344
+    "total_time": 5.203422,
+    "ops_per_sec": 9.6,
+    "maxrss_kb": 69836
   },
   {
     "name": "Irmini+inode (disk)",
     "scenario": "reads-10K",
     "total_ops": 5000,
-    "total_time": 0.018029,
-    "ops_per_sec": 277331.4,
-    "maxrss_kb": 252536
+    "total_time": 0.035673,
+    "ops_per_sec": 140162.4,
+    "maxrss_kb": 78132
   },
   {
     "name": "Irmini+inode (disk)",
     "scenario": "commits-10K",
     "total_ops": 25000,
-    "total_time": 2.555735,
-    "ops_per_sec": 9781.9,
-    "maxrss_kb": 349328
+    "total_time": 7.756554,
+    "ops_per_sec": 3223.1,
+    "maxrss_kb": 79568
   },
   {
     "name": "Irmini+inode (disk)",
     "scenario": "incremental-20B",
     "total_ops": 50,
-    "total_time": 0.013557,
-    "ops_per_sec": 3688.1,
-    "maxrss_kb": 290756
+    "total_time": 4.763784,
+    "ops_per_sec": 10.5,
+    "maxrss_kb": 77468
   },
   {
     "name": "Irmini+inode (disk)",
     "scenario": "reads-20B",
     "total_ops": 5000,
-    "total_time": 0.013172,
-    "ops_per_sec": 379588.8,
-    "maxrss_kb": 257908
+    "total_time": 0.019475,
+    "ops_per_sec": 256739.6,
+    "maxrss_kb": 77468
   },
   {
     "name": "Irmini+inode (disk)",
     "scenario": "commits-20B",
     "total_ops": 25000,
-    "total_time": 0.381433,
-    "ops_per_sec": 65542.3,
-    "maxrss_kb": 257908
+    "total_time": 5.496543,
+    "ops_per_sec": 4548.3,
+    "maxrss_kb": 75484
   },
   {
     "name": "Irmini+all (disk)",
     "scenario": "concurrent-100f/12d",
     "total_ops": 10000,
-    "total_time": 0.032776,
-    "ops_per_sec": 305102.4,
-    "maxrss_kb": 235724
+    "total_time": 37.052803,
+    "ops_per_sec": 269.9,
+    "maxrss_kb": 61076
   },
   {
     "name": "Irmini+all (disk)",
     "scenario": "incremental-10K",
     "total_ops": 50,
-    "total_time": 0.018004,
-    "ops_per_sec": 2777.1,
-    "maxrss_kb": 243372
+    "total_time": 4.88838,
+    "ops_per_sec": 10.2,
+    "maxrss_kb": 72736
   },
   {
     "name": "Irmini+all (disk)",
     "scenario": "reads-10K",
     "total_ops": 5000,
-    "total_time": 0.00326,
-    "ops_per_sec": 1533678.5,
-    "maxrss_kb": 245416
+    "total_time": 0.006987,
+    "ops_per_sec": 715629.4,
+    "maxrss_kb": 78564
   },
   {
     "name": "Irmini+all (disk)",
     "scenario": "commits-10K",
     "total_ops": 25000,
-    "total_time": 2.760502,
-    "ops_per_sec": 9056.3,
-    "maxrss_kb": 347600
+    "total_time": 8.10447,
+    "ops_per_sec": 3084.7,
+    "maxrss_kb": 79864
   },
   {
     "name": "Irmini+all (disk)",
     "scenario": "incremental-20B",
     "total_ops": 50,
-    "total_time": 0.009837,
-    "ops_per_sec": 5082.9,
-    "maxrss_kb": 316836
+    "total_time": 4.428053,
+    "ops_per_sec": 11.3,
+    "maxrss_kb": 79864
   },
   {
     "name": "Irmini+all (disk)",
     "scenario": "reads-20B",
     "total_ops": 5000,
-    "total_time": 0.003509,
-    "ops_per_sec": 1424889.3,
-    "maxrss_kb": 238164
+    "total_time": 0.022916,
+    "ops_per_sec": 218187.4,
+    "maxrss_kb": 79864
   },
   {
     "name": "Irmini+all (disk)",
     "scenario": "commits-20B",
     "total_ops": 25000,
-    "total_time": 0.146141,
-    "ops_per_sec": 171067.6,
-    "maxrss_kb": 252528
+    "total_time": 5.114529,
+    "ops_per_sec": 4888.0,
+    "maxrss_kb": 78852
   }
 ]
