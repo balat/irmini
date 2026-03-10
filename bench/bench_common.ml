@@ -93,6 +93,10 @@ let default_config =
   { ncommits = 100; tree_add = 1000; depth = 10; nreads = 10_000;
     value_size = 100 }
 
+let fmt_size n =
+  if n >= 1000 then Printf.sprintf "%dK" (n / 1000)
+  else Printf.sprintf "%dB" n
+
 let write_json oc results =
   let escape s =
     let buf = Buffer.create (String.length s) in

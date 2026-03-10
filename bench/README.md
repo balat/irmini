@@ -60,14 +60,16 @@ cd /path/to/monopampam
 
 ## Scenarios
 
+Each scenario runs twice: once with small values (from `--value-size`, e.g. 20B)
+and once with large values (10 KiB). Scenario names include the value size
+suffix, e.g. `commits-20B`, `commits-10K`.
+
 1. **commits** — Sequential commits, each adding `tree-add` entries at
    `depth`-deep paths. Measures write throughput.
 2. **reads** — Random reads from a populated store. Measures read latency.
 3. **incremental** — Small updates (1 entry) on an existing tree. Measures
    the overhead of copy-on-write.
-4. **large-values** — Commits with 10 KiB values. Measures throughput on
-   bigger payloads.
-5. **concurrent** *(disk, lavyek, irmin-pack)* — 100 fibers across 12 domains
+4. **concurrent** *(disk, lavyek, irmin-pack)* — 100 fibers across 12 domains
    doing concurrent reads/writes. Measures lock-free scalability.
 
 ## Files

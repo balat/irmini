@@ -20,7 +20,7 @@ TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
 BENCH="dune exec irmini/bench/bench_irmin4_main.exe --"
-PARAMS="--ncommits 50 --tree-add 500 --depth 10 --nreads 5000 --value-size 100"
+PARAMS="--ncommits 50 --tree-add 500 --depth 10 --nreads 5000 --value-size 20"
 SKIP_OTHER="--skip-lavyek --skip-git"
 
 merge_json() {

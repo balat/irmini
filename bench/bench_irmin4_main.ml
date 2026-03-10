@@ -1,7 +1,7 @@
 (** Irmini benchmark runner.
 
     Benchmarks Irmini with memory, disk, and lavyek backends across
-    multiple scenarios: commits, reads, incremental updates, large values.
+    multiple scenarios: commits, reads, incremental updates.
     Optionally runs with LRU cache enabled.
 
     Usage: bench_irmin4_main [--ncommits N] [--tree-add N] [--depth N]

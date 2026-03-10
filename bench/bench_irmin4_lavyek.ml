@@ -18,13 +18,16 @@ let run_all ?inline_threshold ?(cache = 0) ~sw ~env root (conf : Bench_common.co
       ~finally:(fun () -> backend.Irmin.Backend.close ())
       (fun () -> f ~backend)
   in
+  let large = { conf with value_size = 10_000 } in
   [
     run_one (fun ~backend -> Bench_irmin4.scenario_commits ?inline_threshold ~name ~backend conf);
     run_one (fun ~backend -> Bench_irmin4.scenario_reads ?inline_threshold ~name ~backend conf);
     run_one (fun ~backend ->
         Bench_irmin4.scenario_incremental ?inline_threshold ~name ~backend conf);
+    run_one (fun ~backend -> Bench_irmin4.scenario_commits ?inline_threshold ~name ~backend large);
+    run_one (fun ~backend -> Bench_irmin4.scenario_reads ?inline_threshold ~name ~backend large);
     run_one (fun ~backend ->
-        Bench_irmin4.scenario_large_values ?inline_threshold ~name ~backend conf);
+        Bench_irmin4.scenario_incremental ?inline_threshold ~name ~backend large);
     run_one (fun ~backend ->
         Bench_irmin4.scenario_concurrent ~name ~backend ~env conf);
   ]

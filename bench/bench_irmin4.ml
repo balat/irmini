@@ -54,7 +54,7 @@ let scenario_commits ?inline_threshold ?inode ~name ~(backend : Hash.sha1 Backen
   in
   {
     Bench_common.name;
-    scenario = "commits";
+    scenario = "commits-" ^ Bench_common.fmt_size conf.value_size;
     total_ops;
     total_time;
     ops_per_sec = Float.of_int total_ops /. total_time;
@@ -102,7 +102,7 @@ let scenario_reads ?inline_threshold ?inode ~name ~(backend : Hash.sha1 Backend.
   in
   {
     Bench_common.name;
-    scenario = "reads";
+    scenario = "reads-" ^ Bench_common.fmt_size conf.value_size;
     total_ops = conf.nreads;
     total_time = read_time;
     ops_per_sec = Float.of_int conf.nreads /. read_time;
@@ -161,62 +161,10 @@ let scenario_incremental ?inline_threshold ?inode ~name ~(backend : Hash.sha1 Ba
   in
   {
     Bench_common.name;
-    scenario = "incremental";
+    scenario = "incremental-" ^ Bench_common.fmt_size conf.value_size;
     total_ops = nops;
     total_time;
     ops_per_sec = Float.of_int nops /. total_time;
-    details = [];
-    maxrss_kb = Bench_common.get_maxrss_kb ();
-  }
-
-(** {1 Scenario: Large values}
-
-    Writes large blobs (10 KiB) to test value-size sensitivity. *)
-let scenario_large_values ?inline_threshold ?inode ~name ~(backend : Hash.sha1 Backend.t)
-    (conf : Bench_common.config) =
-  let large_size = 10_000 in
-  let store = Store.Git.create ~backend () in
-  let npaths = min conf.tree_add 200 in
-  let paths =
-    Array.init (npaths + 1) (Bench_common.path ~depth:conf.depth)
-  in
-  let nops = conf.ncommits in
-  let (), total_time =
-    Bench_common.time (fun () ->
-        for i = 1 to nops do
-          let tree =
-            match Store.Git.checkout store ~branch:"main" with
-            | Some t -> t
-            | None -> Tree.Git.empty ()
-          in
-          let tree =
-            let t = ref tree in
-            for n = 1 to npaths do
-              t :=
-                Tree.Git.add !t paths.(n)
-                  (Bench_common.make_value ~size:large_size ((i * npaths) + n))
-            done;
-            !t
-          in
-          let parents =
-            match Store.Git.head store ~branch:"main" with
-            | Some h -> [ h ]
-            | None -> []
-          in
-          let h =
-            Store.Git.commit ?inline_threshold ?inode store ~tree ~parents
-              ~message:(Printf.sprintf "large %d" i) ~author:"bench"
-          in
-          Store.Git.set_head store ~branch:"main" h
-        done)
-  in
-  let total_ops = nops * npaths in
-  {
-    Bench_common.name;
-    scenario = "large-values";
-    total_ops;
-    total_time;
-    ops_per_sec = Float.of_int total_ops /. total_time;
     details = [];
     maxrss_kb = Bench_common.get_maxrss_kb ();
   }
@@ -309,11 +257,14 @@ let run_all_memory ?inline_threshold ?inode ?(cache = 0) ?name:custom_name conf 
     let b = Backend.Memory.create_sha1 () in
     if cache > 0 then Backend.cached ~capacity:cache b else b
   in
+  let large = { conf with value_size = 10_000 } in
   [
     scenario_commits ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
     scenario_reads ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
     scenario_incremental ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
-    scenario_large_values ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
+    scenario_commits ?inline_threshold ?inode ~name ~backend:(mk ()) large;
+    scenario_reads ?inline_threshold ?inode ~name ~backend:(mk ()) large;
+    scenario_incremental ?inline_threshold ?inode ~name ~backend:(mk ()) large;
   ]
 
 let run_all_git ?(cache = 0) ~sw ~fs root conf =
@@ -328,11 +279,14 @@ let run_all_git ?(cache = 0) ~sw ~fs root conf =
   (* Git backend: disable inlining and inodes for 100% git compatibility *)
   let inline_threshold = Some 0 in
   let inode = Some false in
+  let large = { conf with value_size = 10_000 } in
   [
     scenario_commits ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
     scenario_reads ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
     scenario_incremental ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
-    scenario_large_values ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
+    scenario_commits ?inline_threshold ?inode ~name ~backend:(mk ()) large;
+    scenario_reads ?inline_threshold ?inode ~name ~backend:(mk ()) large;
+    scenario_incremental ?inline_threshold ?inode ~name ~backend:(mk ()) large;
   ]
 
 let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?name:custom_name ~sw ~env root conf =
@@ -350,10 +304,13 @@ let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?name:custom_name ~sw ~en
     let backend = mk () in
     Fun.protect ~finally:(fun () -> backend.close ()) (fun () -> f ~backend)
   in
+  let large = { conf with value_size = 10_000 } in
   [
     run_one (fun ~backend -> scenario_commits ?inline_threshold ?inode ~name ~backend conf);
     run_one (fun ~backend -> scenario_reads ?inline_threshold ?inode ~name ~backend conf);
     run_one (fun ~backend -> scenario_incremental ?inline_threshold ?inode ~name ~backend conf);
-    run_one (fun ~backend -> scenario_large_values ?inline_threshold ?inode ~name ~backend conf);
+    run_one (fun ~backend -> scenario_commits ?inline_threshold ?inode ~name ~backend large);
+    run_one (fun ~backend -> scenario_reads ?inline_threshold ?inode ~name ~backend large);
+    run_one (fun ~backend -> scenario_incremental ?inline_threshold ?inode ~name ~backend large);
     run_one (fun ~backend -> scenario_concurrent ~name ~backend ~env conf);
   ]
