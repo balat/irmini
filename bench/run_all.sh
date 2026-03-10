@@ -6,7 +6,7 @@
 #     - irmin-lwt (main branch): memory, fs, git, pack
 #     - irmin-eio (cuihtlauac branch): memory, fs, git, pack
 #     - irmini-thomas (main branch): memory, fs, git (original, no optimizations)
-#     - irmini (inode branch): memory, fs, git, lavyek
+#     - irmini (current branch): memory, disk, git, lavyek
 #   Part 2: Irmini optimization impact (each optimization independently)
 #
 # Prerequisites:
@@ -180,32 +180,18 @@ if [ "$SKIP_THOMAS" = false ]; then
   echo ""
 fi
 
-# --- irmini (inode branch, all optimizations) ---
+# --- irmini (current branch, all optimizations) ---
 if [ "$SKIP_IRMINI" = false ]; then
-  echo "--- irmini (inode branch) ---"
+  IRMINI_BRANCH=$(cd "$ROOT_DIR" && git branch --show-current)
+  echo "--- irmini ($IRMINI_BRANCH branch) ---"
   cd "$MONOREPO_DIR"
 
-  # Make sure we're on the inode branch
-  cd "$ROOT_DIR"
-  IRMINI_BRANCH=$(git branch --show-current)
-  if [ "$IRMINI_BRANCH" != "inode" ]; then
-    git stash -q 2>/dev/null || true
-    git checkout -q inode
-  fi
-
-  cd "$MONOREPO_DIR"
-  echo "  Building irmini (inode)..."
+  echo "  Building irmini ($IRMINI_BRANCH)..."
   dune build irmini/bench/bench_irmin4_main.exe 2>&1 | tail -5
   echo "  Running..."
   dune exec irmini/bench/bench_irmin4_main.exe -- $BENCH_ARGS \
     --json "$OUTPUT_DIR/irmini_inode_${TIMESTAMP}.json"
 
-  # Restore branch if needed
-  if [ "$IRMINI_BRANCH" != "inode" ]; then
-    cd "$ROOT_DIR"
-    git checkout -q "$IRMINI_BRANCH"
-    git stash pop -q 2>/dev/null || true
-  fi
   cd "$MONOREPO_DIR"
   echo ""
 fi

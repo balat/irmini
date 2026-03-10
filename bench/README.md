@@ -8,9 +8,26 @@ Performance comparison across all Irmin implementations and backends.
 |---|---|---|---|
 | **Irmin-Lwt** | irmin `main` | Lwt | Official Irmin with Lwt |
 | **Irmin-Eio** | irmin `cuihtlauac-inline-small-objects-v2` | Eio | Official Irmin with Eio + inlining |
-| **Irmini** | irmini `inode` | Eio | Irmini with all optimizations |
+| **Irmini** | irmini `perf` | Eio | Irmini with all optimizations |
 
 Each implementation is benchmarked with multiple backends: memory, fs, git, pack/lavyek.
+
+## Prerequisites
+
+To reproduce all benchmarks, you need:
+
+1. **Monopampam monorepo** — contains irmini + its dependencies (lavyek, ocaml-wal,
+   ocaml-bloom, etc.)
+2. **Irmin checkout** — the official [irmin](https://github.com/mirage/irmin) repo,
+   with two branches:
+   - `main` — for Irmin-Lwt benchmarks
+   - `cuihtlauac-inline-small-objects-v2` — for Irmin-Eio benchmarks
+3. **Tezos trace file** *(optional, for trace replay)* — `data4_10310commits.repr`
+   (267 MiB), placed at the root of the irmin checkout. This file contains 10,310
+   Tezos blocks totaling ~4M operations.
+
+The `run_all.sh` script handles branch switching automatically. Set `IRMIN_DIR`
+to point to your irmin checkout.
 
 ## Quick start
 
@@ -38,6 +55,27 @@ Irmini per-optimization comparison (baseline, +inline, +cache, +inode, +all):
 ```
 cd /path/to/monopampam
 ./irmini/bench/run_optims.sh
+```
+
+Tezos trace replay (irmini, all active backends):
+
+```
+cd /path/to/monopampam
+dune exec irmini/bench/bench_irmin4_main.exe -- \
+  --trace /path/to/data4_10310commits.repr --trace-commits 10310
+```
+
+Tezos trace replay (irmin, disk and memory):
+
+```
+cd /path/to/irmin
+dune exec bench/irmin-pack/tree.exe -- \
+  --mode=trace --store-type=pack --ncommits-trace=10310 \
+  --empty-blobs data4_10310commits.repr
+
+dune exec bench/irmin-pack/tree.exe -- \
+  --mode=trace --store-type=pack-mem --ncommits-trace=10310 \
+  --empty-blobs data4_10310commits.repr
 ```
 
 ## Options
