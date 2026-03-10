@@ -143,7 +143,7 @@ and 10K-byte values. All three implementations use the same parameters.
 
 ### Disk backends (fs, pack, lavyek)
 
-![Disk backends](results/chart_disk_1773152563.svg)
+![Disk backends](results/chart_disk_1773157515.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -179,11 +179,21 @@ Irmini (lavyek)                commits-10K             9229       10.835        
 Irmini (lavyek)                reads-10K             285977        0.035        261
 Irmini (lavyek)                incremental-10K         2697        0.037        246
 Irmini (lavyek)                concurrent-100f/12d   227511        0.088        228
+Irmini (disk)                  commits-20B             1542       16.215         81
+Irmini (disk)                  reads-20B             219462        0.023         82
+Irmini (disk)                  incremental-20B           10        4.920         78
+Irmini (disk)                  commits-10K             1324       18.877         78
+Irmini (disk)                  reads-10K              71370        0.070         76
+Irmini (disk)                  incremental-10K            10        5.165         67
+Irmini (disk)                  concurrent-100f/12d      271       36.874         59
 Irmini (disk)                  trace-replay           73000       54.800        582
 ```
 
 - **Irmini (lavyek)**: Commits at **84k ops/s** (20B) — faster than all Irmin
   backends. Reads at 467k (20B), 286k (10K). Concurrent at **228k ops/s**.
+- **Irmini (disk)**: WAL+bloom backend with crash safety. Reads at 219k (20B),
+  71k (10K). Writes bottlenecked by WAL fsync: commits at 1.5k, incremental
+  at ~10 ops/s. Trade-off: durability over raw speed.
 - **irmin-pack**: Reads at 719k–1.4M ops/s, commits at 12–68k ops/s.
   Irmin-Lwt faster on commits (68k vs 40k), Irmin-Eio faster on reads (1.4M vs 719k).
 - **irmin-fs**: Slower across the board. Reads 106–166k, commits 11–36k.
@@ -192,7 +202,7 @@ Irmini (disk)                  trace-replay           73000       54.800        
 
 ### Memory backends
 
-![Memory backends](results/chart_memory_1773152563.svg)
+![Memory backends](results/chart_memory_1773157515.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -228,7 +238,7 @@ Irmini (memory)                incremental-10K         3674        0.027        
 
 ### Git backends
 
-![Git backends](results/chart_git_1773152563.svg)
+![Git backends](results/chart_git_1773157515.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -262,60 +272,61 @@ Irmini (git)                   incremental-10K          144        0.694        
 
 ### Irmini optimizations (disk)
 
-![Irmini optimizations disk](results/chart_optims_disk_1773152563.svg)
+![Irmini optimizations disk](results/chart_optims_disk_1773157515.svg)
 
 ```
 Name                           Scenario               ops/s
 ------------------------------------------------------------
-Irmini baseline (disk)         commits-20B            19549
-Irmini baseline (disk)         reads-20B             834854
-Irmini baseline (disk)         incremental-20B         1574
-Irmini baseline (disk)         commits-10K             7019
-Irmini baseline (disk)         reads-10K             439443
-Irmini baseline (disk)         incremental-10K         1443
-Irmini baseline (disk)         concurrent-100f/12d   218689
-Irmini+inline (disk)           commits-20B           117546
-Irmini+inline (disk)           reads-20B            1111604
-Irmini+inline (disk)           incremental-20B         2050
-Irmini+inline (disk)           commits-10K             6799
-Irmini+inline (disk)           reads-10K             306279
-Irmini+inline (disk)           incremental-10K         1336
-Irmini+inline (disk)           concurrent-100f/12d   209978
-Irmini+cache (disk)            commits-20B            16695
-Irmini+cache (disk)            reads-20B            1761868
-Irmini+cache (disk)            incremental-20B         1832
-Irmini+cache (disk)            commits-10K             7089
-Irmini+cache (disk)            reads-10K            1877486
-Irmini+cache (disk)            incremental-10K         1504
-Irmini+cache (disk)            concurrent-100f/12d   370797
-Irmini+inode (disk)            commits-20B            65542
-Irmini+inode (disk)            reads-20B             379589
-Irmini+inode (disk)            incremental-20B         3688
-Irmini+inode (disk)            commits-10K             9782
-Irmini+inode (disk)            reads-10K             277331
-Irmini+inode (disk)            incremental-10K         2985
-Irmini+inode (disk)            concurrent-100f/12d   193580
-Irmini+all (disk)              commits-20B           171068
-Irmini+all (disk)              reads-20B            1424889
-Irmini+all (disk)              incremental-20B         5083
-Irmini+all (disk)              commits-10K             9056
-Irmini+all (disk)              reads-10K            1533679
-Irmini+all (disk)              incremental-10K         2777
-Irmini+all (disk)              concurrent-100f/12d   305102
+Irmini baseline (disk)         commits-20B             1446
+Irmini baseline (disk)         reads-20B              87307
+Irmini baseline (disk)         incremental-20B           10
+Irmini baseline (disk)         commits-10K             1280
+Irmini baseline (disk)         reads-10K             138462
+Irmini baseline (disk)         incremental-10K            9
+Irmini baseline (disk)         concurrent-100f/12d      266
+Irmini+inline (disk)           commits-20B             1478
+Irmini+inline (disk)           reads-20B             122312
+Irmini+inline (disk)           incremental-20B           10
+Irmini+inline (disk)           commits-10K             1282
+Irmini+inline (disk)           reads-10K              69296
+Irmini+inline (disk)           incremental-10K            9
+Irmini+inline (disk)           concurrent-100f/12d      263
+Irmini+cache (disk)            commits-20B             1513
+Irmini+cache (disk)            reads-20B             399458
+Irmini+cache (disk)            incremental-20B           10
+Irmini+cache (disk)            commits-10K             1274
+Irmini+cache (disk)            reads-10K            1339434
+Irmini+cache (disk)            incremental-10K            9
+Irmini+cache (disk)            concurrent-100f/12d      262
+Irmini+inode (disk)            commits-20B             4548
+Irmini+inode (disk)            reads-20B             256740
+Irmini+inode (disk)            incremental-20B           10
+Irmini+inode (disk)            commits-10K             3223
+Irmini+inode (disk)            reads-10K             140162
+Irmini+inode (disk)            incremental-10K           10
+Irmini+inode (disk)            concurrent-100f/12d      262
+Irmini+all (disk)              commits-20B             4888
+Irmini+all (disk)              reads-20B             218187
+Irmini+all (disk)              incremental-20B           11
+Irmini+all (disk)              commits-10K             3085
+Irmini+all (disk)              reads-10K             715629
+Irmini+all (disk)              incremental-10K           10
+Irmini+all (disk)              concurrent-100f/12d      270
 ```
 
-- **Inline** gives **6× speedup** on commits-20B (118k vs 20k) — avoids
-  content-addressed store writes for small values. No impact on 10K.
-- **Cache** gives **2.1× on reads-20B** (1.8M vs 835k) and **4.3× on
-  reads-10K** (1.9M vs 439k). Also **1.7× on concurrent** (371k vs 219k).
-- **Inode** gives **3.4× on commits-20B** (66k vs 20k) and **2.3× on
-  incremental-20B** (3.7k vs 1.6k) — O(log n) tree updates.
-- **+all** achieves **171k commits-20B/s** (8.7× baseline), **1.4M reads-20B/s**,
-  and **5.1k incremental-20B/s** (3.2× baseline).
+Note: the disk backend now uses WAL with fsync for crash safety, which
+dominates write-heavy scenarios (incremental ~10 ops/s, concurrent ~265 ops/s).
+
+- **Inode** gives **3.1× speedup** on commits-20B (4.5k vs 1.4k) — O(log n)
+  tree updates reduce the number of objects written per commit.
+- **Cache** gives **4.6× on reads-20B** (399k vs 87k) and **9.7× on
+  reads-10K** (1.3M vs 138k) — avoids repeated deserialization and disk reads.
+- **+all** achieves **4.9k commits-20B/s** (3.4× baseline), **716k reads-10K/s**
+  (5.2× baseline). WAL fsync remains the bottleneck for writes.
 
 ### Irmini optimizations (memory)
 
-![Irmini optimizations memory](results/chart_optims_memory_1773152563.svg)
+![Irmini optimizations memory](results/chart_optims_memory_1773157515.svg)
 
 ```
 Name                           Scenario               ops/s
