@@ -143,7 +143,7 @@ and 10K-byte values. All three implementations use the same parameters.
 
 ### Disk backends (fs, pack, lavyek)
 
-![Disk backends](results/chart_disk_1773148838.svg)
+![Disk backends](results/chart_disk_1773149482.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -192,7 +192,7 @@ Irmini (disk)                  trace-replay           73000       54.800        
 
 ### Memory backends
 
-![Memory backends](results/chart_memory_1773148838.svg)
+![Memory backends](results/chart_memory_1773149482.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -228,7 +228,7 @@ Irmini (memory)                incremental-10K         3674        0.027        
 
 ### Git backends
 
-![Git backends](results/chart_git_1773148838.svg)
+![Git backends](results/chart_git_1773149482.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -262,7 +262,7 @@ Irmini (git)                   incremental-10K          144        0.694        
 
 ### Irmini optimizations (disk)
 
-![Irmini optimizations disk](results/chart_optims_disk_1773148838.svg)
+![Irmini optimizations disk](results/chart_optims_disk_1773149482.svg)
 
 ```
 Name                           Scenario               ops/s     RSS(MiB)
@@ -297,41 +297,51 @@ Irmini+all (disk)              large-values             101        135
 
 ### Irmini optimizations (memory)
 
-![Irmini optimizations memory](results/chart_optims_memory_1773148838.svg)
+![Irmini optimizations memory](results/chart_optims_memory_1773149482.svg)
 
 ```
 Name                           Scenario               ops/s
 ------------------------------------------------------------
-Irmini baseline                commits                  519
-Irmini baseline                reads                   9564
-Irmini baseline                incremental              1965
-Irmini baseline                large-values             1527
-Irmini+inline                  commits               126963
-Irmini+inline                  reads                  19501
-Irmini+inline                  incremental              2120
-Irmini+inline                  large-values             1569
-Irmini+cache                   commits                  512
-Irmini+cache                   reads                  13399
-Irmini+cache                   incremental              2270
-Irmini+cache                   large-values             1470
-Irmini+inode                   commits               114429
-Irmini+inode                   reads                 205271
-Irmini+inode                   incremental              9439
-Irmini+inode                   large-values            18381
-Irmini+all                     commits                82255
-Irmini+all                     reads                1481040
-Irmini+all                     incremental             12228
-Irmini+all                     large-values            18007
+Irmini baseline                commits-20B            18790
+Irmini baseline                reads-20B             799738
+Irmini baseline                incremental-20B         2267
+Irmini baseline                commits-10K             9036
+Irmini baseline                reads-10K             232168
+Irmini baseline                incremental-10K          878
+Irmini+inline                  commits-20B           108556
+Irmini+inline                  reads-20B            1146549
+Irmini+inline                  incremental-20B         1750
+Irmini+inline                  commits-10K             8459
+Irmini+inline                  reads-10K             280679
+Irmini+inline                  incremental-10K         1914
+Irmini+cache                   commits-20B            16543
+Irmini+cache                   reads-20B            1496576
+Irmini+cache                   incremental-20B         2734
+Irmini+cache                   commits-10K             9183
+Irmini+cache                   reads-10K            1816817
+Irmini+cache                   incremental-10K         2274
+Irmini+inode                   commits-20B            66986
+Irmini+inode                   reads-20B             331215
+Irmini+inode                   incremental-20B         4395
+Irmini+inode                   commits-10K            15164
+Irmini+inode                   reads-10K             344428
+Irmini+inode                   incremental-10K         2938
+Irmini+all                     commits-20B           198979
+Irmini+all                     reads-20B            1625447
+Irmini+all                     incremental-20B         6808
+Irmini+all                     commits-10K            15073
+Irmini+all                     reads-10K            1266396
+Irmini+all                     incremental-10K         4702
 ```
 
-- **Inline** gives **244× speedup** on commits (127k vs 519) — avoids
-  content-addressed store writes for small values.
-- **Inode** gives **21× speedup** on reads (205k vs 9.6k) and **4.8× on
-  incremental** (9.4k vs 2.0k) — O(log n) tree navigation vs O(n).
-- **+all** achieves **1.48M reads/s** (155× baseline) and **82k commits/s**
-  (158× baseline) by combining all optimizations.
-- **Cache** alone has modest impact in memory — its value shines when
-  avoiding disk I/O or deserialization.
+- **Inline** gives **5.8× speedup** on commits-20B (109k vs 19k) — avoids
+  content-addressed store writes for small values. No impact on 10K values.
+- **Cache** gives **1.9× on reads-20B** (1.5M vs 800k) and **7.8× on
+  reads-10K** (1.8M vs 232k) — avoids repeated deserialization.
+- **Inode** gives **3.6× on commits-20B** (67k vs 19k) and **1.9× on
+  incremental-20B** (4.4k vs 2.3k) — O(log n) tree updates vs O(n).
+- **+all** achieves **1.6M reads-20B/s** (2× baseline), **199k commits-20B/s**
+  (10.6× baseline), and **6.8k incremental-20B/s** (3× baseline).
 
 ### Tezos trace replay
 
