@@ -143,7 +143,7 @@ and 10K-byte values. All three implementations use the same parameters.
 
 ### Disk backends (fs, pack)
 
-![Disk backends](results/chart_disk_1773144623.svg)
+![Disk backends](results/chart_disk_1773147568.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -183,7 +183,7 @@ Irmini (disk)                  trace-replay           73000       54.800        
 
 ### Memory backends
 
-![Memory backends](results/chart_memory_1773144623.svg)
+![Memory backends](results/chart_memory_1773147568.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -219,7 +219,7 @@ Irmini (memory)                incremental-10K         3674        0.027        
 
 ### Git backends
 
-![Git backends](results/chart_git_1773144623.svg)
+![Git backends](results/chart_git_1773147568.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -253,7 +253,7 @@ Irmini (git)                   incremental-10K          144        0.694        
 
 ### Irmini optimizations (disk)
 
-![Irmini optimizations disk](results/chart_optims_disk_1773144623.svg)
+![Irmini optimizations disk](results/chart_optims_disk_1773147568.svg)
 
 ```
 Name                           Scenario               ops/s     RSS(MiB)
@@ -288,7 +288,7 @@ Irmini+all (disk)              large-values             101        135
 
 ### Irmini optimizations (memory)
 
-![Irmini optimizations memory](results/chart_optims_memory_1773144623.svg)
+![Irmini optimizations memory](results/chart_optims_memory_1773147568.svg)
 
 ```
 Name                           Scenario               ops/s
