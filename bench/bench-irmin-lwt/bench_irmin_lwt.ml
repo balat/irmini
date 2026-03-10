@@ -58,7 +58,7 @@ module Bench (S : Irmin.Generic_key.KV with type Schema.Contents.t = string) = s
     Lwt.return
       {
         Bench_common.name;
-        scenario = "commits";
+        scenario = "commits-" ^ Bench_common.fmt_size conf.value_size;
         total_ops;
         total_time;
         ops_per_sec = Float.of_int total_ops /. total_time;
@@ -106,7 +106,7 @@ module Bench (S : Irmin.Generic_key.KV with type Schema.Contents.t = string) = s
     Lwt.return
       {
         Bench_common.name;
-        scenario = "reads";
+        scenario = "reads-" ^ Bench_common.fmt_size conf.value_size;
         total_ops = conf.nreads;
         total_time = read_time;
         ops_per_sec = Float.of_int conf.nreads /. read_time;
@@ -156,7 +156,7 @@ module Bench (S : Irmin.Generic_key.KV with type Schema.Contents.t = string) = s
     Lwt.return
       {
         Bench_common.name;
-        scenario = "incremental";
+        scenario = "incremental-" ^ Bench_common.fmt_size conf.value_size;
         total_ops = nops;
         total_time;
         ops_per_sec = Float.of_int nops /. total_time;
@@ -164,58 +164,14 @@ module Bench (S : Irmin.Generic_key.KV with type Schema.Contents.t = string) = s
         maxrss_kb = Bench_common.get_maxrss_kb ();
       }
 
-  let scenario_large_values ~name (conf : Bench_common.config) repo =
-    let open Lwt.Syntax in
-    let large_size = 10_000 in
-    let* store = S.main repo in
-    let npaths = min conf.tree_add 200 in
-    let paths =
-      Array.init (npaths + 1) (Bench_common.path ~depth:conf.depth)
-    in
-    let nops = conf.ncommits in
-    let* (), total_time =
-      time_lwt (fun () ->
-          let rec large_loop i =
-            if i > nops then Lwt.return_unit
-            else
-              let* tree = S.get_tree store [] in
-              let* tree =
-                let t = ref tree in
-                let rec loop n =
-                  if n > npaths then Lwt.return !t
-                  else
-                    let* t' =
-                      S.Tree.add !t paths.(n)
-                        (Bench_common.make_value ~size:large_size
-                           ((i * npaths) + n))
-                    in
-                    t := t';
-                    loop (n + 1)
-                in
-                loop 1
-              in
-              let* () = S.set_tree_exn store ~info [] tree in
-              large_loop (i + 1)
-          in
-          large_loop 1)
-    in
-    let total_ops = nops * npaths in
-    Lwt.return
-      {
-        Bench_common.name;
-        scenario = "large-values";
-        total_ops;
-        total_time;
-        ops_per_sec = Float.of_int total_ops /. total_time;
-        details = [];
-        maxrss_kb = Bench_common.get_maxrss_kb ();
-      }
-
   let run_all ~name (conf : Bench_common.config) repo =
     let open Lwt.Syntax in
+    let large = { conf with value_size = 10_000 } in
     let* r1 = scenario_commits ~name conf repo in
     let* r2 = scenario_reads ~name conf repo in
     let* r3 = scenario_incremental ~name conf repo in
-    let* r4 = scenario_large_values ~name conf repo in
-    Lwt.return [ r1; r2; r3; r4 ]
+    let* r4 = scenario_commits ~name large repo in
+    let* r5 = scenario_reads ~name large repo in
+    let* r6 = scenario_incremental ~name large repo in
+    Lwt.return [ r1; r2; r3; r4; r5; r6 ]
 end

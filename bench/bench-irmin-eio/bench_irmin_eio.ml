@@ -44,7 +44,7 @@ struct
     in
     {
       Bench_common.name;
-      scenario = "commits";
+      scenario = "commits-" ^ Bench_common.fmt_size conf.value_size;
       total_ops;
       total_time;
       ops_per_sec = Float.of_int total_ops /. total_time;
@@ -81,7 +81,7 @@ struct
     in
     {
       Bench_common.name;
-      scenario = "reads";
+      scenario = "reads-" ^ Bench_common.fmt_size conf.value_size;
       total_ops = conf.nreads;
       total_time = read_time;
       ops_per_sec = Float.of_int conf.nreads /. read_time;
@@ -121,45 +121,10 @@ struct
     in
     {
       Bench_common.name;
-      scenario = "incremental";
+      scenario = "incremental-" ^ Bench_common.fmt_size conf.value_size;
       total_ops = nops;
       total_time;
       ops_per_sec = Float.of_int nops /. total_time;
-      details = [];
-      maxrss_kb = Bench_common.get_maxrss_kb ();
-    }
-
-  let scenario_large_values ~name (conf : Bench_common.config) repo =
-    let large_size = 10_000 in
-    let store = S.main repo in
-    let npaths = min conf.tree_add 200 in
-    let paths =
-      Array.init (npaths + 1) (Bench_common.path ~depth:conf.depth)
-    in
-    let nops = conf.ncommits in
-    let (), total_time =
-      Bench_common.time (fun () ->
-          for i = 1 to nops do
-            let tree = S.get_tree store [] in
-            let tree =
-              let t = ref tree in
-              for n = 1 to npaths do
-                t :=
-                  S.Tree.add !t paths.(n)
-                    (Bench_common.make_value ~size:large_size ((i * npaths) + n))
-              done;
-              !t
-            in
-            S.set_tree_exn store ~info [] tree
-          done)
-    in
-    let total_ops = nops * npaths in
-    {
-      Bench_common.name;
-      scenario = "large-values";
-      total_ops;
-      total_time;
-      ops_per_sec = Float.of_int total_ops /. total_time;
       details = [];
       maxrss_kb = Bench_common.get_maxrss_kb ();
     }
@@ -243,11 +208,14 @@ struct
     }
 
   let run_all ~name (conf : Bench_common.config) repo =
+    let large = { conf with value_size = 10_000 } in
     [
       scenario_commits ~name conf repo;
       scenario_reads ~name conf repo;
       scenario_incremental ~name conf repo;
-      scenario_large_values ~name conf repo;
+      scenario_commits ~name large repo;
+      scenario_reads ~name large repo;
+      scenario_incremental ~name large repo;
     ]
 
   let run_all_with_concurrent ~name ~env (conf : Bench_common.config) repo =

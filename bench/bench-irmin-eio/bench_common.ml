@@ -72,6 +72,10 @@ type config = {
   value_size : int;
 }
 
+let fmt_size n =
+  if n >= 1000 then Printf.sprintf "%dK" (n / 1000)
+  else Printf.sprintf "%dB" n
+
 let write_json oc results =
   let escape s =
     let buf = Buffer.create (String.length s) in

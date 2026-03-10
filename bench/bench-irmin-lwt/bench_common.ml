@@ -97,6 +97,10 @@ type config = {
   value_size : int;
 }
 
+let fmt_size n =
+  if n >= 1000 then Printf.sprintf "%dK" (n / 1000)
+  else Printf.sprintf "%dB" n
+
 let make_value ~size i =
   let base = Printf.sprintf "value-%d-" i in
   if size <= String.length base then String.sub base 0 size
