@@ -197,9 +197,42 @@ Irmini (git)                   large-values            2976        6.7          
 ![Irmini optimizations disk](results/chart_optims_disk_1773134885.svg)
 
 Impact of each optimization measured independently on the disk backend
-(50 commits × 500 adds, depth 10, 5000 reads, 100-byte values).
+(20 commits × 200 adds, depth 10, 2000 reads, 100-byte values):
 
-*No data yet — run `./bench/run_optims.sh` to generate.*
+```
+Name                           Scenario               ops/s    vs baseline
+----------------------------------------------------------------------------------
+Irmini baseline (disk)         commits                 1807          1.0×
+Irmini+inline (disk)           commits                 1836          1.0×
+Irmini+cache (disk)            commits                 1836          1.0×
+Irmini+inode (disk)            commits                  577          0.3×
+Irmini+all (disk)              commits                  577          0.3×
+
+Irmini baseline (disk)         reads                 115023          1.0×
+Irmini+inline (disk)           reads                  70033          0.6×
+Irmini+cache (disk)            reads                 603323          5.2×
+Irmini+inode (disk)            reads                  52856          0.5×
+Irmini+all (disk)              reads                 389028          3.4×
+
+Irmini baseline (disk)         incremental               10          1.0×
+Irmini+inline (disk)           incremental               10          1.0×
+Irmini+cache (disk)            incremental               10          1.0×
+Irmini+inode (disk)            incremental                9          0.9×
+Irmini+all (disk)              incremental                9          0.9×
+
+Irmini baseline (disk)         large-values             115          1.0×
+Irmini+inline (disk)           large-values             114          1.0×
+Irmini+cache (disk)            large-values             117          1.0×
+Irmini+inode (disk)            large-values             101          0.9×
+Irmini+all (disk)              large-values             101          0.9×
+```
+
+- **LRU cache** is the only optimization that helps on disk: **5.2× reads**
+  (603k vs 115k) by avoiding repeated deserialization from disk.
+- **Inodes** and **inlining** have no benefit (or slightly hurt) on disk —
+  the bottleneck is I/O, not tree structure.
+- **Incremental** and **large-values** are I/O-bound at ~10–115 ops/s
+  regardless of optimizations.
 
 ### Irmini optimizations (memory)
 
