@@ -24,6 +24,10 @@ let () =
   let no_inode = ref false in
   let name = ref "" in
   let json_file = ref "" in
+  let trace_file = ref "" in
+  let trace_max_commits = ref 0 in
+  let trace_empty_blobs = ref false in
+  let no_flatten = ref false in
   Arg.parse
     [
       ("--ncommits", Arg.Set_int ncommits, "Number of commits (default: 100)");
@@ -45,6 +49,14 @@ let () =
       ("--no-inode", Arg.Set no_inode, "Disable inode splitting");
       ("--name", Arg.Set_string name, "Override benchmark name");
       ("--json", Arg.Set_string json_file, "Write JSON results to FILE");
+      ("--trace", Arg.Set_string trace_file,
+       "Run trace replay from .repr file");
+      ("--trace-commits", Arg.Set_int trace_max_commits,
+       "Max commits to replay (default: 0 = all)");
+      ("--trace-empty-blobs", Arg.Set trace_empty_blobs,
+       "Replace blob values with empty strings during trace replay");
+      ("--no-flatten", Arg.Set no_flatten,
+       "Disable Tezos path flattening during trace replay");
     ]
     (fun _ -> ())
     "bench_irmin4 - Irmini performance benchmarks";
@@ -117,6 +129,25 @@ let () =
     rm_rf root;
     run "Irmini (lavyek)"
       (Bench_irmin4_lavyek.run_all ?inline_threshold ~cache ~sw ~env root conf)
+  end;
+  (* 5. Trace replay *)
+  if !trace_file <> "" then begin
+    Format.printf "--- Trace Replay ---@.@.";
+    let backend =
+      let b = Irmin.Backend.Memory.create_sha1 () in
+      if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b
+    in
+    let r =
+      Trace_replay.replay
+        ~trace_path:!trace_file
+        ~max_commits:!trace_max_commits
+        ~flatten_paths:(not !no_flatten)
+        ~empty_blobs:!trace_empty_blobs
+        ?inline_threshold ?inode
+        ~backend ()
+    in
+    Format.printf "%a@.@." Bench_common.pp_result r;
+    results := [r] @ !results
   end;
   (* Summary *)
   let all = List.rev !results in

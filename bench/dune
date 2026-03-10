@@ -2,9 +2,10 @@
 ; This links against the local irmin library (Irmin4)
 (executable
  (name bench_irmin4_main)
- (libraries irmin lavyek eio_main unix)
+ (libraries irmin lavyek eio_main unix repr ppx_repr)
+ (preprocess (pps ppx_repr))
  (modules bench_common bench_irmin4 backend_lavyek bench_irmin4_lavyek
-  bench_irmin4_main))
+  trace_replay bench_irmin4_main))
 
 ; Irmin-Eio benchmark (official Irmin with in-memory backend)
 ; This must be built from the irmin-eio workspace separately.
