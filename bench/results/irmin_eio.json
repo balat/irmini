@@ -1,130 +1,18 @@
 [
-  {
-    "name": "Irmin-Eio (memory)",
-    "scenario": "commits",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 158192.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (memory)",
-    "scenario": "reads",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 1348477.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (memory)",
-    "scenario": "incremental",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 2870.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (memory)",
-    "scenario": "large-values",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 14836.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (pack)",
-    "scenario": "commits",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 46304.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (pack)",
-    "scenario": "reads",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 1416803.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (pack)",
-    "scenario": "incremental",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 2030.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (pack)",
-    "scenario": "large-values",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 7613.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (fs)",
-    "scenario": "commits",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 36907.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (fs)",
-    "scenario": "reads",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 200104.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (fs)",
-    "scenario": "incremental",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 196.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (fs)",
-    "scenario": "large-values",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 2683.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (git)",
-    "scenario": "commits",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 2164.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (git)",
-    "scenario": "reads",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 145247.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (git)",
-    "scenario": "incremental",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 161.0,
-    "maxrss_kb": 0
-  },
-  {
-    "name": "Irmin-Eio (git)",
-    "scenario": "large-values",
-    "total_ops": 0,
-    "total_time": 0.0,
-    "ops_per_sec": 1585.0,
-    "maxrss_kb": 0
-  }
+  {"name": "Irmin-Eio (memory)", "scenario": "large-values", "total_ops": 20000, "total_time": 1.272303, "ops_per_sec": 15719.5, "maxrss_kb": 327232},
+  {"name": "Irmin-Eio (memory)", "scenario": "incremental", "total_ops": 100, "total_time": 0.064774, "ops_per_sec": 1543.8, "maxrss_kb": 332096},
+  {"name": "Irmin-Eio (memory)", "scenario": "reads", "total_ops": 10000, "total_time": 0.007247, "ops_per_sec": 1379886.8, "maxrss_kb": 333920},
+  {"name": "Irmin-Eio (memory)", "scenario": "commits", "total_ops": 100000, "total_time": 0.615707, "ops_per_sec": 162414.9, "maxrss_kb": 410988},
+  {"name": "Irmin-pack (eio)", "scenario": "large-values", "total_ops": 20000, "total_time": 2.202462, "ops_per_sec": 9080.7, "maxrss_kb": 804592},
+  {"name": "Irmin-pack (eio)", "scenario": "incremental", "total_ops": 100, "total_time": 0.054145, "ops_per_sec": 1846.9, "maxrss_kb": 804616},
+  {"name": "Irmin-pack (eio)", "scenario": "reads", "total_ops": 10000, "total_time": 0.006830, "ops_per_sec": 1464133.8, "maxrss_kb": 804628},
+  {"name": "Irmin-pack (eio)", "scenario": "commits", "total_ops": 100000, "total_time": 2.398294, "ops_per_sec": 41696.3, "maxrss_kb": 917584},
+  {"name": "Irmin-fs (disk)", "scenario": "large-values", "total_ops": 20000, "total_time": 8.923899, "ops_per_sec": 2241.2, "maxrss_kb": 1272436},
+  {"name": "Irmin-fs (disk)", "scenario": "incremental", "total_ops": 100, "total_time": 0.762113, "ops_per_sec": 131.2, "maxrss_kb": 1272436},
+  {"name": "Irmin-fs (disk)", "scenario": "reads", "total_ops": 10000, "total_time": 0.056582, "ops_per_sec": 176734.7, "maxrss_kb": 1272436},
+  {"name": "Irmin-fs (disk)", "scenario": "commits", "total_ops": 100000, "total_time": 3.507011, "ops_per_sec": 28514.3, "maxrss_kb": 1272436},
+  {"name": "Irmin-git (disk)", "scenario": "large-values", "total_ops": 20000, "total_time": 12.522695, "ops_per_sec": 1597.1, "maxrss_kb": 1262944},
+  {"name": "Irmin-git (disk)", "scenario": "incremental", "total_ops": 100, "total_time": 0.790827, "ops_per_sec": 126.4, "maxrss_kb": 1263248},
+  {"name": "Irmin-git (disk)", "scenario": "reads", "total_ops": 10000, "total_time": 0.065198, "ops_per_sec": 153378.5, "maxrss_kb": 1260728},
+  {"name": "Irmin-git (disk)", "scenario": "commits", "total_ops": 100000, "total_time": 56.767448, "ops_per_sec": 1761.6, "maxrss_kb": 1255812}
 ]
