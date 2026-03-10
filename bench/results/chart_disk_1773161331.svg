@@ -115,20 +115,24 @@
 <line x1="1152" y1="200.0" x2="1294" y2="200.0" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="1152" y1="100.0" x2="1294" y2="100.0" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="1152" y1="0.0" x2="1294" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<text x="1148.0" y="4.0" text-anchor="end" font-size="8" fill="#999">262k</text>
-<rect x="1248.0" y="399.6" width="22" height="0.4" fill="#6d9dc5" rx="1"/>
-<text x="1259.0" y="396.6" text-anchor="middle" font-size="7" fill="#333">271</text>
-<rect x="1272.0" y="52.2" width="22" height="347.8" fill="#59a14f" rx="1"/>
-<text x="1283.0" y="49.2" text-anchor="middle" font-size="7" fill="#333">228k</text>
-<text x="1223.0" y="416" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">concurrent-100f/12d</text>
+<text x="1148.0" y="4.0" text-anchor="end" font-size="8" fill="#999">155k</text>
+<rect x="1176.0" y="52.2" width="22" height="347.8" fill="#f5a623" rx="1"/>
+<text x="1187.0" y="49.2" text-anchor="middle" font-size="7" fill="#333">135k</text>
+<rect x="1224.0" y="186.3" width="22" height="213.7" fill="#e87c7e" rx="1"/>
+<text x="1235.0" y="183.3" text-anchor="middle" font-size="7" fill="#333">83k</text>
+<rect x="1272.0" y="225.0" width="22" height="175.0" fill="#59a14f" rx="1"/>
+<text x="1283.0" y="222.0" text-anchor="middle" font-size="7" fill="#333">68k</text>
+<text x="1223.0" y="416" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">tezos-10310commits</text>
 <line x1="1344" y1="300.0" x2="1486" y2="300.0" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="1344" y1="200.0" x2="1486" y2="200.0" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="1344" y1="100.0" x2="1486" y2="100.0" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="1344" y1="0.0" x2="1486" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<text x="1340.0" y="4.0" text-anchor="end" font-size="8" fill="#999">78k</text>
+<text x="1340.0" y="4.0" text-anchor="end" font-size="8" fill="#999">262k</text>
+<rect x="1440.0" y="399.6" width="22" height="0.4" fill="#6d9dc5" rx="1"/>
+<text x="1451.0" y="396.6" text-anchor="middle" font-size="7" fill="#333">271</text>
 <rect x="1464.0" y="52.2" width="22" height="347.8" fill="#59a14f" rx="1"/>
-<text x="1475.0" y="49.2" text-anchor="middle" font-size="7" fill="#333">68k</text>
-<text x="1415.0" y="416" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">tezos-10310commits</text>
+<text x="1475.0" y="49.2" text-anchor="middle" font-size="7" fill="#333">228k</text>
+<text x="1415.0" y="416" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">concurrent-100f/12d</text>
 <line x1="0" y1="400" x2="1486" y2="400" stroke="#333" stroke-width="1"/>
 </g>
 <g transform="translate(120,500)">

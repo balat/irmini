@@ -23,5 +23,6 @@
   {"name": "Irmin-Lwt (git)", "scenario": "incremental-20B", "total_ops": 100, "total_time": 0.942509, "ops_per_sec": 106.1, "maxrss_kb": 494700},
   {"name": "Irmin-Lwt (git)", "scenario": "reads-20B", "total_ops": 10000, "total_time": 0.064075, "ops_per_sec": 156067.1, "maxrss_kb": 494644},
   {"name": "Irmin-Lwt (git)", "scenario": "commits-20B", "total_ops": 100000, "total_time": 49.483752, "ops_per_sec": 2020.9, "maxrss_kb": 494556},
-  {"name": "Irmin-Lwt (pack-mem)", "scenario": "tezos-10310commits", "total_ops": 4000000, "total_time": 30.6, "ops_per_sec": 130719.0, "maxrss_kb": 0}
+  {"name": "Irmin-Lwt (pack-mem)", "scenario": "tezos-10310commits", "total_ops": 4000000, "total_time": 30.6, "ops_per_sec": 130719.0, "maxrss_kb": 0},
+  {"name": "Irmin-Lwt (pack)", "scenario": "tezos-10310commits", "total_ops": 4000000, "total_time": 29.6, "ops_per_sec": 135135.1, "maxrss_kb": 314088}
 ]

@@ -143,7 +143,7 @@ and 10K-byte values. All three implementations use the same parameters.
 
 ### Disk backends (fs, pack, lavyek)
 
-![Disk backends](results/chart_disk_1773160607.svg)
+![Disk backends](results/chart_disk_1773161331.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -202,7 +202,7 @@ Irmini (lavyek)                tezos-10310commits     67971       58.848        
 
 ### Memory backends
 
-![Memory backends](results/chart_memory_1773160607.svg)
+![Memory backends](results/chart_memory_1773161331.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -239,7 +239,7 @@ Irmini (memory)                tezos-10310commits     71055       56.294        
 
 ### Git backends
 
-![Git backends](results/chart_git_1773160607.svg)
+![Git backends](results/chart_git_1773161331.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -273,7 +273,7 @@ Irmini (git)                   incremental-10K          144        0.694        
 
 ### Irmini optimizations (disk)
 
-![Irmini optimizations disk](results/chart_optims_disk_1773160607.svg)
+![Irmini optimizations disk](results/chart_optims_disk_1773161331.svg)
 
 ```
 Name                           Scenario               ops/s
@@ -327,7 +327,7 @@ dominates write-heavy scenarios (incremental ~10 ops/s, concurrent ~265 ops/s).
 
 ### Irmini optimizations (memory)
 
-![Irmini optimizations memory](results/chart_optims_memory_1773160607.svg)
+![Irmini optimizations memory](results/chart_optims_memory_1773161331.svg)
 
 ```
 Name                           Scenario               ops/s
@@ -376,29 +376,37 @@ Irmini+all                     incremental-10K         4702
 ### Tezos trace replay
 
 Replays real Tezos blockchain operations from a `.repr` trace file.
-All implementations use in-memory backends (irmini memory, irmin pack-mem)
-with no GC. Irmin uses its official `tree.exe` benchmark tool.
+Irmin uses its official `tree.exe` benchmark tool with `--store-type=pack`
+(disk) or `--store-type=pack-mem` (memory).
 
 ```
 Trace: data4_10310commits.repr (267 MiB), 10310 commits, 4M operations
 
+Memory backends:
 Backend               Ops/sec    CPU time   Wall time  RSS (MiB)
 -----------------------------------------------------------------
 Irmin-Lwt (pack-mem)  ~131,000     30.6s      32.1s        —
 Irmin-Eio (pack-mem)   ~83,000     48.1s      57.0s        —
 Irmini (memory)         71,055     56.3s      56.3s      584
+
+Disk backends:
+Backend               Ops/sec    CPU time   Wall time  RSS (MiB)
+-----------------------------------------------------------------
+Irmin-Lwt (pack)      ~135,000     29.6s      29.6s      307
+Irmin-Eio (pack)       ~83,000     63.0s      48.2s      747
 Irmini (lavyek)         67,971     58.8s      58.8s      758
 ```
 
 - The first commit (Tezos genesis) accounts for ~309K operations (124K adds,
   78K finds, 93K mems). Subsequent blocks are much smaller (~340 ops/block).
-- **Irmin-Lwt** is fastest at 131K ops/s thanks to its highly optimized
-  pack-mem store with inode config [32, 256].
-- **Irmini (memory)** at 71K ops/s — 54% of irmin-lwt. Room for optimization
+- **Irmin-Lwt (pack)** is fastest at 135K ops/s on disk — the LRU cache
+  absorbs almost all reads, making disk nearly as fast as memory.
+- **Irmin-Eio (pack)** at 83K ops/s — identical to pack-mem, also thanks to LRU.
+- **Irmini (memory)** at 71K ops/s — 53% of irmin-lwt. Room for optimization
   in tree navigation and serialization.
 - **Irmini (lavyek)** at 68K ops/s — within 96% of irmini memory speed
-  despite disk I/O.
-- Disk backend (WAL+bloom) is too slow for trace replay due to per-write fsync.
+  despite WAL-based disk I/O.
+- Irmini disk backend (WAL+bloom) is too slow for trace replay due to per-write fsync.
 - Path flattening (6-step Tezos hash paths → single hex string) is
   **counter-productive** for irmini: it creates very wide directories
   that slow down tree navigation. Without flattening (the default), the
