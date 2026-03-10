@@ -246,7 +246,7 @@ let scenario_concurrent ?(nfibers = 100) ~name
 
 (** {1 Backend runners} *)
 
-let run_all_memory ?inline_threshold ?inode ?(cache = 0) ?name:custom_name conf =
+let run_all_memory ?inline_threshold ?inode ?(cache = 0) ?name:custom_name (conf : Bench_common.config) =
   let name = match custom_name with
     | Some n -> n
     | None ->
@@ -267,7 +267,7 @@ let run_all_memory ?inline_threshold ?inode ?(cache = 0) ?name:custom_name conf 
     scenario_incremental ?inline_threshold ?inode ~name ~backend:(mk ()) large;
   ]
 
-let run_all_git ?(cache = 0) ~sw ~fs root conf =
+let run_all_git ?(cache = 0) ~sw ~fs root (conf : Bench_common.config) =
   let suffix = if cache > 0 then "+cache" else "" in
   let name = "Irmini" ^ suffix ^ " (git)" in
   let path = Fpath.v (snd root) in
@@ -289,7 +289,7 @@ let run_all_git ?(cache = 0) ~sw ~fs root conf =
     scenario_incremental ?inline_threshold ?inode ~name ~backend:(mk ()) large;
   ]
 
-let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?name:custom_name ~sw ~env root conf =
+let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?name:custom_name ~sw ~env root (conf : Bench_common.config) =
   let name = match custom_name with
     | Some n -> n
     | None ->

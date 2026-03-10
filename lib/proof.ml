@@ -368,7 +368,7 @@ module Make (C : Codec.S) = struct
               let child_tree =
                 match kind with
                 | `Contents_inlined data ->
-                    if PathSet.mem child_path accessed then Contents data
+                    if Path_set.mem child_path accessed then Contents data
                     else Contents data (* inlined is always available *)
                 | `Contents h ->
                     if Path_set.mem child_path accessed then

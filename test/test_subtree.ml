@@ -2,7 +2,7 @@ open Irmin
 
 let test_split () =
   let backend = Backend.Memory.create_sha1 () in
-  let store = Store.Git.create ~backend in
+  let store = Store.Git.create ~backend () in
   let tree = Tree.Git.empty () in
   let tree = Tree.Git.add tree [ "sub"; "file.txt" ] "content" in
   let tree = Tree.Git.add tree [ "other.txt" ] "other" in
@@ -15,9 +15,9 @@ let test_split () =
 
 let test_status_in_sync () =
   let backend1 = Backend.Memory.create_sha1 () in
-  let store1 = Store.Git.create ~backend:backend1 in
+  let store1 = Store.Git.create ~backend:backend1 () in
   let backend2 = Backend.Memory.create_sha1 () in
-  let store2 = Store.Git.create ~backend:backend2 in
+  let store2 = Store.Git.create ~backend:backend2 () in
   let tree = Tree.Git.empty () in
   let tree = Tree.Git.add tree [ "sub"; "a.txt" ] "content" in
   let h1 =

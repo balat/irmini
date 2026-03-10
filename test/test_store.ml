@@ -2,7 +2,7 @@ open Irmin
 
 let test_store_commit () =
   let backend = Backend.Memory.create_sha1 () in
-  let store = Store.Git.create ~backend in
+  let store = Store.Git.create ~backend () in
   let tree = Tree.Git.empty () in
   let tree = Tree.Git.add tree [ "README.md" ] "# Hello" in
   let hash =
@@ -13,7 +13,7 @@ let test_store_commit () =
 
 let test_store_branches () =
   let backend = Backend.Memory.create_sha1 () in
-  let store = Store.Git.create ~backend in
+  let store = Store.Git.create ~backend () in
   let tree = Tree.Git.empty () in
   let hash =
     Store.Git.commit store ~tree ~parents:[] ~message:"test" ~author:"test"
@@ -24,7 +24,7 @@ let test_store_branches () =
 
 let test_store_diff () =
   let backend = Backend.Memory.create_sha1 () in
-  let store = Store.Git.create ~backend in
+  let store = Store.Git.create ~backend () in
   let tree1 = Tree.Git.empty () in
   let tree1 = Tree.Git.add tree1 [ "file1.txt" ] "content1" in
   let tree1 = Tree.Git.add tree1 [ "file2.txt" ] "content2" in
