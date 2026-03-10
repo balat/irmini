@@ -65,9 +65,9 @@ COLORS = {
     "Irmini (git)":       "#8bc584",
     # Optimization variants
     "Irmini baseline":    "#bbb",
-    "Irmini+inline":      "#f28e2b",
+    "Irmini+inline":      "#9c755f",
     "Irmini+cache":       "#76b7b2",
-    "Irmini+inode":       "#e15759",
+    "Irmini+inode":       "#b07aa1",
     "Irmini+all":         "#4e79a7",
 }
 
