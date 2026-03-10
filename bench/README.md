@@ -143,7 +143,7 @@ and 10K-byte values. All three implementations use the same parameters.
 
 ### Disk backends (fs, pack, lavyek)
 
-![Disk backends](results/chart_disk_1773149482.svg)
+![Disk backends](results/chart_disk_1773152563.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -192,7 +192,7 @@ Irmini (disk)                  trace-replay           73000       54.800        
 
 ### Memory backends
 
-![Memory backends](results/chart_memory_1773149482.svg)
+![Memory backends](results/chart_memory_1773152563.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -228,7 +228,7 @@ Irmini (memory)                incremental-10K         3674        0.027        
 
 ### Git backends
 
-![Git backends](results/chart_git_1773149482.svg)
+![Git backends](results/chart_git_1773152563.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -262,42 +262,60 @@ Irmini (git)                   incremental-10K          144        0.694        
 
 ### Irmini optimizations (disk)
 
-![Irmini optimizations disk](results/chart_optims_disk_1773149482.svg)
+![Irmini optimizations disk](results/chart_optims_disk_1773152563.svg)
 
 ```
-Name                           Scenario               ops/s     RSS(MiB)
-------------------------------------------------------------------------
-Irmini baseline (disk)         commits                 1807         53
-Irmini baseline (disk)         reads                 115023         55
-Irmini baseline (disk)         incremental               10         54
-Irmini baseline (disk)         large-values             115         52
-Irmini+inline (disk)           commits                 1836         53
-Irmini+inline (disk)           reads                  70033         56
-Irmini+inline (disk)           incremental               10         54
-Irmini+inline (disk)           large-values             114         52
-Irmini+cache (disk)            commits                 1836        150
-Irmini+cache (disk)            reads                 603323        143
-Irmini+cache (disk)            incremental               10        138
-Irmini+cache (disk)            large-values             117        135
-Irmini+inode (disk)            commits                  577         56
-Irmini+inode (disk)            reads                  52856         57
-Irmini+inode (disk)            incremental                9         54
-Irmini+inode (disk)            large-values             101         53
-Irmini+all (disk)              commits                  577        150
-Irmini+all (disk)              reads                 389028        143
-Irmini+all (disk)              incremental                9        137
-Irmini+all (disk)              large-values             101        135
+Name                           Scenario               ops/s
+------------------------------------------------------------
+Irmini baseline (disk)         commits-20B            19549
+Irmini baseline (disk)         reads-20B             834854
+Irmini baseline (disk)         incremental-20B         1574
+Irmini baseline (disk)         commits-10K             7019
+Irmini baseline (disk)         reads-10K             439443
+Irmini baseline (disk)         incremental-10K         1443
+Irmini baseline (disk)         concurrent-100f/12d   218689
+Irmini+inline (disk)           commits-20B           117546
+Irmini+inline (disk)           reads-20B            1111604
+Irmini+inline (disk)           incremental-20B         2050
+Irmini+inline (disk)           commits-10K             6799
+Irmini+inline (disk)           reads-10K             306279
+Irmini+inline (disk)           incremental-10K         1336
+Irmini+inline (disk)           concurrent-100f/12d   209978
+Irmini+cache (disk)            commits-20B            16695
+Irmini+cache (disk)            reads-20B            1761868
+Irmini+cache (disk)            incremental-20B         1832
+Irmini+cache (disk)            commits-10K             7089
+Irmini+cache (disk)            reads-10K            1877486
+Irmini+cache (disk)            incremental-10K         1504
+Irmini+cache (disk)            concurrent-100f/12d   370797
+Irmini+inode (disk)            commits-20B            65542
+Irmini+inode (disk)            reads-20B             379589
+Irmini+inode (disk)            incremental-20B         3688
+Irmini+inode (disk)            commits-10K             9782
+Irmini+inode (disk)            reads-10K             277331
+Irmini+inode (disk)            incremental-10K         2985
+Irmini+inode (disk)            concurrent-100f/12d   193580
+Irmini+all (disk)              commits-20B           171068
+Irmini+all (disk)              reads-20B            1424889
+Irmini+all (disk)              incremental-20B         5083
+Irmini+all (disk)              commits-10K             9056
+Irmini+all (disk)              reads-10K            1533679
+Irmini+all (disk)              incremental-10K         2777
+Irmini+all (disk)              concurrent-100f/12d   305102
 ```
 
-- **Cache** has the biggest impact on reads: **603k** vs 115k baseline (**5.2× faster**).
-- **Inline** alone has little impact on disk (values still go to disk).
-- **Inode** actually slows down disk commits (577 vs 1807) — the HAMT overhead
-  dominates over tree-rewrite savings on small trees with disk I/O.
-- Disk I/O dominates all scenarios, making memory-level optimizations less visible.
+- **Inline** gives **6× speedup** on commits-20B (118k vs 20k) — avoids
+  content-addressed store writes for small values. No impact on 10K.
+- **Cache** gives **2.1× on reads-20B** (1.8M vs 835k) and **4.3× on
+  reads-10K** (1.9M vs 439k). Also **1.7× on concurrent** (371k vs 219k).
+- **Inode** gives **3.4× on commits-20B** (66k vs 20k) and **2.3× on
+  incremental-20B** (3.7k vs 1.6k) — O(log n) tree updates.
+- **+all** achieves **171k commits-20B/s** (8.7× baseline), **1.4M reads-20B/s**,
+  and **5.1k incremental-20B/s** (3.2× baseline).
 
 ### Irmini optimizations (memory)
 
-![Irmini optimizations memory](results/chart_optims_memory_1773149482.svg)
+![Irmini optimizations memory](results/chart_optims_memory_1773152563.svg)
 
 ```
 Name                           Scenario               ops/s

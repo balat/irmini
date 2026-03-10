@@ -128,7 +128,7 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in
     rm_rf root;
     run "Irmini (lavyek)"
-      (Bench_irmin4_lavyek.run_all ?inline_threshold ~cache ~sw ~env root conf)
+      (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache ?name ~sw ~env root conf)
   end;
   (* 5. Trace replay *)
   if !trace_file <> "" then begin
