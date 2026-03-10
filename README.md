@@ -22,7 +22,7 @@ Content-addressable storage for OCaml.
 │  KV/Backend (raw content-addressed)     │  ← Storage
 │  - read/write by hash                   │
 │  - refs for mutable pointers            │
-│  - Memory, Git, Pack implementations    │
+│  - Memory, Disk, Lavyek, Git backends   │
 └─────────────────────────────────────────┘
 ```
 
@@ -62,6 +62,41 @@ let commit = Irmin.Store.Git.commit store ~tree ~parents:[]
 Irmin.Store.Git.set_head store ~branch:"main" commit
 ```
 
+## Backends
+
+Backends are records of functions (not functors), making them composable:
+
+| Backend | Storage | Persistence | Notes |
+|---------|---------|-------------|-------|
+| `Backend.Memory` | In-memory hash table | No | Tests, ephemeral stores |
+| `Backend.Disk` | Append-only file + WAL + bloom | Yes | Crash-safe, per-write fsync |
+| `Backend_lavyek` | LSM tree (WAL + SST + compaction) | Yes | High-throughput writes |
+| `Git_interop` | Git loose objects + pack files | Yes | Git compatibility |
+
+Backend combinators:
+
+```ocaml
+(* LRU cache — default 100,000 entries *)
+let backend = Irmin.Backend.cached ~capacity:200_000 backend
+
+(* Read-only wrapper *)
+let backend = Irmin.Backend.readonly backend
+
+(* Layered — reads check upper first, writes go to upper only *)
+let backend = Irmin.Backend.layered ~upper ~lower
+```
+
+## Optimizations
+
+| Optimization | Effect | Typical gain |
+|-------------|--------|-------------|
+| **Inline** | Small values (≤ 48B) stored in parent node | Fewer objects, less I/O |
+| **Cache** | LRU cache on backend reads/writes | ~10× reads |
+| **Inode** | HAMT-based tree splitting (32-way) | ~3× commits on wide dirs |
+
+These optimizations can be combined. See [bench/README.md](bench/README.md) for
+detailed performance results.
+
 ## Tree Formats
 
 | Module | Hash | Format |
@@ -75,13 +110,19 @@ Irmin.Store.Git.set_head store ~branch:"main" commit
 Irmin
 ├── Hash          # Phantom-typed SHA-1/SHA-256
 ├── Codec   # Format.S signature + Git/Mst implementations
-├── Backend       # KV storage (Memory, Git, layered, cached)
-├── Tree          # Lazy tree with delayed writes
+├── Backend       # KV storage (Memory, Disk, cached, layered, readonly)
+├── Tree          # Lazy tree with delayed writes + inode support
 ├── Commit        # Commit operations
 ├── Store         # High-level API (tree + commits + branches)
+├── Proof         # Merkle proofs
 ├── Subtree       # Monorepo subtree operations
 └── Git_interop   # Git repository I/O
 ```
+
+## Benchmarks
+
+See [bench/README.md](bench/README.md) for performance comparisons across backends
+and optimizations, including Tezos trace replay against irmin-lwt and irmin-eio.
 
 ## References
 
