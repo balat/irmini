@@ -335,9 +335,13 @@ let run_all_git ?(cache = 0) ~sw ~fs root conf =
     scenario_large_values ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
   ]
 
-let run_all_disk ?inline_threshold ?(cache = 0) ~sw ~env root conf =
-  let suffix = if cache > 0 then "+cache" else "" in
-  let name = "Irmini" ^ suffix ^ " (disk)" in
+let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?name:custom_name ~sw ~env root conf =
+  let name = match custom_name with
+    | Some n -> n
+    | None ->
+      let suffix = if cache > 0 then "+cache" else "" in
+      "Irmini" ^ suffix ^ " (disk)"
+  in
   let mk () =
     let b = Backend.Disk.create_sha1 ~sw root in
     if cache > 0 then Backend.cached ~capacity:cache b else b
@@ -347,9 +351,9 @@ let run_all_disk ?inline_threshold ?(cache = 0) ~sw ~env root conf =
     Fun.protect ~finally:(fun () -> backend.close ()) (fun () -> f ~backend)
   in
   [
-    run_one (fun ~backend -> scenario_commits ?inline_threshold ~name ~backend conf);
-    run_one (fun ~backend -> scenario_reads ?inline_threshold ~name ~backend conf);
-    run_one (fun ~backend -> scenario_incremental ?inline_threshold ~name ~backend conf);
-    run_one (fun ~backend -> scenario_large_values ?inline_threshold ~name ~backend conf);
+    run_one (fun ~backend -> scenario_commits ?inline_threshold ?inode ~name ~backend conf);
+    run_one (fun ~backend -> scenario_reads ?inline_threshold ?inode ~name ~backend conf);
+    run_one (fun ~backend -> scenario_incremental ?inline_threshold ?inode ~name ~backend conf);
+    run_one (fun ~backend -> scenario_large_values ?inline_threshold ?inode ~name ~backend conf);
     run_one (fun ~backend -> scenario_concurrent ~name ~backend ~env conf);
   ]

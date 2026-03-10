@@ -39,7 +39,9 @@ def classify_backend(name):
     n = name.lower()
     # Optimization variants go to their own chart
     if "baseline" in n or "+inline" in n or "+cache" in n or "+inode" in n or "+all" in n:
-        return "optims"
+        if "(disk)" in n:
+            return "optims_disk"
+        return "optims_memory"
     elif "memory" in n or "mem" in n:
         return "memory"
     elif "git" in n:
@@ -63,23 +65,32 @@ COLORS = {
     "Irmini (disk)":      "#6d9dc5",
     "Irmini (lavyek)":    "#59a14f",
     "Irmini (git)":       "#8bc584",
-    # Optimization variants
+    # Optimization variants (memory and disk share same colors)
     "Irmini baseline":    "#bbb",
     "Irmini+inline":      "#9c755f",
     "Irmini+cache":       "#76b7b2",
     "Irmini+inode":       "#b07aa1",
     "Irmini+all":         "#4e79a7",
+    "Irmini baseline (disk)": "#bbb",
+    "Irmini+inline (disk)":   "#9c755f",
+    "Irmini+cache (disk)":    "#76b7b2",
+    "Irmini+inode (disk)":    "#b07aa1",
+    "Irmini+all (disk)":      "#4e79a7",
 }
 
 
-OPTIM_ORDER = ["Irmini baseline", "Irmini+inline", "Irmini+cache", "Irmini+inode", "Irmini+all"]
+OPTIM_ORDER_MEM = ["Irmini baseline", "Irmini+inline", "Irmini+cache", "Irmini+inode", "Irmini+all"]
+OPTIM_ORDER_DISK = ["Irmini baseline (disk)", "Irmini+inline (disk)", "Irmini+cache (disk)",
+                    "Irmini+inode (disk)", "Irmini+all (disk)"]
 
 
 def family_sort_key(name):
     """Sort backends: Irmin-Lwt first, then Irmin-Eio, then Irmini."""
     n = name.lower()
-    if name in OPTIM_ORDER:
-        return (0, OPTIM_ORDER.index(name))
+    if name in OPTIM_ORDER_MEM:
+        return (0, OPTIM_ORDER_MEM.index(name))
+    elif name in OPTIM_ORDER_DISK:
+        return (0, OPTIM_ORDER_DISK.index(name))
     elif "irmin-lwt" in n:
         return (0, name)
     elif "irmin-eio" in n or "irmin-pack" in n or "irmin-fs" in n or "irmin-git" in n:
@@ -256,10 +267,10 @@ def main():
     print(f"Total: {len(all_results)} results")
 
     # Group by backend type
-    groups = {"memory": [], "disk": [], "git": [], "optims": []}
+    groups = {"memory": [], "disk": [], "git": [], "optims_disk": [], "optims_memory": []}
     for r in all_results:
         cat = classify_backend(r["name"])
-        groups[cat].append(r)
+        groups.setdefault(cat, []).append(r)
 
     def ordered_backends(results):
         """Get unique backend names, sorted by family then name."""
@@ -273,7 +284,7 @@ def main():
 
     chart_dir = results_dir
 
-    # Charts in order: disk, memory, git, optims
+    # Charts in order: disk, memory, git, optims_disk, optims_memory
     chart_specs = [
         ("disk", "Disk backends (fs, pack, lavyek) — ops/s comparison",
          f"chart_disk_{timestamp}.svg"),
@@ -281,8 +292,10 @@ def main():
          f"chart_memory_{timestamp}.svg"),
         ("git", "Git backends — ops/s comparison",
          f"chart_git_{timestamp}.svg"),
-        ("optims", "Irmini optimizations (memory) — ops/s comparison",
-         f"chart_optims_{timestamp}.svg"),
+        ("optims_disk", "Irmini optimizations (disk) — ops/s comparison",
+         f"chart_optims_disk_{timestamp}.svg"),
+        ("optims_memory", "Irmini optimizations (memory) — ops/s comparison",
+         f"chart_optims_memory_{timestamp}.svg"),
     ]
 
     for cat, title, filename in chart_specs:

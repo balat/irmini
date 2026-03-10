@@ -15,6 +15,7 @@ let () =
   let depth = ref 10 in
   let nreads = ref 10_000 in
   let value_size = ref 100 in
+  let skip_memory = ref false in
   let skip_lavyek = ref false in
   let skip_disk = ref false in
   let skip_git = ref false in
@@ -33,6 +34,7 @@ let () =
        "Number of reads in read phase (default: 10000)");
       ("--value-size", Arg.Set_int value_size,
        "Size of values in bytes (default: 100)");
+      ("--skip-memory", Arg.Set skip_memory, "Skip memory backend benchmark");
       ("--skip-lavyek", Arg.Set skip_lavyek, "Skip Lavyek backend benchmark");
       ("--skip-disk", Arg.Set skip_disk, "Skip disk backend benchmark");
       ("--skip-git", Arg.Set skip_git, "Skip git backend benchmark");
@@ -87,15 +89,18 @@ let () =
     List.iter (fun r -> Format.printf "%a@.@." Bench_common.pp_result r) rs;
     results := rs @ !results
   in
-  (* 1. Irmini memory *)
-  let mem_name = match name with Some n -> n | None -> "Irmini (memory)" in
-  run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache ?name conf);
-  (* 2. Irmini disk *)
+  (* 1. Irmini disk *)
   if not !skip_disk then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_disk") in
     rm_rf root;
-    run "Irmini (disk)" (Bench_irmin4.run_all_disk ?inline_threshold ~cache ~sw ~env root conf)
+    let disk_name = match name with Some n -> n | None -> "Irmini (disk)" in
+    run disk_name (Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache ?name ~sw ~env root conf)
+  end;
+  (* 2. Irmini memory *)
+  if not !skip_memory then begin
+    let mem_name = match name with Some n -> n | None -> "Irmini (memory)" in
+    run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache ?name conf)
   end;
   (* 3. Irmini git *)
   if not !skip_git then begin

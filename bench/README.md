@@ -49,6 +49,7 @@ cd /path/to/monopampam
 | `--depth`        | 10      | Depth of paths                     |
 | `--nreads`       | 10000   | Number of reads in read scenario   |
 | `--value-size`   | 100     | Size of values in bytes            |
+| `--skip-memory`  | false   | Skip the memory backend            |
 | `--skip-lavyek`  | false   | Skip the Lavyek backend            |
 | `--skip-disk`    | false   | Skip the disk backend              |
 | `--skip-git`     | false   | Skip the git backend               |
@@ -191,9 +192,18 @@ Irmini (git)                   large-values            2976        6.7          
 - **Incremental**: All three are comparable (~160–178 ops/s) — dominated by
   Git I/O overhead.
 
+### Irmini optimizations (disk)
+
+![Irmini optimizations disk](results/chart_optims_disk_1773134885.svg)
+
+Impact of each optimization measured independently on the disk backend
+(50 commits × 500 adds, depth 10, 5000 reads, 100-byte values).
+
+*No data yet — run `./bench/run_optims.sh` to generate.*
+
 ### Irmini optimizations (memory)
 
-![Irmini optimizations](results/chart_optims_1773134885.svg)
+![Irmini optimizations memory](results/chart_optims_memory_1773134885.svg)
 
 Impact of each optimization measured independently on the memory backend
 (50 commits × 500 adds, depth 10, 5000 reads, 100-byte values):
