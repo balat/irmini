@@ -132,7 +132,7 @@ module Mst : BACKEND = struct
 
   let tree_find (mst, bs) path =
     let key = String.concat "/" path in
-    match Atp.Mst.get key mst ~store:(bs :> Atp.Blockstore.readable) with
+    match Atp.Mst.find key mst ~store:(bs :> Atp.Blockstore.readable) with
     | None -> None
     | Some cid -> bs#get cid
 
