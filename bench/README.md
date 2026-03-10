@@ -82,7 +82,7 @@ Run on 2026-03-09, AMD 12-core, 100 commits × 1000 adds, depth 10, 10000 reads,
 
 ### Disk backends (fs, pack, lavyek)
 
-![Disk backends](results/chart_disk_1773074715.svg)
+![Disk backends](results/chart_disk_1773134885.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -125,7 +125,7 @@ Irmini (lavyek)                large-values           10048        2.0          
 
 ### Memory backends
 
-![Memory backends](results/chart_memory_1773074715.svg)
+![Memory backends](results/chart_memory_1773134885.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -154,7 +154,7 @@ Irmini (memory)                large-values           18007        1.1          
 
 ### Git backends
 
-![Git backends](results/chart_git_1773074715.svg)
+![Git backends](results/chart_git_1773134885.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -180,6 +180,52 @@ Irmini (git)                   large-values            2976        6.7          
   Git object graph in memory; irmini reads directly from the Git store.
 - **Incremental**: All three are comparable (~160–178 ops/s) — dominated by
   Git I/O overhead.
+
+### Irmini optimizations (memory)
+
+![Irmini optimizations](results/chart_optims_1773134885.svg)
+
+Impact of each optimization measured independently on the memory backend
+(50 commits × 500 adds, depth 10, 5000 reads, 100-byte values):
+
+```
+Name                           Scenario               ops/s    vs baseline
+----------------------------------------------------------------------------------
+Irmini baseline                commits                  519          1.0×
+Irmini+inline                  commits               126963        244.6×
+Irmini+cache                   commits                  512          1.0×
+Irmini+inode                   commits               114429        220.5×
+Irmini+all                     commits                82255        158.5×
+
+Irmini baseline                reads                   9564          1.0×
+Irmini+inline                  reads                  19501          2.0×
+Irmini+cache                   reads                  13399          1.4×
+Irmini+inode                   reads                 205271         21.5×
+Irmini+all                     reads                1481040        154.9×
+
+Irmini baseline                incremental              1965          1.0×
+Irmini+inline                  incremental              2120          1.1×
+Irmini+cache                   incremental              2270          1.2×
+Irmini+inode                   incremental              9439          4.8×
+Irmini+all                     incremental             12228          6.2×
+
+Irmini baseline                large-values             1527          1.0×
+Irmini+inline                  large-values             1569          1.0×
+Irmini+cache                   large-values             1470          1.0×
+Irmini+inode                   large-values            18381         12.0×
+Irmini+all                     large-values            18007         11.8×
+```
+
+- **Inodes** are the biggest single optimization: **220× commits**, **21× reads**,
+  **4.8× incremental**, **12× large-values**. They avoid re-serializing the
+  entire tree on each commit (32-way HAMT trie, O(log n) updates).
+- **Inlining** gives a massive **245× boost on commits** (small values stored
+  directly in tree nodes, avoiding content-addressable store lookups), but
+  only helps reads modestly (2×).
+- **LRU cache** improves reads by **1.4×** (avoids repeated deserialization)
+  but has no effect on writes.
+- **All combined** gives the best reads (**1.48M ops/s**, 155×) thanks to the
+  synergy of inodes + resolved-child cache + LRU cache.
 
 ### Key observations
 

@@ -35,9 +35,12 @@ def load_results(results_dir):
 
 
 def classify_backend(name):
-    """Classify a result name into memory/disk/git category."""
+    """Classify a result name into memory/disk/git/optims category."""
     n = name.lower()
-    if "memory" in n or "mem" in n:
+    # Optimization variants go to their own chart
+    if "baseline" in n or "+inline" in n or "+cache" in n or "+inode" in n or "+all" in n:
+        return "optims"
+    elif "memory" in n or "mem" in n:
         return "memory"
     elif "git" in n:
         return "git"
@@ -60,13 +63,24 @@ COLORS = {
     "Irmini (disk)":      "#6d9dc5",
     "Irmini (lavyek)":    "#59a14f",
     "Irmini (git)":       "#8bc584",
+    # Optimization variants
+    "Irmini baseline":    "#bbb",
+    "Irmini+inline":      "#f28e2b",
+    "Irmini+cache":       "#76b7b2",
+    "Irmini+inode":       "#e15759",
+    "Irmini+all":         "#4e79a7",
 }
+
+
+OPTIM_ORDER = ["Irmini baseline", "Irmini+inline", "Irmini+cache", "Irmini+inode", "Irmini+all"]
 
 
 def family_sort_key(name):
     """Sort backends: Irmin-Lwt first, then Irmin-Eio, then Irmini."""
     n = name.lower()
-    if "irmin-lwt" in n:
+    if name in OPTIM_ORDER:
+        return (0, OPTIM_ORDER.index(name))
+    elif "irmin-lwt" in n:
         return (0, name)
     elif "irmin-eio" in n or "irmin-pack" in n or "irmin-fs" in n or "irmin-git" in n:
         return (1, name)
@@ -242,7 +256,7 @@ def main():
     print(f"Total: {len(all_results)} results")
 
     # Group by backend type
-    groups = {"memory": [], "disk": [], "git": []}
+    groups = {"memory": [], "disk": [], "git": [], "optims": []}
     for r in all_results:
         cat = classify_backend(r["name"])
         groups[cat].append(r)
@@ -259,7 +273,7 @@ def main():
 
     chart_dir = results_dir
 
-    # Charts in order: disk, memory, git (as requested by user)
+    # Charts in order: disk, memory, git, optims
     chart_specs = [
         ("disk", "Disk backends (fs, pack, lavyek) — ops/s comparison",
          f"chart_disk_{timestamp}.svg"),
@@ -267,6 +281,8 @@ def main():
          f"chart_memory_{timestamp}.svg"),
         ("git", "Git backends — ops/s comparison",
          f"chart_git_{timestamp}.svg"),
+        ("optims", "Irmini optimizations (memory) — ops/s comparison",
+         f"chart_optims_{timestamp}.svg"),
     ]
 
     for cat, title, filename in chart_specs:

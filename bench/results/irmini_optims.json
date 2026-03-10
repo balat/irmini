@@ -1,0 +1,22 @@
+[
+  {"name": "Irmini baseline", "scenario": "commits", "ops_per_sec": 519},
+  {"name": "Irmini baseline", "scenario": "reads", "ops_per_sec": 9564},
+  {"name": "Irmini baseline", "scenario": "incremental", "ops_per_sec": 1965},
+  {"name": "Irmini baseline", "scenario": "large-values", "ops_per_sec": 1527},
+  {"name": "Irmini+inline", "scenario": "commits", "ops_per_sec": 126963},
+  {"name": "Irmini+inline", "scenario": "reads", "ops_per_sec": 19501},
+  {"name": "Irmini+inline", "scenario": "incremental", "ops_per_sec": 2120},
+  {"name": "Irmini+inline", "scenario": "large-values", "ops_per_sec": 1569},
+  {"name": "Irmini+cache", "scenario": "commits", "ops_per_sec": 512},
+  {"name": "Irmini+cache", "scenario": "reads", "ops_per_sec": 13399},
+  {"name": "Irmini+cache", "scenario": "incremental", "ops_per_sec": 2270},
+  {"name": "Irmini+cache", "scenario": "large-values", "ops_per_sec": 1470},
+  {"name": "Irmini+inode", "scenario": "commits", "ops_per_sec": 114429},
+  {"name": "Irmini+inode", "scenario": "reads", "ops_per_sec": 205271},
+  {"name": "Irmini+inode", "scenario": "incremental", "ops_per_sec": 9439},
+  {"name": "Irmini+inode", "scenario": "large-values", "ops_per_sec": 18381},
+  {"name": "Irmini+all", "scenario": "commits", "ops_per_sec": 82255},
+  {"name": "Irmini+all", "scenario": "reads", "ops_per_sec": 1481040},
+  {"name": "Irmini+all", "scenario": "incremental", "ops_per_sec": 12228},
+  {"name": "Irmini+all", "scenario": "large-values", "ops_per_sec": 18007}
+]
