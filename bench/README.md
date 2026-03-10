@@ -143,7 +143,7 @@ and 10K-byte values. All three implementations use the same parameters.
 
 ### Disk backends (fs, pack, lavyek)
 
-![Disk backends](results/chart_disk_1773157515.svg)
+![Disk backends](results/chart_disk_1773159023.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -186,7 +186,7 @@ Irmini (disk)                  commits-10K             1324       18.877        
 Irmini (disk)                  reads-10K              71370        0.070         76
 Irmini (disk)                  incremental-10K            10        5.165         67
 Irmini (disk)                  concurrent-100f/12d      271       36.874         59
-Irmini (disk)                  trace-replay           73000       54.800        582
+Irmini (lavyek)                tezos-10310commits     67971       58.848        758
 ```
 
 - **Irmini (lavyek)**: Commits at **84k ops/s** (20B) — faster than all Irmin
@@ -197,12 +197,12 @@ Irmini (disk)                  trace-replay           73000       54.800        
 - **irmin-pack**: Reads at 719k–1.4M ops/s, commits at 12–68k ops/s.
   Irmin-Lwt faster on commits (68k vs 40k), Irmin-Eio faster on reads (1.4M vs 719k).
 - **irmin-fs**: Slower across the board. Reads 106–166k, commits 11–36k.
-- **trace-replay**: Irmini replays 10,310 real Tezos commits (4M operations)
-  at **73K ops/sec** with zero mismatches.
+- **trace-replay**: Irmini (lavyek) replays 10,310 real Tezos commits (4M
+  operations) at **68K ops/sec**. Irmini (memory) at 71K ops/sec.
 
 ### Memory backends
 
-![Memory backends](results/chart_memory_1773157515.svg)
+![Memory backends](results/chart_memory_1773159023.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -225,6 +225,7 @@ Irmini (memory)                incremental-20B         4741        0.021        
 Irmini (memory)                commits-10K            16106        6.209         74
 Irmini (memory)                reads-10K             361846        0.028         48
 Irmini (memory)                incremental-10K         3674        0.027         43
+Irmini (memory)                tezos-10310commits     71055       56.294        584
 ```
 
 - **Commits (20B)**: Irmin ~162k ops/s vs Irmini **94k** — Irmin's in-memory
@@ -238,7 +239,7 @@ Irmini (memory)                incremental-10K         3674        0.027        
 
 ### Git backends
 
-![Git backends](results/chart_git_1773157515.svg)
+![Git backends](results/chart_git_1773159023.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -272,7 +273,7 @@ Irmini (git)                   incremental-10K          144        0.694        
 
 ### Irmini optimizations (disk)
 
-![Irmini optimizations disk](results/chart_optims_disk_1773157515.svg)
+![Irmini optimizations disk](results/chart_optims_disk_1773159023.svg)
 
 ```
 Name                           Scenario               ops/s
@@ -326,7 +327,7 @@ dominates write-heavy scenarios (incremental ~10 ops/s, concurrent ~265 ops/s).
 
 ### Irmini optimizations (memory)
 
-![Irmini optimizations memory](results/chart_optims_memory_1773157515.svg)
+![Irmini optimizations memory](results/chart_optims_memory_1773159023.svg)
 
 ```
 Name                           Scenario               ops/s
@@ -374,22 +375,23 @@ Irmini+all                     incremental-10K         4702
 
 ### Tezos trace replay
 
-Replays real Tezos blockchain operations from a `.repr` trace file on an
-irmini in-memory store.
+Replays real Tezos blockchain operations from a `.repr` trace file on
+irmini with memory and lavyek backends.
 
 ```
-Trace: data4_10310commits.repr (267 MiB)
+Trace: data4_10310commits.repr (267 MiB), 10310 commits, 4M operations
 
-Commits    Total ops    Time     Ops/sec    RSS (MiB)
-------------------------------------------------------
-    50      326,373      6.3s     52,000        242
-   500      459,567      8.3s     55,300        288
- 10310    4,000,000     54.8s     73,000        582
+Backend              Ops/sec    Time       RSS (MiB)
+-----------------------------------------------------
+Irmini (memory)       71,055     56.3s        584
+Irmini (lavyek)       67,971     58.8s        758
 ```
 
 - The first commit (Tezos genesis) accounts for ~309K operations (124K adds,
   78K finds, 93K mems). Subsequent blocks are much smaller (~340 ops/block).
-- **73K ops/sec** over the full 10K-commit trace with zero mismatches.
+- **71K ops/sec** (memory) and **68K ops/sec** (lavyek) over the full trace.
+- Lavyek is within 96% of memory speed despite disk I/O.
+- Disk backend (WAL+bloom) is too slow for trace replay due to per-write fsync.
 - Path flattening (6-step Tezos hash paths → single hex string) is
   **counter-productive** for irmini: it creates very wide directories
   that slow down tree navigation. Without flattening (the default), the
@@ -407,5 +409,5 @@ Commits    Total ops    Time     Ops/sec    RSS (MiB)
   dominates and inlining cannot help.
 - **Irmin-Lwt vs Irmin-Eio**: Similar performance on most benchmarks.
   Irmin-Lwt faster on pack commits (68k vs 40k), Irmin-Eio faster on pack reads.
-- **Tezos trace replay**: 73K ops/sec over 10K real Tezos commits validates
-  that irmini handles realistic workloads efficiently.
+- **Tezos trace replay**: 71K ops/sec (memory), 68K ops/sec (lavyek) over
+  10K real Tezos commits validates that irmini handles realistic workloads.

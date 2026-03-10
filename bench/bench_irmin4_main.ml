@@ -130,24 +130,48 @@ let () =
     run "Irmini (lavyek)"
       (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache ?name ~sw ~env root conf)
   end;
-  (* 5. Trace replay *)
+  (* 5. Trace replay — runs on each active backend *)
   if !trace_file <> "" then begin
-    Format.printf "--- Trace Replay ---@.@.";
-    let backend =
+    let run_trace ~backend_name ~backend =
+      Format.printf "--- Trace Replay (%s) ---@.@." backend_name;
+      let r =
+        Trace_replay.replay
+          ~trace_path:!trace_file
+          ~max_commits:!trace_max_commits
+          ~flatten_paths:(not !no_flatten)
+          ~empty_blobs:!trace_empty_blobs
+          ?inline_threshold ?inode
+          ~backend ()
+      in
+      let r = { r with Bench_common.name = backend_name } in
+      Format.printf "%a@.@." Bench_common.pp_result r;
+      results := [r] @ !results
+    in
+    if not !skip_memory then begin
       let b = Irmin.Backend.Memory.create_sha1 () in
-      if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b
-    in
-    let r =
-      Trace_replay.replay
-        ~trace_path:!trace_file
-        ~max_commits:!trace_max_commits
-        ~flatten_paths:(not !no_flatten)
-        ~empty_blobs:!trace_empty_blobs
-        ?inline_threshold ?inode
-        ~backend ()
-    in
-    Format.printf "%a@.@." Bench_common.pp_result r;
-    results := [r] @ !results
+      let backend = if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b in
+      run_trace ~backend_name:"Irmini (memory)" ~backend
+    end;
+    if not !skip_disk then begin
+      Eio.Switch.run @@ fun sw ->
+      let root = Eio.Path.(cwd / "_build/_bench_disk_trace") in
+      rm_rf root;
+      let b = Irmin.Backend.Disk.create_sha1 ~sw root in
+      let backend = if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b in
+      Fun.protect
+        ~finally:(fun () -> backend.Irmin.Backend.close ())
+        (fun () -> run_trace ~backend_name:"Irmini (disk)" ~backend)
+    end;
+    if not !skip_lavyek then begin
+      Eio.Switch.run @@ fun sw ->
+      let root = Eio.Path.(cwd / "_build/_bench_lavyek_trace") in
+      rm_rf root;
+      let b = Backend_lavyek.create ~sw root in
+      let backend = if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b in
+      Fun.protect
+        ~finally:(fun () -> backend.Irmin.Backend.close ())
+        (fun () -> run_trace ~backend_name:"Irmini (lavyek)" ~backend)
+    end
   end;
   (* Summary *)
   let all = List.rev !results in

@@ -11,5 +11,6 @@
   {"name": "Irmini (git)", "scenario": "incremental-20B", "total_ops": 100, "total_time": 0.574403, "ops_per_sec": 174.1, "maxrss_kb": 85100},
   {"name": "Irmini (git)", "scenario": "reads-20B", "total_ops": 10000, "total_time": 0.125059, "ops_per_sec": 79962.2, "maxrss_kb": 85100},
   {"name": "Irmini (git)", "scenario": "commits-20B", "total_ops": 100000, "total_time": 12.490031, "ops_per_sec": 8006.4, "maxrss_kb": 60332},
-  {"name": "Irmini (disk)", "scenario": "trace-replay", "total_ops": 4000000, "total_time": 54.8, "ops_per_sec": 73000, "maxrss_kb": 596000}
+  {"name": "Irmini (memory)", "scenario": "tezos-10310commits", "total_ops": 4000000, "total_time": 56.294127, "ops_per_sec": 71055.4, "maxrss_kb": 598704},
+  {"name": "Irmini (lavyek)", "scenario": "tezos-10310commits", "total_ops": 4000000, "total_time": 58.848328, "ops_per_sec": 67971.3, "maxrss_kb": 776256}
 ]
