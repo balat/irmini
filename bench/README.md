@@ -141,9 +141,9 @@ Run on 2026-03-10, AMD 12-core, 100 commits × 1000 adds, depth 10, 10000 reads.
 Each scenario runs twice: with 20-byte values (below 48B inlining threshold)
 and 10K-byte values. All three implementations use the same parameters.
 
-### Disk backends (fs, pack)
+### Disk backends (fs, pack, lavyek)
 
-![Disk backends](results/chart_disk_1773147568.svg)
+![Disk backends](results/chart_disk_1773148838.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -172,9 +172,18 @@ Irmin-Eio (fs)                 incremental-20B          136        0.733        
 Irmin-Eio (fs)                 commits-10K            10767        9.287        524
 Irmin-Eio (fs)                 reads-10K              91709        0.109        524
 Irmin-Eio (fs)                 incremental-10K          123        0.811        559
+Irmini (lavyek)                commits-20B            84425        1.184        367
+Irmini (lavyek)                reads-20B             466874        0.021        330
+Irmini (lavyek)                incremental-20B         3857        0.026        360
+Irmini (lavyek)                commits-10K             9229       10.835        360
+Irmini (lavyek)                reads-10K             285977        0.035        261
+Irmini (lavyek)                incremental-10K         2697        0.037        246
+Irmini (lavyek)                concurrent-100f/12d   227511        0.088        228
 Irmini (disk)                  trace-replay           73000       54.800        582
 ```
 
+- **Irmini (lavyek)**: Commits at **84k ops/s** (20B) — faster than all Irmin
+  backends. Reads at 467k (20B), 286k (10K). Concurrent at **228k ops/s**.
 - **irmin-pack**: Reads at 719k–1.4M ops/s, commits at 12–68k ops/s.
   Irmin-Lwt faster on commits (68k vs 40k), Irmin-Eio faster on reads (1.4M vs 719k).
 - **irmin-fs**: Slower across the board. Reads 106–166k, commits 11–36k.
@@ -183,7 +192,7 @@ Irmini (disk)                  trace-replay           73000       54.800        
 
 ### Memory backends
 
-![Memory backends](results/chart_memory_1773147568.svg)
+![Memory backends](results/chart_memory_1773148838.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -219,7 +228,7 @@ Irmini (memory)                incremental-10K         3674        0.027        
 
 ### Git backends
 
-![Git backends](results/chart_git_1773147568.svg)
+![Git backends](results/chart_git_1773148838.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -253,7 +262,7 @@ Irmini (git)                   incremental-10K          144        0.694        
 
 ### Irmini optimizations (disk)
 
-![Irmini optimizations disk](results/chart_optims_disk_1773147568.svg)
+![Irmini optimizations disk](results/chart_optims_disk_1773148838.svg)
 
 ```
 Name                           Scenario               ops/s     RSS(MiB)
@@ -288,7 +297,7 @@ Irmini+all (disk)              large-values             101        135
 
 ### Irmini optimizations (memory)
 
-![Irmini optimizations memory](results/chart_optims_memory_1773147568.svg)
+![Irmini optimizations memory](results/chart_optims_memory_1773148838.svg)
 
 ```
 Name                           Scenario               ops/s
