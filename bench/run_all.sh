@@ -73,7 +73,7 @@ echo ""
 # Helper: copy bench files into irmin workspace, build, run, clean up
 run_irmin_bench() {
   local branch="$1"
-  local bench_dir="$2"  # bench-lwt or bench-eio
+  local bench_dir="$2"  # bench/bench-irmin-lwt or bench/bench-irmin-eio
   local dest_name="$3"  # directory name in irmin workspace
   local json_out="$4"
   local extra_args="${5:-}"
@@ -85,10 +85,10 @@ run_irmin_bench() {
   # Copy bench files
   local dest="$IRMIN_DIR/$dest_name"
   mkdir -p "$dest"
-  cp "$ROOT_DIR/$bench_dir/"*.ml "$dest/"
+  cp "$ROOT_DIR/bench/$bench_dir/"*.ml "$dest/"
 
   # Write dune file (uncommented version)
-  if [ "$bench_dir" = "bench-lwt" ]; then
+  if [ "$bench_dir" = "bench-irmin-lwt" ]; then
     cat > "$dest/dune" <<'DUNE'
 (executable
  (name main)
@@ -138,7 +138,7 @@ echo ""
 # --- irmin-lwt (main branch) ---
 if [ "$SKIP_LWT" = false ]; then
   echo "--- irmin-lwt (main branch) ---"
-  run_irmin_bench "main" "bench-lwt" "bench-irmin-lwt" \
+  run_irmin_bench "main" "bench-irmin-lwt" "bench-irmin-lwt" \
     "$OUTPUT_DIR/irmin_lwt_${TIMESTAMP}.json"
   echo ""
 fi
@@ -146,7 +146,7 @@ fi
 # --- irmin-eio (cuihtlauac branch) ---
 if [ "$SKIP_EIO" = false ]; then
   echo "--- irmin-eio (cuihtlauac branch) ---"
-  run_irmin_bench "cuihtlauac-inline-small-objects-v2" "bench-eio" "bench-irmin-eio" \
+  run_irmin_bench "cuihtlauac-inline-small-objects-v2" "bench-irmin-eio" "bench-irmin-eio" \
     "$OUTPUT_DIR/irmin_eio_${TIMESTAMP}.json"
   echo ""
 fi

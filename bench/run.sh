@@ -65,7 +65,7 @@ if [ -d "$IRMIN_EIO_DIR" ]; then
   # Copy bench-eio files into the Irmin workspace
   BENCH_DIR="$IRMIN_EIO_DIR/bench-irmini"
   mkdir -p "$BENCH_DIR"
-  cp "$ROOT_DIR/bench-eio/"*.ml "$BENCH_DIR/"
+  cp "$ROOT_DIR/bench/bench-irmin-eio/"*.ml "$BENCH_DIR/"
 
   # Write dune file
   cat > "$BENCH_DIR/dune" <<'DUNE'

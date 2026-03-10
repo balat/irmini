@@ -2,9 +2,9 @@
 ; not from the irmini monorepo (library name conflict with "irmin").
 ;
 ; To build:
-;   1. Copy bench-eio/ into the Irmin workspace
+;   1. Copy bench-irmin-eio/ into the Irmin workspace
 ;   2. Uncomment the executable stanza below
-;   3. dune build bench-eio/main.exe
+;   3. dune build bench-irmin-eio/main.exe
 ;
 ; Or use the bench/run_all.sh script which automates this.
 

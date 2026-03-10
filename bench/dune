@@ -8,4 +8,4 @@
 
 ; Irmin-Eio benchmark (official Irmin with in-memory backend)
 ; This must be built from the irmin-eio workspace separately.
-; See bench_irmin_eio_main.ml and ../bench-eio/dune.
+; See bench_irmin_eio_main.ml and bench-irmin-eio/dune.

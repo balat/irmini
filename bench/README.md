@@ -85,8 +85,8 @@ suffix, e.g. `commits-20B`, `commits-10K`.
 | `run_optims.sh`           | Per-optimization comparison (5 variants)     |
 | `gen_chart.py`            | Chart from hardcoded data (legacy)           |
 | `gen_chart_all.py`        | Charts from JSON results by backend type     |
-| `../bench-eio/`           | Irmin-Eio benchmark adapters                 |
-| `../bench-lwt/`           | Irmin-Lwt benchmark adapters                 |
+| `bench-irmin-eio/`        | Irmin-Eio benchmark adapters                 |
+| `bench-irmin-lwt/`        | Irmin-Lwt benchmark adapters                 |
 
 ## Results
 
