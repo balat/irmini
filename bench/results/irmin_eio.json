@@ -22,5 +22,6 @@
   {"name": "Irmin-Eio (git)", "scenario": "commits-10K", "total_ops": 100000, "total_time": 105.424176, "ops_per_sec": 948.5, "maxrss_kb": 527204},
   {"name": "Irmin-Eio (git)", "scenario": "incremental-20B", "total_ops": 100, "total_time": 0.816672, "ops_per_sec": 122.4, "maxrss_kb": 520476},
   {"name": "Irmin-Eio (git)", "scenario": "reads-20B", "total_ops": 10000, "total_time": 0.070363, "ops_per_sec": 142120.1, "maxrss_kb": 520372},
-  {"name": "Irmin-Eio (git)", "scenario": "commits-20B", "total_ops": 100000, "total_time": 49.045572, "ops_per_sec": 2038.9, "maxrss_kb": 519276}
+  {"name": "Irmin-Eio (git)", "scenario": "commits-20B", "total_ops": 100000, "total_time": 49.045572, "ops_per_sec": 2038.9, "maxrss_kb": 519276},
+  {"name": "Irmin-Eio (pack-mem)", "scenario": "tezos-10310commits", "total_ops": 4000000, "total_time": 48.1, "ops_per_sec": 83160.0, "maxrss_kb": 0}
 ]

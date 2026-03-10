@@ -143,7 +143,7 @@ and 10K-byte values. All three implementations use the same parameters.
 
 ### Disk backends (fs, pack, lavyek)
 
-![Disk backends](results/chart_disk_1773159023.svg)
+![Disk backends](results/chart_disk_1773160607.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -202,7 +202,7 @@ Irmini (lavyek)                tezos-10310commits     67971       58.848        
 
 ### Memory backends
 
-![Memory backends](results/chart_memory_1773159023.svg)
+![Memory backends](results/chart_memory_1773160607.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -239,7 +239,7 @@ Irmini (memory)                tezos-10310commits     71055       56.294        
 
 ### Git backends
 
-![Git backends](results/chart_git_1773159023.svg)
+![Git backends](results/chart_git_1773160607.svg)
 
 ```
 Name                           Scenario               ops/s     total(s)   RSS(MiB)
@@ -273,7 +273,7 @@ Irmini (git)                   incremental-10K          144        0.694        
 
 ### Irmini optimizations (disk)
 
-![Irmini optimizations disk](results/chart_optims_disk_1773159023.svg)
+![Irmini optimizations disk](results/chart_optims_disk_1773160607.svg)
 
 ```
 Name                           Scenario               ops/s
@@ -327,7 +327,7 @@ dominates write-heavy scenarios (incremental ~10 ops/s, concurrent ~265 ops/s).
 
 ### Irmini optimizations (memory)
 
-![Irmini optimizations memory](results/chart_optims_memory_1773159023.svg)
+![Irmini optimizations memory](results/chart_optims_memory_1773160607.svg)
 
 ```
 Name                           Scenario               ops/s

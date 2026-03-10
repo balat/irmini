@@ -34,7 +34,7 @@ def load_results(results_dir):
     return all_results
 
 
-def classify_backend(name):
+def classify_backend(name, scenario=""):
     """Classify a result name into memory/disk/git/optims category."""
     n = name.lower()
     # Optimization variants go to their own chart
@@ -65,6 +65,9 @@ COLORS = {
     "Irmini (disk)":      "#6d9dc5",
     "Irmini (lavyek)":    "#59a14f",
     "Irmini (git)":       "#8bc584",
+    # Tezos trace replay
+    "Irmin-Lwt (pack-mem)": "#f28e2b",
+    "Irmin-Eio (pack-mem)": "#e15759",
     # Optimization variants (memory and disk share same colors)
     "Irmini baseline":    "#bbb",
     "Irmini+inline":      "#9c755f",
@@ -269,7 +272,7 @@ def main():
     # Group by backend type
     groups = {"memory": [], "disk": [], "git": [], "optims_disk": [], "optims_memory": []}
     for r in all_results:
-        cat = classify_backend(r["name"])
+        cat = classify_backend(r["name"], r.get("scenario", ""))
         groups.setdefault(cat, []).append(r)
 
     def ordered_backends(results):
