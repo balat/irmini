@@ -13,7 +13,7 @@ let run_all ?inline_threshold ?inode ?(cache = 0) ?name:custom_name ~sw ~env roo
   let run_one f =
     incr n;
     let subdir = Eio.Path.(root / Printf.sprintf "scenario_%d" !n) in
-    let b = Backend_lavyek.create ~sw subdir in
+    let b = Irmin_lavyek.create ~sw subdir in
     let backend =
       if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b
     in

@@ -70,7 +70,7 @@ Backends are records of functions (not functors), making them composable:
 |---------|---------|-------------|-------|
 | `Backend.Memory` | In-memory hash table | No | Tests, ephemeral stores |
 | `Backend.Disk` | Append-only file + WAL + bloom | Yes | Crash-safe, per-write fsync |
-| `Backend_lavyek` | LSM tree (WAL + SST + compaction) | Yes | High-throughput writes |
+| `Irmin_lavyek` | LSM tree (WAL + SST + compaction) | Yes | High-throughput writes |
 | `Git_interop` | Git loose objects + pack files | Yes | Git compatibility |
 
 Backend combinators:

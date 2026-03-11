@@ -166,7 +166,7 @@ let () =
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_lavyek_trace") in
       rm_rf root;
-      let b = Backend_lavyek.create ~sw root in
+      let b = Irmin_lavyek.create ~sw root in
       let backend = if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b in
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())

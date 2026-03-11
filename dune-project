@@ -29,3 +29,14 @@ bidirectional Git compatibility and first-class subtree operations.")
   (atp (>= 0.1))
   (alcotest :with-test)
   (crowbar :with-test)))
+
+(package
+ (name irmin-lavyek)
+ (synopsis "Lavyek backend for Irmin")
+ (description
+  "High-throughput persistent backend for Irmin using Lavyek, an LSM tree
+with WAL, SST compaction, and page caching.")
+ (depends
+  (ocaml (>= 5.2))
+  (irmin (= :version))
+  (lavyek (>= 0.1))))
