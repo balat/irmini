@@ -127,8 +127,8 @@ if [ "$SKIP_IRMINI" = false ]; then
   echo ""
   dune build irmini/bench/bench_irmin4_main.exe 2>&1 | tail -5
 
-  # All backends in one run
-  $BENCH $BENCH_ARGS \
+  # All backends in one run (value-size 20 to match README scenario names)
+  $BENCH --value-size 20 $BENCH_ARGS \
     --json "$OUTPUT_DIR/irmini_inode.json"
 
   echo ""
