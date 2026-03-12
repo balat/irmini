@@ -40,6 +40,8 @@ def classify_backend(name, scenario=""):
     if "baseline" in n or "+inline" in n or "+cache" in n or "+inode" in n or "+all" in n:
         if "(disk)" in n:
             return "optims_disk"
+        if "(lavyek)" in n:
+            return "optims_lavyek"
         return "optims_memory"
     elif "memory" in n or "mem" in n:
         return "memory"
@@ -81,6 +83,11 @@ COLORS = {
     "Irmini+cache (disk)":    "#76b7b2",
     "Irmini+inode (disk)":    "#b07aa1",
     "Irmini+all (disk)":      "#4e79a7",
+    "Irmini baseline (lavyek)": "#bbb",
+    "Irmini+inline (lavyek)":   "#9c755f",
+    "Irmini+cache (lavyek)":    "#76b7b2",
+    "Irmini+inode (lavyek)":    "#b07aa1",
+    "Irmini+all (lavyek)":      "#4e79a7",
 }
 
 
@@ -91,6 +98,8 @@ def is_parallel_variant(name):
 OPTIM_ORDER_MEM = ["Irmini baseline", "Irmini+inline", "Irmini+cache", "Irmini+inode", "Irmini+all"]
 OPTIM_ORDER_DISK = ["Irmini baseline (disk)", "Irmini+inline (disk)", "Irmini+cache (disk)",
                     "Irmini+inode (disk)", "Irmini+all (disk)"]
+OPTIM_ORDER_LAVYEK = ["Irmini baseline (lavyek)", "Irmini+inline (lavyek)", "Irmini+cache (lavyek)",
+                      "Irmini+inode (lavyek)", "Irmini+all (lavyek)"]
 
 
 def family_sort_key(name):
@@ -100,6 +109,8 @@ def family_sort_key(name):
         return (0, OPTIM_ORDER_MEM.index(name))
     elif name in OPTIM_ORDER_DISK:
         return (0, OPTIM_ORDER_DISK.index(name))
+    elif name in OPTIM_ORDER_LAVYEK:
+        return (0, OPTIM_ORDER_LAVYEK.index(name))
     elif "irmin-lwt" in n:
         return (0, name)
     elif "irmin-eio" in n or "irmin-pack" in n or "irmin-fs" in n or "irmin-git" in n:
@@ -325,7 +336,7 @@ def main():
     print(f"Total: {len(all_results)} results")
 
     # Group by backend type
-    groups = {"memory": [], "disk": [], "git": [], "optims_disk": [], "optims_memory": []}
+    groups = {"memory": [], "disk": [], "git": [], "optims_disk": [], "optims_memory": [], "optims_lavyek": []}
     for r in all_results:
         cat = classify_backend(r["name"], r.get("scenario", ""))
         groups.setdefault(cat, []).append(r)
@@ -354,6 +365,8 @@ def main():
          "chart_optims_disk.svg"),
         ("optims_memory", "Irmini optimizations (memory) — ops/s comparison",
          "chart_optims_memory.svg"),
+        ("optims_lavyek", "Irmini optimizations (lavyek) — ops/s comparison",
+         "chart_optims_lavyek.svg"),
     ]
 
     for cat, title, filename in chart_specs:

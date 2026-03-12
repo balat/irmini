@@ -198,6 +198,31 @@ with open('$OUTPUT_DIR/irmini_optims_memory.json', 'w') as fh:
 print(f'Merged {len(results)} memory optim results')
 "
 
+  # --- Lavyek ---
+  LAVYEK="$OPTIM_PARAMS --skip-memory --skip-disk --skip-git"
+
+  echo "--- Baseline (lavyek) ---"
+  $BENCH $LAVYEK --cache 0 --inline-threshold 0 --no-inode --name "Irmini baseline (lavyek)" --json "$TMPDIR_OPTIMS/lavyek_baseline.json"
+  echo "--- +inline (lavyek) ---"
+  $BENCH $LAVYEK --cache 0 --no-inode --name "Irmini+inline (lavyek)" --json "$TMPDIR_OPTIMS/lavyek_inline.json"
+  echo "--- +cache (lavyek) ---"
+  $BENCH $LAVYEK --cache 100000 --inline-threshold 0 --no-inode --name "Irmini+cache (lavyek)" --json "$TMPDIR_OPTIMS/lavyek_cache.json"
+  echo "--- +inode (lavyek) ---"
+  $BENCH $LAVYEK --cache 0 --inline-threshold 0 --name "Irmini+inode (lavyek)" --json "$TMPDIR_OPTIMS/lavyek_inode.json"
+  echo "--- +all (lavyek) ---"
+  $BENCH $LAVYEK --cache 100000 --name "Irmini+all (lavyek)" --json "$TMPDIR_OPTIMS/lavyek_all.json"
+
+  # Merge lavyek optims
+  python3 -c "
+import json, sys, glob
+results = []
+for f in sorted(glob.glob('$TMPDIR_OPTIMS/lavyek_*.json')):
+    with open(f) as fh: results.extend(json.load(fh))
+with open('$OUTPUT_DIR/irmini_optims_lavyek.json', 'w') as fh:
+    json.dump(results, fh, indent=2); fh.write('\n')
+print(f'Merged {len(results)} lavyek optim results')
+"
+
   rm -rf "$TMPDIR_OPTIMS"
   echo ""
 fi
@@ -213,7 +238,7 @@ if [ "$SKIP_TRACE" = false ] && [ -n "$TRACE_FILE" ]; then
 
   $BENCH --skip-git \
     --trace "$TRACE_FILE" --trace-commits "$TRACE_COMMITS" \
-    --skip-disk --cache 100000 \
+    --skip-disk \
     --json "$OUTPUT_DIR/irmini_trace.json"
 
   echo ""

@@ -49,6 +49,11 @@ BACKEND_ORDER_OPTIMS_DISK = [
     "Irmini+inode (disk)", "Irmini+all (disk)",
 ]
 
+BACKEND_ORDER_OPTIMS_LAVYEK = [
+    "Irmini baseline (lavyek)", "Irmini+inline (lavyek)", "Irmini+cache (lavyek)",
+    "Irmini+inode (lavyek)", "Irmini+all (lavyek)",
+]
+
 
 def load_results(results_dir):
     """Load and merge all JSON result files."""
@@ -72,6 +77,8 @@ def classify(name, scenario):
     if any(x in n for x in ["baseline", "+inline", "+cache", "+inode", "+all"]):
         if "(disk)" in n:
             return "optims_disk"
+        if "(lavyek)" in n:
+            return "optims_lavyek"
         return "optims_memory"
 
     # Parallel tezos variants go to disk chart
@@ -728,7 +735,7 @@ def generate_results_section(all_results, run_date, machine_info):
     # Classify all results
     groups = {
         "disk": [], "memory": [], "git": [],
-        "optims_disk": [], "optims_memory": [],
+        "optims_disk": [], "optims_memory": [], "optims_lavyek": [],
         "trace": [], "parallel": [],
     }
 
@@ -852,6 +859,21 @@ def generate_results_section(all_results, run_date, machine_info):
         lines.append("```")
         lines.append("")
         for bullet in analyze_optims(groups["optims_memory"], is_disk=False):
+            lines.append(f"- {bullet}")
+        lines.append("")
+
+    # --- Optims lavyek ---
+    if groups["optims_lavyek"]:
+        lines.append("### Irmini optimizations (lavyek)")
+        lines.append("")
+        lines.append("![Irmini optimizations lavyek](results/chart_optims_lavyek.svg)")
+        lines.append("")
+        lines.append("```")
+        for line in generate_table(groups["optims_lavyek"], BACKEND_ORDER_OPTIMS_LAVYEK, include_rss=False):
+            lines.append(line)
+        lines.append("```")
+        lines.append("")
+        for bullet in analyze_optims(groups["optims_lavyek"], is_disk=False):
             lines.append(f"- {bullet}")
         lines.append("")
 

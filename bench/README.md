@@ -429,24 +429,56 @@ Irmini+all                      incremental-20B              7942
 Irmini+all                      commits-10K                 17395
 Irmini+all                      reads-10K                 1405692
 Irmini+all                      incremental-10K              5163
-Irmini+cache (lavyek)           commits-10K                  9643
-Irmini+cache (lavyek)           reads-10K                 1317720
-Irmini+cache (lavyek)           incremental-10K              3521
-Irmini+cache (lavyek)           concurrent-100f/12d        474158
-Irmini+cache (lavyek)           commits-100B                63927
-Irmini+cache (lavyek)           incremental-100B             4900
-Irmini+cache (lavyek)           reads-100B                1338665
-Irmini+cache (memory)           commits-10K                 16730
-Irmini+cache (memory)           reads-10K                 1372347
-Irmini+cache (memory)           incremental-10K              5279
-Irmini+cache (memory)           commits-100B                76718
-Irmini+cache (memory)           incremental-100B             6881
-Irmini+cache (memory)           reads-100B                1335638
 ```
 
 - **Inline** gives **9.1× speedup** on commits-20B (191k vs 21k) and **1.2× on incremental-20B** (3.9k vs 3.1k).
 - **Inode** gives **4.0× speedup** on commits-20B (84k vs 21k) and **2.4× on incremental-20B** (7.4k vs 3.1k).
 - **+all** achieves **466k commits-20B/s** (22.1× baseline), **1.4M reads-10K/s** (0.7× baseline), **7.9k incremental-20B/s** (2.6× baseline).
+
+### Irmini optimizations (lavyek)
+
+![Irmini optimizations lavyek](results/chart_optims_lavyek.svg)
+
+```
+Name                            Scenario                    ops/s
+----------------------------------------------------------------
+Irmini baseline (lavyek)        commits-20B                 20048
+Irmini baseline (lavyek)        reads-20B                 1774991
+Irmini baseline (lavyek)        incremental-20B              2230
+Irmini baseline (lavyek)        commits-10K                  7157
+Irmini baseline (lavyek)        reads-10K                 1931257
+Irmini baseline (lavyek)        incremental-10K              1520
+Irmini baseline (lavyek)        concurrent-100f/12d        202836
+Irmini+inline (lavyek)          commits-20B                177907
+Irmini+inline (lavyek)          reads-20B                 1279766
+Irmini+inline (lavyek)          incremental-20B              2442
+Irmini+inline (lavyek)          commits-10K                  7115
+Irmini+inline (lavyek)          reads-10K                 1950839
+Irmini+inline (lavyek)          incremental-10K              1575
+Irmini+inline (lavyek)          concurrent-100f/12d        174071
+Irmini+cache (lavyek)           commits-20B                 19796
+Irmini+cache (lavyek)           reads-20B                 1602592
+Irmini+cache (lavyek)           incremental-20B              2218
+Irmini+cache (lavyek)           commits-10K                  7304
+Irmini+cache (lavyek)           reads-10K                 1754352
+Irmini+cache (lavyek)           incremental-10K              1448
+Irmini+cache (lavyek)           concurrent-100f/12d        294751
+Irmini+inode (lavyek)           commits-20B                 80225
+Irmini+inode (lavyek)           reads-20B                 1507441
+Irmini+inode (lavyek)           incremental-20B              5374
+Irmini+inode (lavyek)           commits-10K                  9798
+Irmini+inode (lavyek)           reads-10K                 1538065
+Irmini+inode (lavyek)           incremental-10K              3533
+Irmini+inode (lavyek)           concurrent-100f/12d        208272
+Irmini+all (lavyek)             commits-20B                360844
+Irmini+all (lavyek)             reads-20B                 1687441
+Irmini+all (lavyek)             incremental-20B              5756
+Irmini+all (lavyek)             commits-10K                  9491
+Irmini+all (lavyek)             reads-10K                 1387280
+Irmini+all (lavyek)             incremental-10K              3288
+Irmini+all (lavyek)             concurrent-100f/12d        372010
+```
+
 
 ### Tezos trace replay
 
