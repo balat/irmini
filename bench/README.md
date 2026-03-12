@@ -99,6 +99,8 @@ dune exec bench/irmin-pack/tree.exe -- \
 | `--trace-commits`     | 0       | Max commits to replay (0 = all)          |
 | `--trace-empty-blobs` | false   | Replace blobs with empty strings         |
 | `--no-flatten`        | false   | Disable Tezos path flattening            |
+| `--parallel-domains`  | 0       | Domains for parallel replay (0 = skip)   |
+| `--parallel-fibers`   | 100     | Fibers per domain for parallel replay    |
 
 ## Scenarios
 
@@ -164,12 +166,14 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 | `bench_irmin4.ml`         | Scenarios for irmini memory and disk backends |
 | `bench_irmin4_lavyek.ml`  | Scenarios for Lavyek backend                 |
 | `trace_replay.ml`         | Tezos trace replay benchmark                 |
+| `trace_replay_parallel.ml`| Parallel multicore trace replay               |
 | `bench_irmin4_main.ml`    | CLI runner for all irmini backends            |
 | `run.sh`                  | Simple comparison (irmini + Irmin-Eio)       |
 | `run_all.sh`              | Full comparison across all implementations   |
 | `run_optims.sh`           | Per-optimization comparison (5 variants)     |
 | `gen_chart.py`            | Chart from hardcoded data (legacy)           |
 | `gen_chart_all.py`        | Charts from JSON results by backend type     |
+| `gen_chart_parallel.py`   | Parallel scaling chart                        |
 | `bench-irmin-eio/`        | Irmin-Eio benchmark adapters                 |
 | `bench-irmin-lwt/`        | Irmin-Lwt benchmark adapters                 |
 
@@ -449,6 +453,47 @@ Irmini (lavyek)         67,971     58.8s      58.8s      758
   **counter-productive** for irmini: it creates very wide directories
   that slow down tree navigation. Without flattening (the default), the
   natural trie structure with 2-char hex steps is much more efficient.
+
+### Parallel trace replay scaling
+
+![Parallel scaling](results/chart_parallel_scaling.svg)
+
+Parallel trace replay with 12 OS domains and varying fibers per domain,
+on a single shared Lavyek backend. The Tezos trace (4M ops, 10310 commits)
+is partitioned across all workers; each fiber processes a contiguous chunk.
+
+```
+Config           ops/s      Speedup    RSS (MiB)
+-------------------------------------------------
+Sequential         54,000       1x         528
+12d ×      1f      84,000     1.6x          —
+12d ×     10f     236,000     4.4x          —
+12d ×    100f     647,000      12x          —
+12d ×  1,000f   1,300,000      24x       2,162
+12d × 10,000f   4,119,000      77x       1,853
+12d × 20,000f   3,992,000      74x          —
+12d × 30,000f   4,759,000      88x          —
+12d × 40,000f   4,512,000      84x          —
+12d × 45,000f   4,989,000      93x          —
+12d × 50,000f   5,063,000      94x       1,815
+12d × 55,000f   4,901,000      91x          —
+12d × 60,000f   4,360,000      81x          —
+12d × 70,000f   4,751,000      88x          —
+12d ×100,000f   2,961,000      55x       1,865
+```
+
+- Peak throughput at **50k fibers/domain**: **5.1M ops/s** (94x speedup).
+  The 4M-operation trace completes in **0.79 seconds** vs 74s sequential.
+- Lavyek is natively thread-safe (lock-free LSM tree). Each write is an
+  Eio I/O operation that yields to other fibers, enabling massive cooperative
+  concurrency within each domain.
+- Scaling is super-linear up to ~10k fibers (77x on 12 cores) thanks to
+  I/O overlap: while one fiber waits on disk, others make progress.
+- Beyond 50k fibers, scheduling overhead dominates and throughput drops.
+- Memory backend with `Backend.thread_safe` (Mutex) achieves ~4.3x with
+  12 domains — limited by lock contention on the shared hashtable.
+- RSS stays around 1.8–2.1 GiB regardless of fiber count (dominated by
+  the trace array and Lavyek page cache, not fiber stacks).
 
 ### Key observations
 

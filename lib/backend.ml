@@ -137,6 +137,28 @@ let layered ~(upper : 'h t) ~(lower : 'h t) : 'h t =
         lower.close ());
   }
 
+let thread_safe (backend : 'h t) : 'h t =
+  let m = Mutex.create () in
+  let with_lock f =
+    Mutex.lock m;
+    Fun.protect ~finally:(fun () -> Mutex.unlock m) f
+  in
+  {
+    read = (fun h -> with_lock (fun () -> backend.read h));
+    write = (fun h data -> with_lock (fun () -> backend.write h data));
+    exists = (fun h -> with_lock (fun () -> backend.exists h));
+    get_ref = (fun name -> with_lock (fun () -> backend.get_ref name));
+    set_ref = (fun name hash -> with_lock (fun () -> backend.set_ref name hash));
+    test_and_set_ref =
+      (fun name ~test ~set ->
+        with_lock (fun () -> backend.test_and_set_ref name ~test ~set));
+    list_refs = (fun () -> with_lock (fun () -> backend.list_refs ()));
+    write_batch =
+      (fun objects -> with_lock (fun () -> backend.write_batch objects));
+    flush = (fun () -> with_lock (fun () -> backend.flush ()));
+    close = (fun () -> with_lock (fun () -> backend.close ()));
+  }
+
 let stats _ = None
 
 (** Disk-based backend using append-only storage with WAL and bloom filter.

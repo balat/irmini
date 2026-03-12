@@ -28,6 +28,8 @@ let () =
   let trace_max_commits = ref 0 in
   let trace_empty_blobs = ref false in
   let no_flatten = ref false in
+  let parallel_domains = ref 0 in
+  let parallel_fibers = ref 100 in
   Arg.parse
     [
       ("--ncommits", Arg.Set_int ncommits, "Number of commits (default: 100)");
@@ -57,6 +59,10 @@ let () =
        "Replace blob values with empty strings during trace replay");
       ("--no-flatten", Arg.Set no_flatten,
        "Disable Tezos path flattening during trace replay");
+      ("--parallel-domains", Arg.Set_int parallel_domains,
+       "Number of domains for parallel trace replay (0 = skip, default: 0)");
+      ("--parallel-fibers", Arg.Set_int parallel_fibers,
+       "Number of fibers per domain for parallel replay (default: 100)");
     ]
     (fun _ -> ())
     "bench_irmin4 - Irmini performance benchmarks";
@@ -171,6 +177,53 @@ let () =
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () -> run_trace ~backend_name:"Irmini (lavyek)" ~backend)
+    end
+  end;
+  (* 6. Parallel trace replay *)
+  if !trace_file <> "" && !parallel_domains > 0 then begin
+    let ndomains = !parallel_domains in
+    let fibers_per_domain = !parallel_fibers in
+    Format.printf "@.--- Parallel Trace Replay (%d domains × %d fibers) ---@.@."
+      ndomains fibers_per_domain;
+    if not !skip_memory then begin
+      let b = Irmin.Backend.Memory.create_sha1 () in
+      let b = if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b in
+      let backend = Irmin.Backend.thread_safe b in
+      let r =
+        Trace_replay_parallel.replay
+          ~trace_path:!trace_file
+          ~max_commits:!trace_max_commits
+          ~flatten_paths:(not !no_flatten)
+          ~empty_blobs:!trace_empty_blobs
+          ?inline_threshold ?inode
+          ~ndomains ~fibers_per_domain
+          ~backend
+          ~backend_name:"Irmini-parallel (memory)"
+          ~env ()
+      in
+      Format.printf "%a@.@." Bench_common.pp_result r;
+      results := [r] @ !results
+    end;
+    if not !skip_lavyek then begin
+      Eio.Switch.run @@ fun sw ->
+      let root = Eio.Path.(cwd / "_build/_bench_lavyek_parallel") in
+      rm_rf root;
+      let b = Irmin_lavyek.create ~sw root in
+      let backend = if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b in
+      let r =
+        Trace_replay_parallel.replay
+          ~trace_path:!trace_file
+          ~max_commits:!trace_max_commits
+          ~flatten_paths:(not !no_flatten)
+          ~empty_blobs:!trace_empty_blobs
+          ?inline_threshold ?inode
+          ~ndomains ~fibers_per_domain
+          ~backend
+          ~backend_name:"Irmini-parallel (lavyek)"
+          ~env ()
+      in
+      Format.printf "%a@.@." Bench_common.pp_result r;
+      results := [r] @ !results
     end
   end;
   (* Summary *)

@@ -5,7 +5,7 @@
  (libraries irmin irmin-lavyek eio_main unix repr ppx_repr)
  (preprocess (pps ppx_repr))
  (modules bench_common bench_irmin4 bench_irmin4_lavyek
-  trace_replay bench_irmin4_main))
+  trace_replay trace_replay_parallel bench_irmin4_main))
 
 ; Irmin-Eio benchmark (official Irmin with in-memory backend)
 ; This must be built from the irmin-eio workspace separately.

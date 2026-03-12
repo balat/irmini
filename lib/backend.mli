@@ -48,6 +48,10 @@ val cached : ?capacity:int -> 'h t -> 'h t
     100 000 entries). Reads are served from cache when possible, and writes
     populate the cache. *)
 
+val thread_safe : 'h t -> 'h t
+(** [thread_safe backend] wraps a backend with a [Mutex.t] so it can be
+    safely shared across multiple domains. Each operation acquires the mutex. *)
+
 val readonly : 'h t -> 'h t
 (** [readonly backend] makes a backend read-only. Write operations raise
     [Invalid_argument]. *)

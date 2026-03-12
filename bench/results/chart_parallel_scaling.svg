@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="770" height="530" font-family="system-ui, sans-serif" font-size="11">
+<rect width="770" height="530" fill="white"/>
+<text x="385.0" y="24" text-anchor="middle" font-size="16" font-weight="bold">Parallel Trace Replay Scaling — 12 domains, Lavyek backend</text>
+<text x="385.0" y="42" text-anchor="middle" font-size="11" fill="#666">Tezos trace: 4M ops, 10310 commits</text>
+<line x1="90" y1="435.0" x2="740" y2="435.0" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="82" y="439.0" text-anchor="end" font-size="10" fill="#666">0</text>
+<line x1="90" y1="369.7" x2="740" y2="369.7" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="82" y="373.7" text-anchor="end" font-size="10" fill="#666">1.0M</text>
+<line x1="90" y1="304.5" x2="740" y2="304.5" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="82" y="308.5" text-anchor="end" font-size="10" fill="#666">2.0M</text>
+<line x1="90" y1="239.2" x2="740" y2="239.2" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="82" y="243.2" text-anchor="end" font-size="10" fill="#666">3.0M</text>
+<line x1="90" y1="173.9" x2="740" y2="173.9" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="82" y="177.9" text-anchor="end" font-size="10" fill="#666">4.0M</text>
+<line x1="90" y1="108.7" x2="740" y2="108.7" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="82" y="112.7" text-anchor="end" font-size="10" fill="#666">5.0M</text>
+<text x="16" y="245.0" text-anchor="middle" font-size="12" fill="#333" transform="rotate(-90,16,245.0)">Throughput (ops/s)</text>
+<line x1="90.0" y1="55" x2="90.0" y2="435" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="90.0" y="451" text-anchor="middle" font-size="10" fill="#666">1</text>
+<line x1="220.0" y1="55" x2="220.0" y2="435" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="220.0" y="451" text-anchor="middle" font-size="10" fill="#666">10</text>
+<line x1="350.0" y1="55" x2="350.0" y2="435" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="350.0" y="451" text-anchor="middle" font-size="10" fill="#666">100</text>
+<line x1="480.0" y1="55" x2="480.0" y2="435" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="480.0" y="451" text-anchor="middle" font-size="10" fill="#666">1k</text>
+<line x1="610.0" y1="55" x2="610.0" y2="435" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="610.0" y="451" text-anchor="middle" font-size="10" fill="#666">10k</text>
+<line x1="740.0" y1="55" x2="740.0" y2="435" stroke="#e8e8e8" stroke-width="0.5"/>
+<text x="740.0" y="451" text-anchor="middle" font-size="10" fill="#666">100k</text>
+<text x="415.0" y="469" text-anchor="middle" font-size="12" fill="#333">Fibers per domain</text>
+<line x1="90" y1="431.5" x2="740" y2="431.5" stroke="#e15759" stroke-width="1.5" stroke-dasharray="6,4"/>
+<text x="742" y="435.5" font-size="9" fill="#e15759">sequential (54k)</text>
+<path d="M90.0,429.5 L220.0,419.6 L350.0,392.8 L480.0,350.2 L610.0,166.2 L649.1,174.5 L672.0,124.4 L688.3,140.5 L694.9,109.4 L700.9,104.6 L706.2,115.1 L711.2,150.4 L719.9,124.9 L740.0,241.8" fill="none" stroke="#59a14f" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="90.0" cy="429.5" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<text x="90.0" y="417.5" text-anchor="start" font-size="9" font-weight="bold" fill="#333">84k (2x)</text>
+<circle cx="220.0" cy="419.6" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<text x="220.0" y="407.6" text-anchor="middle" font-size="9" font-weight="bold" fill="#333">236k (4x)</text>
+<circle cx="350.0" cy="392.8" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<text x="350.0" y="380.8" text-anchor="middle" font-size="9" font-weight="bold" fill="#333">647k (12x)</text>
+<circle cx="480.0" cy="350.2" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<text x="480.0" y="338.2" text-anchor="middle" font-size="9" font-weight="bold" fill="#333">1.3M (24x)</text>
+<circle cx="610.0" cy="166.2" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<text x="610.0" y="154.2" text-anchor="middle" font-size="9" font-weight="bold" fill="#333">4.1M (76x)</text>
+<circle cx="649.1" cy="174.5" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<circle cx="672.0" cy="124.4" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<circle cx="688.3" cy="140.5" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<circle cx="694.9" cy="109.4" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<circle cx="700.9" cy="104.6" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<text x="700.9" y="92.6" text-anchor="middle" font-size="9" font-weight="bold" fill="#333">5.1M (94x)</text>
+<circle cx="706.2" cy="115.1" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<circle cx="711.2" cy="150.4" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<circle cx="719.9" cy="124.9" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<circle cx="740.0" cy="241.8" r="4" fill="#59a14f" stroke="white" stroke-width="1.5"/>
+<text x="740.0" y="259.8" text-anchor="end" font-size="9" font-weight="bold" fill="#333">3.0M (55x)</text>
+<line x1="90" y1="55" x2="90" y2="435" stroke="#333" stroke-width="1"/>
+<line x1="90" y1="435" x2="740" y2="435" stroke="#333" stroke-width="1"/>
+<rect x="90" y="487" width="12" height="12" fill="#59a14f" rx="2"/>
+<text x="106" y="497" font-size="10" fill="#333">Irmini-parallel (lavyek) — 12 domains</text>
+<line x1="350" y1="493" x2="375" y2="493" stroke="#e15759" stroke-width="1.5" stroke-dasharray="6,4"/>
+<text x="380" y="497" font-size="10" fill="#333">Sequential baseline (54k ops/s)</text>
+</svg>
