@@ -215,7 +215,7 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 
 ## Results
 
-Run on 2026-03-12, AMD 12-core, 100 commits × 1000 adds, depth 10, 10000 reads.
+Run on 2026-03-12, , 12-core, 100 commits x 1000 adds, depth 10, 10000 reads.
 Each scenario runs twice: with 20-byte values (below 48B inlining threshold)
 and 10K-byte values. All three implementations use the same parameters.
 
@@ -250,13 +250,13 @@ Irmin-Eio (fs)                  incremental-20B               136      0.733    
 Irmin-Eio (fs)                  commits-10K                 10767      9.287        525
 Irmin-Eio (fs)                  reads-10K                   91709      0.109        525
 Irmin-Eio (fs)                  incremental-10K               123      0.811        559
-Irmini (lavyek)                 commits-20B                 84425      1.184        367
-Irmini (lavyek)                 reads-20B                  466874      0.021        331
-Irmini (lavyek)                 incremental-20B              3857      0.026        361
-Irmini (lavyek)                 commits-10K                  9229     10.835        361
-Irmini (lavyek)                 reads-10K                  285977      0.035        261
-Irmini (lavyek)                 incremental-10K              2697      0.037        247
-Irmini (lavyek)                 concurrent-100f/12d        227510      0.088        229
+Irmini (lavyek)                 commits-20B                199803      0.500        385
+Irmini (lavyek)                 reads-20B                 1578527      0.006        371
+Irmini (lavyek)                 incremental-20B              5762      0.017        399
+Irmini (lavyek)                 commits-10K                  9544     10.478        389
+Irmini (lavyek)                 reads-10K                 1369300      0.007        263
+Irmini (lavyek)                 incremental-10K              3444      0.029        249
+Irmini (lavyek)                 concurrent-100f/12d        196138      0.102        230
 Irmini (lavyek)                 tezos-10310commits         135035     29.622        714
 Irmini (disk)                   commits-20B                 31605      3.164        125
 Irmini (disk)                   reads-20B                 1678998      0.006        165
@@ -269,7 +269,7 @@ Irmin-Eio (pack) 12d×1f         tezos-10310commits         205337     19.500   
 Irmini (lavyek) 12d×50kf        tezos-10310commits        5063000      0.790       1815
 ```
 
-- **Irmini (lavyek)**: Commits at **84k ops/s** (20B) — faster than all Irmin backends. Reads at 467k (20B), 286k (10K), Concurrent at **228k ops/s**.
+- **Irmini (lavyek)**: Commits at **200k ops/s** (20B) — faster than all Irmin backends. Reads at 1.6M (20B), 1.4M (10K), Concurrent at **196k ops/s**.
 - **Irmini (disk)**: WAL+bloom backend with crash safety. Reads at 1.7M (20B), 1.1M (10K). Writes bottlenecked by WAL fsync: commits at 32k. Trade-off: durability over raw speed.
 - **irmin-pack**: Reads at 719k–1.4M ops/s, commits at 40k–68k ops/s. Irmin-Lwt faster on commits (68k vs 40k).
 - **irmin-fs**: Slower across the board. Reads 106k–166k, commits 27k–36k.

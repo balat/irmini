@@ -3,12 +3,10 @@
     Each scenario gets a fresh Lavyek store in a separate subdirectory
     to avoid WAL replay issues between runs. *)
 
-let run_all ?inline_threshold ?inode ?(cache = 0) ?name:custom_name ~sw ~env root (conf : Bench_common.config) =
+let run_all ?inline_threshold ?inode ?(cache = 100_000) ?name:custom_name ~sw ~env root (conf : Bench_common.config) =
   let name = match custom_name with
     | Some n -> n
-    | None ->
-      let suffix = if cache > 0 then "+cache" else "" in
-      "Irmini" ^ suffix ^ " (lavyek)" in
+    | None -> "Irmini (lavyek)" in
   let n = ref 0 in
   let run_one f =
     incr n;

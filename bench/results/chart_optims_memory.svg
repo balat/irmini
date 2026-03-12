@@ -68,9 +68,9 @@
 <text x="517.5" y="42.7" text-anchor="middle" font-size="9" fill="#333">19k</text>
 <rect x="527.0" y="56.2" width="15" height="293.8" fill="#4e79a7" rx="1"/>
 <text x="534.5" y="53.2" text-anchor="middle" font-size="9" fill="#333">18k</text>
-<rect x="544.0" y="194.2" width="15" height="155.8" fill="hsl(220, 60%, 55%)" rx="1"/>
+<rect x="544.0" y="194.2" width="15" height="155.8" fill="hsl(307, 60%, 55%)" rx="1"/>
 <text x="551.5" y="191.2" text-anchor="middle" font-size="9" fill="#333">10k</text>
-<rect x="561.0" y="79.7" width="15" height="270.3" fill="hsl(63, 60%, 55%)" rx="1"/>
+<rect x="561.0" y="79.7" width="15" height="270.3" fill="hsl(280, 60%, 55%)" rx="1"/>
 <text x="568.5" y="76.7" text-anchor="middle" font-size="9" fill="#333">17k</text>
 <text x="517.5" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">commits-10K</text>
 <line x1="612" y1="262.5" x2="729" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -88,9 +88,9 @@
 <text x="670.5" y="107.4" text-anchor="middle" font-size="9" fill="#333">1.5M</text>
 <rect x="680.0" y="120.7" width="15" height="229.3" fill="#4e79a7" rx="1"/>
 <text x="687.5" y="117.7" text-anchor="middle" font-size="9" fill="#333">1.5M</text>
-<rect x="697.0" y="143.6" width="15" height="206.4" fill="hsl(220, 60%, 55%)" rx="1"/>
+<rect x="697.0" y="143.6" width="15" height="206.4" fill="hsl(307, 60%, 55%)" rx="1"/>
 <text x="704.5" y="140.6" text-anchor="middle" font-size="9" fill="#333">1.3M</text>
-<rect x="714.0" y="135.1" width="15" height="214.9" fill="hsl(63, 60%, 55%)" rx="1"/>
+<rect x="714.0" y="135.1" width="15" height="214.9" fill="hsl(280, 60%, 55%)" rx="1"/>
 <text x="721.5" y="132.1" text-anchor="middle" font-size="9" fill="#333">1.4M</text>
 <text x="670.5" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">reads-10K</text>
 <line x1="765" y1="262.5" x2="882" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -108,9 +108,9 @@
 <text x="823.5" y="42.7" text-anchor="middle" font-size="9" fill="#333">6k</text>
 <rect x="833.0" y="65.4" width="15" height="284.6" fill="#4e79a7" rx="1"/>
 <text x="840.5" y="62.4" text-anchor="middle" font-size="9" fill="#333">6k</text>
-<rect x="850.0" y="167.8" width="15" height="182.2" fill="hsl(220, 60%, 55%)" rx="1"/>
+<rect x="850.0" y="167.8" width="15" height="182.2" fill="hsl(307, 60%, 55%)" rx="1"/>
 <text x="857.5" y="164.8" text-anchor="middle" font-size="9" fill="#333">4k</text>
-<rect x="867.0" y="76.9" width="15" height="273.1" fill="hsl(63, 60%, 55%)" rx="1"/>
+<rect x="867.0" y="76.9" width="15" height="273.1" fill="hsl(280, 60%, 55%)" rx="1"/>
 <text x="874.5" y="73.9" text-anchor="middle" font-size="9" fill="#333">5k</text>
 <text x="823.5" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">incremental-10K</text>
 <line x1="918" y1="262.5" x2="1035" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -118,7 +118,7 @@
 <line x1="918" y1="87.5" x2="1035" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="918" y1="0.0" x2="1035" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
 <text x="914.0" y="4.0" text-anchor="end" font-size="10" fill="#999">545k</text>
-<rect x="1003.0" y="45.7" width="15" height="304.3" fill="hsl(220, 60%, 55%)" rx="1"/>
+<rect x="1003.0" y="45.7" width="15" height="304.3" fill="hsl(307, 60%, 55%)" rx="1"/>
 <text x="1010.5" y="42.7" text-anchor="middle" font-size="9" fill="#333">474k</text>
 <text x="976.5" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">concurrent-100f/12d</text>
 <line x1="1071" y1="262.5" x2="1188" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -126,9 +126,9 @@
 <line x1="1071" y1="87.5" x2="1188" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="1071" y1="0.0" x2="1188" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
 <text x="1067.0" y="4.0" text-anchor="end" font-size="10" fill="#999">88k</text>
-<rect x="1156.0" y="96.4" width="15" height="253.6" fill="hsl(220, 60%, 55%)" rx="1"/>
+<rect x="1156.0" y="96.4" width="15" height="253.6" fill="hsl(307, 60%, 55%)" rx="1"/>
 <text x="1163.5" y="93.4" text-anchor="middle" font-size="9" fill="#333">64k</text>
-<rect x="1173.0" y="45.7" width="15" height="304.3" fill="hsl(63, 60%, 55%)" rx="1"/>
+<rect x="1173.0" y="45.7" width="15" height="304.3" fill="hsl(280, 60%, 55%)" rx="1"/>
 <text x="1180.5" y="42.7" text-anchor="middle" font-size="9" fill="#333">77k</text>
 <text x="1129.5" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">commits-100B</text>
 <line x1="1224" y1="262.5" x2="1341" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -136,9 +136,9 @@
 <line x1="1224" y1="87.5" x2="1341" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="1224" y1="0.0" x2="1341" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
 <text x="1220.0" y="4.0" text-anchor="end" font-size="10" fill="#999">8k</text>
-<rect x="1309.0" y="133.3" width="15" height="216.7" fill="hsl(220, 60%, 55%)" rx="1"/>
+<rect x="1309.0" y="133.3" width="15" height="216.7" fill="hsl(307, 60%, 55%)" rx="1"/>
 <text x="1316.5" y="130.3" text-anchor="middle" font-size="9" fill="#333">5k</text>
-<rect x="1326.0" y="45.7" width="15" height="304.3" fill="hsl(63, 60%, 55%)" rx="1"/>
+<rect x="1326.0" y="45.7" width="15" height="304.3" fill="hsl(280, 60%, 55%)" rx="1"/>
 <text x="1333.5" y="42.7" text-anchor="middle" font-size="9" fill="#333">7k</text>
 <text x="1282.5" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">incremental-100B</text>
 <line x1="1377" y1="262.5" x2="1494" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -146,9 +146,9 @@
 <line x1="1377" y1="87.5" x2="1494" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="1377" y1="0.0" x2="1494" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
 <text x="1373.0" y="4.0" text-anchor="end" font-size="10" fill="#999">1.5M</text>
-<rect x="1462.0" y="45.7" width="15" height="304.3" fill="hsl(220, 60%, 55%)" rx="1"/>
+<rect x="1462.0" y="45.7" width="15" height="304.3" fill="hsl(307, 60%, 55%)" rx="1"/>
 <text x="1469.5" y="42.7" text-anchor="middle" font-size="9" fill="#333">1.3M</text>
-<rect x="1479.0" y="46.3" width="15" height="303.7" fill="hsl(63, 60%, 55%)" rx="1"/>
+<rect x="1479.0" y="46.3" width="15" height="303.7" fill="hsl(280, 60%, 55%)" rx="1"/>
 <text x="1486.5" y="43.3" text-anchor="middle" font-size="9" fill="#333">1.3M</text>
 <text x="1435.5" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">reads-100B</text>
 <line x1="0" y1="350" x2="1494" y2="350" stroke="#333" stroke-width="1"/>
@@ -164,9 +164,9 @@
 <text x="618" y="12" font-size="13" fill="#333">Irmini+inode</text>
 <rect x="0" y="24" width="14" height="14" fill="#4e79a7" rx="2"/>
 <text x="18" y="36" font-size="13" fill="#333">Irmini+all</text>
-<rect x="200" y="24" width="14" height="14" fill="hsl(220, 60%, 55%)" rx="2"/>
+<rect x="200" y="24" width="14" height="14" fill="hsl(307, 60%, 55%)" rx="2"/>
 <text x="218" y="36" font-size="13" fill="#333">Irmini+cache (lavyek)</text>
-<rect x="400" y="24" width="14" height="14" fill="hsl(63, 60%, 55%)" rx="2"/>
+<rect x="400" y="24" width="14" height="14" fill="hsl(280, 60%, 55%)" rx="2"/>
 <text x="418" y="36" font-size="13" fill="#333">Irmini+cache (memory)</text>
 </g>
 </svg>
