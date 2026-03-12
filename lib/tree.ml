@@ -1,3 +1,6 @@
+module SMap = Map.Make (String)
+module SSet = Set.Make (String)
+
 module Make (F : Codec.S) = struct
   module Inode = Inode.Make (F)
 
@@ -20,8 +23,8 @@ module Make (F : Codec.S) = struct
   and node_record = {
     mutable state : node_state;
     backend : hash Backend.t option;
-    mutable children : (string * tree_node) list; (* modifications *)
-    mutable removed : string list;
+    mutable children : tree_node SMap.t; (* modifications *)
+    mutable removed : SSet.t;
     resolved : (string, tree_node) Hashtbl.t; (* read cache *)
   }
 
@@ -29,28 +32,29 @@ module Make (F : Codec.S) = struct
 
   let empty () =
     Node { state = Loaded F.empty_node; backend = None;
-           children = []; removed = []; resolved = Hashtbl.create 0 }
+           children = SMap.empty; removed = SSet.empty; resolved = Hashtbl.create 0 }
 
   let of_hash ~backend hash =
     Node { state = Lazy { backend; hash }; backend = Some backend;
-           children = []; removed = []; resolved = Hashtbl.create 0 }
+           children = SMap.empty; removed = SSet.empty; resolved = Hashtbl.create 0 }
 
   let shallow hash =
     Node { state = Shallow hash; backend = None;
-           children = []; removed = []; resolved = Hashtbl.create 0 }
+           children = SMap.empty; removed = SSet.empty; resolved = Hashtbl.create 0 }
 
   let pruned hash =
     Node { state = Pruned hash; backend = None;
-           children = []; removed = []; resolved = Hashtbl.create 0 }
+           children = SMap.empty; removed = SSet.empty; resolved = Hashtbl.create 0 }
 
   let rec of_concrete : concrete -> t = function
     | `Contents s -> Contents s
     | `Tree entries ->
         let children =
-          List.map (fun (name, c) -> (name, of_concrete c)) entries
+          List.fold_left (fun m (name, c) -> SMap.add name (of_concrete c) m)
+            SMap.empty entries
         in
         Node { state = Loaded F.empty_node; backend = None;
-               children; removed = []; resolved = Hashtbl.create 0 }
+               children; removed = SSet.empty; resolved = Hashtbl.create 0 }
 
   (* Resolve a lazy node: load from backend, detect inode format. *)
   let resolve_state node =
@@ -92,10 +96,10 @@ module Make (F : Codec.S) = struct
     | Contents _, _ :: _ -> None
     | Node node, name :: rest -> (
         (* Check modifications first *)
-        match List.assoc_opt name node.children with
+        match SMap.find_opt name node.children with
         | Some child -> navigate child rest
         | None -> (
-            if List.mem name node.removed then None
+            if SSet.mem name node.removed then None
             else
               (* Check read cache *)
               match Hashtbl.find_opt node.resolved name with
@@ -144,8 +148,8 @@ module Make (F : Codec.S) = struct
           | Some entries ->
               entries
               |> List.filter (fun (name, _) ->
-                  (not (List.mem name node.removed))
-                  && not (List.mem_assoc name node.children))
+                  (not (SSet.mem name node.removed))
+                  && not (SMap.mem name node.children))
               |> List.map (fun (name, kind) ->
                   let k =
                     match kind with
@@ -155,13 +159,13 @@ module Make (F : Codec.S) = struct
                   (name, k))
         in
         let child_entries =
-          List.map
-            (fun (name, child) ->
+          SMap.fold
+            (fun name child acc ->
               let k =
                 match child with Node _ -> `Node | Contents _ -> `Contents
               in
-              (name, k))
-            node.children
+              (name, k) :: acc)
+            node.children []
         in
         List.sort
           (fun (a, _) (b, _) -> String.compare a b)
@@ -170,10 +174,10 @@ module Make (F : Codec.S) = struct
 
   (* Resolve a child node for modification (add/remove at depth). *)
   let resolve_child node name =
-    match List.assoc_opt name node.children with
+    match SMap.find_opt name node.children with
     | Some c -> c
     | None -> (
-        if List.mem name node.removed then empty ()
+        if SSet.mem name node.removed then empty ()
         else
           match resolve_entry node name with
           | Some (`Node hash) -> (
@@ -190,18 +194,13 @@ module Make (F : Codec.S) = struct
         (* Replace contents with a tree *)
         add_at (empty ()) path value
     | Node node, [ name ] ->
-        let children =
-          (name, value) :: List.filter (fun (n, _) -> n <> name) node.children
-        in
-        let removed = List.filter (( <> ) name) node.removed in
+        let children = SMap.add name value node.children in
+        let removed = SSet.remove name node.removed in
         Node { node with children; removed }
     | Node node, name :: rest ->
         let child = resolve_child node name in
         let new_child = add_at child rest value in
-        let children =
-          (name, new_child)
-          :: List.filter (fun (n, _) -> n <> name) node.children
-        in
+        let children = SMap.add name new_child node.children in
         Node { node with children }
 
   let add t path contents = add_at t path (Contents contents)
@@ -212,19 +211,13 @@ module Make (F : Codec.S) = struct
     | _, [] -> empty ()
     | Contents _, _ :: _ -> t
     | Node node, [ name ] ->
-        let children = List.filter (fun (n, _) -> n <> name) node.children in
-        let removed =
-          if List.mem name node.removed then node.removed
-          else name :: node.removed
-        in
+        let children = SMap.remove name node.children in
+        let removed = SSet.add name node.removed in
         Node { node with children; removed }
     | Node node, name :: rest ->
         let child = resolve_child node name in
         let new_child = remove child rest in
-        let children =
-          (name, new_child)
-          :: List.filter (fun (n, _) -> n <> name) node.children
-        in
+        let children = SMap.add name new_child node.children in
         Node { node with children }
 
   let rec to_concrete t =
@@ -237,8 +230,8 @@ module Make (F : Codec.S) = struct
           | Some all_entries ->
               all_entries
               |> List.filter_map (fun (name, kind) ->
-                  if List.mem name node.removed then None
-                  else if List.mem_assoc name node.children then None
+                  if SSet.mem name node.removed then None
+                  else if SMap.mem name node.children then None
                   else
                     match kind with
                     | `Contents_inlined data -> Some (name, `Contents data)
@@ -257,9 +250,9 @@ module Make (F : Codec.S) = struct
                         | None -> None))
         in
         let child_entries =
-          List.map
-            (fun (name, child) -> (name, to_concrete child))
-            node.children
+          SMap.fold
+            (fun name child acc -> (name, to_concrete child) :: acc)
+            node.children []
         in
         let all =
           List.sort
@@ -279,29 +272,32 @@ module Make (F : Codec.S) = struct
         resolve_state node;
         (* Compute child entries (recursively writing children) *)
         let child_entries =
-          List.map
-            (fun (name, child) ->
-              match child with
-              | Contents s
-                when inline_threshold > 0
-                     && String.length s <= inline_threshold ->
-                  (name, (`Contents_inlined s : F.entry))
-              | Contents s ->
-                  let h = F.hash_contents s in
-                  backend.write h s;
-                  (name, (`Contents h : F.entry))
-              | Node _ ->
-                  let child_hash =
-                    write_tree child ~inline_threshold ~inode ~backend
-                  in
-                  (name, (`Node child_hash : F.entry)))
-            node.children
+          SMap.fold
+            (fun name child acc ->
+              let entry =
+                match child with
+                | Contents s
+                  when inline_threshold > 0
+                       && String.length s <= inline_threshold ->
+                    (name, (`Contents_inlined s : F.entry))
+                | Contents s ->
+                    let h = F.hash_contents s in
+                    backend.write h s;
+                    (name, (`Contents h : F.entry))
+                | Node _ ->
+                    let child_hash =
+                      write_tree child ~inline_threshold ~inode ~backend
+                    in
+                    (name, (`Node child_hash : F.entry))
+              in
+              entry :: acc)
+            node.children []
         in
         (match node.state with
         | Inode { hash; backend = ib } when inode ->
             (* Incremental update: only modify affected inode buckets *)
             Inode.update ~backend hash ~additions:child_entries
-              ~removals:node.removed
+              ~removals:(SSet.elements node.removed)
         | Inode { hash; backend = ib } ->
             (* Inodes disabled: expand to flat node *)
             let base_entries = Inode.list_all ~backend:ib hash in
@@ -311,7 +307,7 @@ module Make (F : Codec.S) = struct
                 F.empty_node base_entries
             in
             let base =
-              List.fold_left (fun n name -> F.remove n name) base node.removed
+              SSet.fold (fun name n -> F.remove n name) node.removed base
             in
             let final =
               List.fold_left
@@ -330,7 +326,7 @@ module Make (F : Codec.S) = struct
               | _ -> F.empty_node
             in
             let base =
-              List.fold_left (fun n name -> F.remove n name) base node.removed
+              SSet.fold (fun name n -> F.remove n name) node.removed base
             in
             let final =
               List.fold_left
@@ -370,9 +366,9 @@ module Make (F : Codec.S) = struct
               resolve_state node;
               match node.state with
               | Loaded _ | Inode _ ->
-                  List.fold_left
-                    (fun acc (name, child) -> go (path @ [ name ]) child acc)
-                    acc node.children
+                  SMap.fold
+                    (fun name child acc -> go (path @ [ name ]) child acc)
+                    node.children acc
               | _ -> acc)
           | `False fn -> (
               match node.state with
@@ -380,16 +376,16 @@ module Make (F : Codec.S) = struct
               | Shallow hash -> fn hash
               | Pruned hash -> fn hash
               | Loaded _ | Inode _ ->
-                  List.fold_left
-                    (fun acc (name, child) -> go (path @ [ name ]) child acc)
-                    acc node.children)
+                  SMap.fold
+                    (fun name child acc -> go (path @ [ name ]) child acc)
+                    node.children acc)
           | `Shallow fn -> (
               match node.state with
               | Shallow hash -> fn hash
               | _ ->
-                  List.fold_left
-                    (fun acc (name, child) -> go (path @ [ name ]) child acc)
-                    acc node.children))
+                  SMap.fold
+                    (fun name child acc -> go (path @ [ name ]) child acc)
+                    node.children acc))
     in
     go [] t init
 
