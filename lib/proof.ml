@@ -368,8 +368,11 @@ module Make (C : Codec.S) = struct
               let child_tree =
                 match kind with
                 | `Contents_inlined data ->
-                    if Path_set.mem child_path accessed then Contents data
-                    else Contents data (* inlined is always available *)
+                    (* Inlined contents are part of the node structure and
+                       must always be included in proofs to preserve the
+                       node hash. They are small (≤ inline_threshold bytes)
+                       so this doesn't leak significant data. *)
+                    Contents data
                 | `Contents h ->
                     if Path_set.mem child_path accessed then
                       match backend.Backend.read h with

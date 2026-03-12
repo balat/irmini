@@ -22,10 +22,14 @@ let test_proof_produce_verify () =
   | Error (`Proof_mismatch msg) -> Alcotest.fail ("proof mismatch: " ^ msg)
 
 let test_proof_blinded () =
+  (* Use values larger than inline_threshold (48 bytes) so they are stored
+     as separate blobs and can be properly blinded in proofs. *)
+  let large_a = String.make 64 'a' in
+  let large_b = String.make 64 'b' in
   let backend = Backend.Memory.create_sha1 () in
   let tree = Tree.Git.empty () in
-  let tree = Tree.Git.add tree [ "a" ] "1" in
-  let tree = Tree.Git.add tree [ "b" ] "2" in
+  let tree = Tree.Git.add tree [ "a" ] large_a in
+  let tree = Tree.Git.add tree [ "b" ] large_b in
   let root_hash = Tree.Git.hash tree ~backend in
   let proof, _ =
     Proof.Git.produce backend root_hash (fun t ->
@@ -38,7 +42,8 @@ let test_proof_blinded () =
       let has_a =
         List.exists
           (fun (k, v) ->
-            k = "a" && match v with Proof.Contents "1" -> true | _ -> false)
+            k = "a"
+            && match v with Proof.Contents c -> c = large_a | _ -> false)
           entries
       in
       let has_blinded_b =
