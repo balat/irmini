@@ -126,6 +126,22 @@ def get_color(name):
     return f"hsl({h}, 60%, 55%)"
 
 
+SCENARIO_ORDER = [
+    "commits-20B", "reads-20B", "incremental-20B",
+    "commits-10K", "reads-10K", "incremental-10K",
+    "concurrent-100f/12d",
+    "tezos-10310commits",
+]
+
+
+def scenario_sort_key(name):
+    """Sort scenarios in the canonical order from README."""
+    try:
+        return (0, SCENARIO_ORDER.index(name))
+    except ValueError:
+        return (1, name)
+
+
 def fmt_ops(v):
     if v >= 1_000_000:
         return f"{v/1_000_000:.1f}M"
@@ -144,12 +160,10 @@ def generate_chart(title, results, backends):
     for r in results:
         lookup[(r["name"], r["scenario"])] = r["ops_per_sec"]
 
-    scenarios = []
-    seen = set()
-    for r in results:
-        if r["scenario"] not in seen:
-            scenarios.append(r["scenario"])
-            seen.add(r["scenario"])
+    scenarios = sorted(
+        {r["scenario"] for r in results},
+        key=scenario_sort_key
+    )
 
     # Layout
     margin_left = 120
