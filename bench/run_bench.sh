@@ -302,9 +302,10 @@ DUNE
  (libraries irmin irmin.mem irmin-pack irmin-pack.unix
             irmin-fs irmin-fs.unix
             irmin-git irmin-git.unix lwt_eio
-            eio_main unix)
+            repr eio_main unix)
+ (preprocess (pps ppx_repr))
  (modules bench_common bench_irmin_eio bench_irmin_pack
-          bench_irmin_fs bench_irmin_git main))
+          bench_irmin_fs bench_irmin_git trace_replay_irmin main))
 DUNE
     fi
 
@@ -389,9 +390,25 @@ else:
     run_irmin_trace "main" "pack" "$OUTPUT_DIR/irmin_lwt_trace_pack.json"
     run_irmin_trace "main" "pack-mem" "$OUTPUT_DIR/irmin_lwt_trace_mem.json"
 
-    # Irmin-Eio: pack and pack-mem
+    # Irmin-Eio: pack and pack-mem (using irmin's tree.exe)
     run_irmin_trace "cuihtlauac-inline-small-objects-v2" "pack" "$OUTPUT_DIR/irmin_eio_trace_pack.json"
     run_irmin_trace "cuihtlauac-inline-small-objects-v2" "pack-mem" "$OUTPUT_DIR/irmin_eio_trace_mem.json"
+
+    # Irmin-Eio: parallel trace replay (using our bench adapter)
+    if [ "$SKIP_PARALLEL" = false ]; then
+      echo "--- Irmin-Eio parallel trace replay ---"
+      run_irmin_bench "cuihtlauac-inline-small-objects-v2" "bench-irmin-eio" "bench-irmin-eio" \
+        "$OUTPUT_DIR/irmin_eio_parallel.json" \
+        "--skip-pack --skip-fs --skip-git --trace $TRACE_FILE --trace-commits $TRACE_COMMITS --trace-empty-blobs --parallel-domains $PARALLEL_DOMAINS --parallel-fibers 1"
+
+      # Also run with higher fiber counts for scaling comparison
+      for fibers in 10 100 1000; do
+        echo "  --- Irmin-Eio parallel $fibers fibers/domain ---"
+        run_irmin_bench "cuihtlauac-inline-small-objects-v2" "bench-irmin-eio" "bench-irmin-eio" \
+          "$OUTPUT_DIR/irmin_eio_parallel_${fibers}f.json" \
+          "--skip-pack --skip-fs --skip-git --trace $TRACE_FILE --trace-commits $TRACE_COMMITS --trace-empty-blobs --parallel-domains $PARALLEL_DOMAINS --parallel-fibers $fibers"
+      done
+    fi
   fi
 
   echo ""

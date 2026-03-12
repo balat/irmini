@@ -210,7 +210,7 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 | `gen_chart_all.py`        | Charts from JSON results by backend type     |
 | `gen_chart_parallel.py`   | Parallel scaling chart (from JSON or fallback)|
 | `gen_readme_results.py`   | Generates README results section from JSON   |
-| `bench-irmin-eio/`        | Irmin-Eio benchmark adapters                 |
+| `bench-irmin-eio/`        | Irmin-Eio benchmark adapters + parallel trace replay |
 | `bench-irmin-lwt/`        | Irmin-Lwt benchmark adapters                 |
 
 ## Results

@@ -2,10 +2,13 @@
 
     Benchmarks official Irmin with in-memory, irmin-pack, irmin-fs, and
     irmin-git backends, using the same scenarios as the irmini benchmarks
-    for comparison.
+    for comparison. Also supports Tezos trace replay (sequential and
+    parallel) on irmin-pack and memory backends.
 
     Usage: main [--ncommits N] [--tree-add N] [--depth N] [--nreads N]
                 [--value-size N] [--skip-pack] [--skip-fs] [--skip-git]
+                [--trace FILE] [--trace-commits N] [--trace-empty-blobs]
+                [--parallel-domains N] [--parallel-fibers N]
                 [--json FILE] *)
 
 let () =
@@ -18,6 +21,11 @@ let () =
   let skip_fs = ref false in
   let skip_git = ref false in
   let json_file = ref "" in
+  let trace_file = ref "" in
+  let trace_commits = ref 0 in
+  let trace_empty_blobs = ref false in
+  let parallel_domains = ref 0 in
+  let parallel_fibers = ref 100 in
   Arg.parse
     [
       ("--ncommits", Arg.Set_int ncommits, "Number of commits (default: 100)");
@@ -32,6 +40,16 @@ let () =
       ("--skip-fs", Arg.Set skip_fs, "Skip irmin-fs benchmark");
       ("--skip-git", Arg.Set skip_git, "Skip irmin-git benchmark");
       ("--json", Arg.Set_string json_file, "Write JSON results to FILE");
+      ("--trace", Arg.Set_string trace_file,
+       "Run trace replay from .repr file");
+      ("--trace-commits", Arg.Set_int trace_commits,
+       "Max commits to replay (0 = all)");
+      ("--trace-empty-blobs", Arg.Set trace_empty_blobs,
+       "Replace blobs with empty strings");
+      ("--parallel-domains", Arg.Set_int parallel_domains,
+       "Domains for parallel replay (0 = skip)");
+      ("--parallel-fibers", Arg.Set_int parallel_fibers,
+       "Fibers per domain for parallel replay (default: 100)");
     ]
     (fun _ -> ())
     "bench_irmin_eio - Official Irmin (Eio) performance benchmarks";
@@ -51,6 +69,7 @@ let () =
   Eio_main.run @@ fun env ->
   let fs = Eio.Stdenv.cwd env in
   let clock = Eio.Stdenv.clock env in
+  let dm = Eio.Stdenv.domain_mgr env in
   let results = ref [] in
   let rm_rf path =
     let rec rm path =
@@ -87,6 +106,76 @@ let () =
     let root = "_build/_bench_irmin_git" in
     rm_rf Eio.Path.(fs / root);
     run "Irmin-Eio (git)" (Bench_irmin_git.run_all ~clock conf root)
+  end;
+  (* 5. Tezos trace replay *)
+  if !trace_file <> "" then begin
+    let trace_path = !trace_file in
+    let max_commits = !trace_commits in
+    let empty_blobs = !trace_empty_blobs in
+    (* 5a. Sequential trace replay on memory *)
+    begin
+      let module TR = Trace_replay_irmin.Make(Bench_irmin_eio.Mem_store) in
+      let config = Irmin_mem.config () in
+      let repo = Bench_irmin_eio.Mem_store.Repo.v config in
+      let r =
+        TR.replay ~trace_path ~max_commits ~empty_blobs
+          ~repo ~backend_name:"Irmin-Eio (memory)" ()
+      in
+      Bench_irmin_eio.Mem_store.Repo.close repo;
+      run "Irmin-Eio (memory) trace" [r]
+    end;
+    (* 5b. Sequential trace replay on irmin-pack *)
+    if not !skip_pack then begin
+      Eio.Switch.run @@ fun sw ->
+      let root = "_build/_bench_trace_pack" in
+      rm_rf Eio.Path.(fs / root);
+      let module TR = Trace_replay_irmin.Make(Bench_irmin_pack.Store) in
+      let config =
+        Irmin_pack.Conf.init ~sw ~fs ~fresh:true Eio.Path.(fs / root)
+      in
+      let repo = Bench_irmin_pack.Store.Repo.v config in
+      let r =
+        TR.replay ~trace_path ~max_commits ~empty_blobs
+          ~repo ~backend_name:"Irmin-Eio (pack)" ()
+      in
+      Bench_irmin_pack.Store.Repo.close repo;
+      run "Irmin-Eio (pack) trace" [r]
+    end;
+    (* 5c. Parallel trace replay on irmin-pack *)
+    if !parallel_domains > 0 && not !skip_pack then begin
+      let ndomains = !parallel_domains in
+      let fibers_per_domain = !parallel_fibers in
+      Eio.Switch.run @@ fun sw ->
+      let root = "_build/_bench_parallel_pack" in
+      rm_rf Eio.Path.(fs / root);
+      let module TR = Trace_replay_irmin.Make(Bench_irmin_pack.Store) in
+      let config =
+        Irmin_pack.Conf.init ~sw ~fs ~fresh:true Eio.Path.(fs / root)
+      in
+      let repo = Bench_irmin_pack.Store.Repo.v config in
+      let r =
+        TR.replay_parallel ~trace_path ~max_commits ~empty_blobs
+          ~ndomains ~fibers_per_domain ~repo
+          ~backend_name:"Irmin-Eio (pack)" ~dm ()
+      in
+      Bench_irmin_pack.Store.Repo.close repo;
+      run "Irmin-Eio (pack) parallel" [r]
+    end;
+    (* 5d. Parallel trace replay on memory *)
+    if !parallel_domains > 0 then begin
+      let ndomains = !parallel_domains in
+      let fibers_per_domain = !parallel_fibers in
+      let module TR = Trace_replay_irmin.Make(Bench_irmin_eio.Mem_store) in
+      let config = Irmin_mem.config () in
+      let repo = Bench_irmin_eio.Mem_store.Repo.v config in
+      let r =
+        TR.replay_parallel ~trace_path ~max_commits ~empty_blobs
+          ~ndomains ~fibers_per_domain ~repo
+          ~backend_name:"Irmin-Eio (memory)" ~dm ()
+      in
+      Bench_irmin_eio.Mem_store.Repo.close repo;
+      run "Irmin-Eio (memory) parallel" [r]
+    end
   end;
   (* Summary *)
   let all = List.rev !results in
