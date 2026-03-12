@@ -68,6 +68,9 @@ COLORS = {
     # Tezos trace replay
     "Irmin-Lwt (pack-mem)": "#f28e2b",
     "Irmin-Eio (pack-mem)": "#e15759",
+    # Parallel variants (same color as base, rendered with hatching)
+    "Irmini (lavyek) 12d×50kf": "#59a14f",
+    "Irmin-Eio (pack) 12d×1f":  "#e87c7e",
     # Optimization variants (memory and disk share same colors)
     "Irmini baseline":    "#bbb",
     "Irmini+inline":      "#9c755f",
@@ -81,6 +84,12 @@ COLORS = {
     "Irmini+all (disk)":      "#4e79a7",
 }
 
+
+# Parallel variants: rendered with diagonal hatching over the base color
+PARALLEL_VARIANTS = {
+    "Irmini (lavyek) 12d×50kf",
+    "Irmin-Eio (pack) 12d×1f",
+}
 
 OPTIM_ORDER_MEM = ["Irmini baseline", "Irmini+inline", "Irmini+cache", "Irmini+inode", "Irmini+all"]
 OPTIM_ORDER_DISK = ["Irmini baseline (disk)", "Irmini+inline (disk)", "Irmini+cache (disk)",
@@ -177,6 +186,20 @@ def generate_chart(title, results, backends):
                  f'font-family="system-ui, sans-serif" font-size="11">')
     lines.append(f'<rect width="{svg_w}" height="{svg_h}" fill="white"/>')
 
+    # Define hatching patterns for parallel variants
+    lines.append('<defs>')
+    for backend in backends:
+        if backend in PARALLEL_VARIANTS:
+            pid = f"hatch-{abs(hash(backend)) % 10000}"
+            color = get_color(backend)
+            lines.append(
+                f'<pattern id="{pid}" width="6" height="6" '
+                f'patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
+                f'<rect width="6" height="6" fill="{color}"/>'
+                f'<line x1="0" y1="0" x2="0" y2="6" stroke="white" stroke-width="2"/>'
+                f'</pattern>')
+    lines.append('</defs>')
+
     # Title
     lines.append(f'<text x="{svg_w/2}" y="28" text-anchor="middle" font-size="16" '
                  f'font-weight="bold">{title}</text>')
@@ -215,8 +238,13 @@ def generate_chart(title, results, backends):
             by = y_of(val, scenario)
             bh = chart_height - by
             color = get_color(backend)
+            if backend in PARALLEL_VARIANTS:
+                pid = f"hatch-{abs(hash(backend)) % 10000}"
+                fill = f'url(#{pid})'
+            else:
+                fill = color
             lines.append(f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_width}" '
-                         f'height="{bh:.1f}" fill="{color}" rx="1"/>')
+                         f'height="{bh:.1f}" fill="{fill}" rx="1"/>')
             lines.append(f'<text x="{bx + bar_width/2:.1f}" y="{by - 3:.1f}" '
                          f'text-anchor="middle" font-size="7" fill="#333">'
                          f'{fmt_ops(val)}</text>')
@@ -243,7 +271,12 @@ def generate_chart(title, results, backends):
         x = col * legend_col_width
         y = row * 20
         color = get_color(backend)
-        lines.append(f'<rect x="{x}" y="{y}" width="12" height="12" fill="{color}" rx="2"/>')
+        if backend in PARALLEL_VARIANTS:
+            pid = f"hatch-{abs(hash(backend)) % 10000}"
+            fill = f'url(#{pid})'
+        else:
+            fill = color
+        lines.append(f'<rect x="{x}" y="{y}" width="12" height="12" fill="{fill}" rx="2"/>')
         lines.append(f'<text x="{x+16}" y="{y+10}" font-size="10" fill="#333">{backend}</text>')
 
     lines.append('</g>')

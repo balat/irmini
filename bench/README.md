@@ -265,6 +265,8 @@ Irmini (disk)                  reads-10K              71370        0.070        
 Irmini (disk)                  incremental-10K            10        5.165         67
 Irmini (disk)                  concurrent-100f/12d      271       36.874         59
 Irmini (lavyek)                tezos-10310commits     67971       58.848        758
+Irmin-Eio (pack) 12d×1f       tezos-10310commits    205337       19.500          —
+Irmini (lavyek) 12d×50kf      tezos-10310commits   5063000        0.790       1815
 ```
 
 - **Irmini (lavyek)**: Commits at **84k ops/s** (20B) — faster than all Irmin
@@ -277,6 +279,9 @@ Irmini (lavyek)                tezos-10310commits     67971       58.848        
 - **irmin-fs**: Slower across the board. Reads 106–166k, commits 11–36k.
 - **trace-replay**: Irmini (lavyek) replays 10,310 real Tezos commits (4M
   operations) at **68K ops/sec**. Irmini (memory) at 71K ops/sec.
+- **parallel trace-replay** (hatched bars): Irmini (lavyek) at **5.1M ops/s**
+  with 12 domains × 50k fibers (94× speedup). Irmin-Eio (pack) at **205k ops/s**
+  with 12 domains × 1 fiber (1.9× speedup) — limited by irmin-pack batch serialization.
 
 ### Memory backends
 

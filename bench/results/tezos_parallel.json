@@ -1,0 +1,4 @@
+[
+  {"name": "Irmini (lavyek) 12d\u00d750kf", "scenario": "tezos-10310commits", "total_ops": 4002740, "total_time": 0.79, "ops_per_sec": 5063000, "maxrss_kb": 1858560},
+  {"name": "Irmin-Eio (pack) 12d\u00d71f", "scenario": "tezos-10310commits", "total_ops": 4002740, "total_time": 19.5, "ops_per_sec": 205337, "maxrss_kb": 0}
+]
