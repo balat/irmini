@@ -161,21 +161,8 @@ let () =
       Bench_irmin_pack.Store.Repo.close repo;
       run "Irmin-Eio (pack) parallel" [r]
     end;
-    (* 5d. Parallel trace replay on memory *)
-    if !parallel_domains > 0 then begin
-      let ndomains = !parallel_domains in
-      let fibers_per_domain = !parallel_fibers in
-      let module TR = Trace_replay_irmin.Make(Bench_irmin_eio.Mem_store) in
-      let config = Irmin_mem.config () in
-      let repo = Bench_irmin_eio.Mem_store.Repo.v config in
-      let r =
-        TR.replay_parallel ~trace_path ~max_commits ~empty_blobs
-          ~ndomains ~fibers_per_domain ~repo
-          ~backend_name:"Irmin-Eio (memory)" ~dm ()
-      in
-      Bench_irmin_eio.Mem_store.Repo.close repo;
-      run "Irmin-Eio (memory) parallel" [r]
-    end
+    (* Note: Irmin_mem is NOT domain-safe (dangling hashes, CAS retry
+       failures under contention). Parallel replay only on pack. *)
   end;
   (* Summary *)
   let all = List.rev !results in

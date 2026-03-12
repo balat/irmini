@@ -531,6 +531,31 @@ Sequential         54,000       1x         528
 - RSS stays around 1.8–2.1 GiB regardless of fiber count (dominated by
   the trace array and Lavyek page cache, not fiber stacks).
 
+### Irmin-Eio parallel trace replay
+
+Irmin-Eio (PR [#2149](https://github.com/mirage/irmin/pull/2149)) supports
+multicore via Kcas hashtables, atomics, and Eio.Mutex. Parallel trace replay
+uses irmin-pack with 12 domains, each processing a contiguous chunk. Tree
+operations (Add, Find, Mem) run in parallel; commits are serialized by
+irmin-pack's batch mechanism.
+
+```
+Backend                  Config        ops/s     Time    Speedup
+-----------------------------------------------------------------
+Irmin-Eio (memory)       sequential    196,105   20.4s      —
+Irmin-Eio (pack)         sequential    106,550   37.5s      1x
+Irmin-Eio (pack)         12d × 1f     205,337   19.5s    1.9x
+```
+
+- **1.9x speedup** on 12 cores (pack, full 10310-commit trace).
+- irmin-pack serializes commit batches via `Eio.Mutex`, limiting parallelism.
+  Tree operations (98% of ops) run in parallel but each commit's tree export
+  (serializing new objects to the pack file) is inside the serialized batch.
+- Irmin_mem is **not domain-safe** (dangling hash errors, CAS retry failures
+  under contention). Only irmin-pack supports parallel replay.
+- For comparison: irmini (lavyek) achieves **94x** (5.1M ops/s) on the same
+  trace thanks to Lavyek's lock-free backend.
+
 ### Key observations
 
 - **Irmini vs Irmin on commits (20B)**: Irmin leads at ~162k vs Irmini 94k.
