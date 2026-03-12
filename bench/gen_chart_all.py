@@ -6,7 +6,7 @@ Produces three charts grouped by backend type:
   - Memory backends: irmin-lwt-memory, irmin-eio-memory, irmini-memory
   - Git backends: irmin-lwt-git, irmin-eio-git, irmini-git
 
-Usage: gen_chart_all.py <results_dir> [timestamp]
+Usage: gen_chart_all.py <results_dir>
 
 Reads all *.json files in <results_dir> and merges them.
 """
@@ -17,7 +17,6 @@ import math
 import os
 import re
 import sys
-import time
 
 
 def load_results(results_dir):
@@ -306,11 +305,10 @@ def generate_chart(title, results, backends):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: gen_chart_all.py <results_dir> [timestamp]")
+        print("Usage: gen_chart_all.py <results_dir>")
         sys.exit(1)
 
     results_dir = sys.argv[1]
-    timestamp = sys.argv[2] if len(sys.argv) > 2 else str(int(time.time()))
 
     print(f"Loading results from {results_dir}...")
     all_results = load_results(results_dir)
@@ -342,15 +340,15 @@ def main():
     # Charts in order: disk, memory, git, optims_disk, optims_memory
     chart_specs = [
         ("disk", "Disk backends (fs, pack, lavyek) — ops/s comparison",
-         f"chart_disk_{timestamp}.svg"),
+         "chart_disk.svg"),
         ("memory", "Memory backends — ops/s comparison",
-         f"chart_memory_{timestamp}.svg"),
+         "chart_memory.svg"),
         ("git", "Git backends — ops/s comparison",
-         f"chart_git_{timestamp}.svg"),
+         "chart_git.svg"),
         ("optims_disk", "Irmini optimizations (disk) — ops/s comparison",
-         f"chart_optims_disk_{timestamp}.svg"),
+         "chart_optims_disk.svg"),
         ("optims_memory", "Irmini optimizations (memory) — ops/s comparison",
-         f"chart_optims_memory_{timestamp}.svg"),
+         "chart_optims_memory.svg"),
     ]
 
     for cat, title, filename in chart_specs:

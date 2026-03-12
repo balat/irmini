@@ -473,15 +473,7 @@ if [ "$SKIP_CHARTS" = false ]; then
 
   # Backend comparison charts
   if [ -f "$SCRIPT_DIR/gen_chart_all.py" ]; then
-    python3 "$SCRIPT_DIR/gen_chart_all.py" "$OUTPUT_DIR" ""
-    # Rename to stable names (remove empty timestamp)
-    for cat in disk memory git optims_disk optims_memory; do
-      src="$OUTPUT_DIR/chart_${cat}_.svg"
-      dst="$OUTPUT_DIR/chart_${cat}.svg"
-      if [ -f "$src" ]; then
-        mv "$src" "$dst"
-      fi
-    done
+    python3 "$SCRIPT_DIR/gen_chart_all.py" "$OUTPUT_DIR"
   fi
 
   # Parallel scaling chart (reads data from JSON if available)

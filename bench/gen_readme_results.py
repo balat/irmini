@@ -970,30 +970,11 @@ def update_charts(results_dir):
     """Run chart generation scripts."""
     bench_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # gen_chart_all.py with stable filenames (timestamp="")
+    # gen_chart_all.py
     chart_all = os.path.join(bench_dir, "gen_chart_all.py")
     if os.path.exists(chart_all):
         print("Generating backend charts...")
-        # We need stable names, so we pass an empty timestamp
-        # But gen_chart_all.py uses timestamp in filenames, so we pass a fixed marker
-        # Actually, we'll just call it and then rename
-        subprocess.run([sys.executable, chart_all, results_dir, ""], check=True)
-        # Rename timestamped files to stable names
-        for cat in ["disk", "memory", "git", "optims_disk", "optims_memory"]:
-            src = os.path.join(results_dir, f"chart_{cat}_.svg")
-            dst = os.path.join(results_dir, f"chart_{cat}.svg")
-            if os.path.exists(src):
-                os.rename(src, dst)
-                print(f"  Renamed {src} -> {dst}")
-            else:
-                # Try to find any timestamped version
-                import fnmatch
-                for fname in os.listdir(results_dir):
-                    if fnmatch.fnmatch(fname, f"chart_{cat}_*.svg") and fname != f"chart_{cat}.svg":
-                        src2 = os.path.join(results_dir, fname)
-                        os.rename(src2, dst)
-                        print(f"  Renamed {src2} -> {dst}")
-                        break
+        subprocess.run([sys.executable, chart_all, results_dir], check=True)
 
     # gen_chart_parallel.py
     chart_parallel = os.path.join(bench_dir, "gen_chart_parallel.py")

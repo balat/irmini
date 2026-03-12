@@ -224,7 +224,7 @@ echo "========================================="
 echo ""
 
 if [ -f "$SCRIPT_DIR/gen_chart_all.py" ]; then
-  python3 "$SCRIPT_DIR/gen_chart_all.py" "$OUTPUT_DIR" "$TIMESTAMP"
+  python3 "$SCRIPT_DIR/gen_chart_all.py" "$OUTPUT_DIR"
 else
   echo "Chart generator not found: $SCRIPT_DIR/gen_chart_all.py"
   echo "JSON results are in $OUTPUT_DIR/"
