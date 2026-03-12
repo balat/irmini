@@ -347,49 +347,50 @@ Irmini (git)                    incremental-10K               254      0.394    
 ```
 Name                            Scenario                    ops/s
 ----------------------------------------------------------------
-Irmini baseline (disk)          commits-20B                 13268
-Irmini baseline (disk)          reads-20B                 1786939
-Irmini baseline (disk)          incremental-20B                76
-Irmini baseline (disk)          commits-10K                  8501
-Irmini baseline (disk)          reads-10K                 1896845
-Irmini baseline (disk)          incremental-10K               124
-Irmini baseline (disk)          concurrent-100f/12d           263
-Irmini+inline (disk)            commits-20B                 33473
-Irmini+inline (disk)            reads-20B                 1170155
-Irmini+inline (disk)            incremental-20B                73
-Irmini+inline (disk)            commits-10K                  8391
-Irmini+inline (disk)            reads-10K                 1944869
+Irmini baseline (disk)          commits-20B                 12233
+Irmini baseline (disk)          reads-20B                  401992
+Irmini baseline (disk)          incremental-20B                66
+Irmini baseline (disk)          commits-10K                  8121
+Irmini baseline (disk)          reads-10K                 1301447
+Irmini baseline (disk)          incremental-10K                88
+Irmini baseline (disk)          concurrent-100f/12d           262
+Irmini+inline (disk)            commits-20B                 26940
+Irmini+inline (disk)            reads-20B                 1218283
+Irmini+inline (disk)            incremental-20B                76
+Irmini+inline (disk)            commits-10K                  8162
+Irmini+inline (disk)            reads-10K                 1814302
 Irmini+inline (disk)            incremental-10K                67
-Irmini+inline (disk)            concurrent-100f/12d           262
-Irmini+cache (disk)             commits-20B                 12746
-Irmini+cache (disk)             reads-20B                 1414033
-Irmini+cache (disk)             incremental-20B                78
-Irmini+cache (disk)             commits-10K                  8033
-Irmini+cache (disk)             reads-10K                 1766767
-Irmini+cache (disk)             incremental-10K                72
+Irmini+inline (disk)            concurrent-100f/12d           263
+Irmini+cache (disk)             commits-20B                 12253
+Irmini+cache (disk)             reads-20B                  553894
+Irmini+cache (disk)             incremental-20B                67
+Irmini+cache (disk)             commits-10K                  8234
+Irmini+cache (disk)             reads-10K                 1000645
+Irmini+cache (disk)             incremental-10K                67
 Irmini+cache (disk)             concurrent-100f/12d           260
-Irmini+inode (disk)             commits-20B                 18352
-Irmini+inode (disk)             reads-20B                 1171201
-Irmini+inode (disk)             incremental-20B                73
-Irmini+inode (disk)             commits-10K                 10851
-Irmini+inode (disk)             reads-10K                 1347005
-Irmini+inode (disk)             incremental-10K                70
-Irmini+inode (disk)             concurrent-100f/12d           262
-Irmini+all (disk)               commits-20B                 23126
-Irmini+all (disk)               reads-20B                  794918
-Irmini+all (disk)               incremental-20B                75
-Irmini+all (disk)               commits-10K                 10271
-Irmini+all (disk)               reads-10K                 1406163
-Irmini+all (disk)               incremental-10K                71
-Irmini+all (disk)               concurrent-100f/12d           261
+Irmini+inode (disk)             commits-20B                 19604
+Irmini+inode (disk)             reads-20B                  952212
+Irmini+inode (disk)             incremental-20B                74
+Irmini+inode (disk)             commits-10K                 10729
+Irmini+inode (disk)             reads-10K                 1475828
+Irmini+inode (disk)             incremental-10K                74
+Irmini+inode (disk)             concurrent-100f/12d           261
+Irmini+all (disk)               commits-20B                 21267
+Irmini+all (disk)               reads-20B                 1691524
+Irmini+all (disk)               incremental-20B                79
+Irmini+all (disk)               commits-10K                 11211
+Irmini+all (disk)               reads-10K                  396857
+Irmini+all (disk)               incremental-10K                69
+Irmini+all (disk)               concurrent-100f/12d           260
 ```
 
 Note: the disk backend now uses WAL with fsync for crash safety, which
 dominates write-heavy scenarios (incremental ~10 ops/s, concurrent ~265 ops/s).
 
-- **Inline** gives **2.5× speedup** on commits-20B (33k vs 13k).
-- **Inode** gives **1.4× speedup** on commits-20B (18k vs 13k).
-- **+all** achieves **23k commits-20B/s** (1.7× baseline), **1.4M reads-10K/s** (0.7× baseline), **75 incremental-20B/s** (1.0× baseline).
+- **Inline** gives **2.2× speedup** on commits-20B (27k vs 12k) and **3.0× on reads-20B** (1.2M vs 402k) and **1.4× on reads-10K** (1.8M vs 1.3M).
+- **Cache** gives **1.4× on reads-20B** (554k vs 402k).
+- **Inode** gives **1.6× speedup** on commits-20B (20k vs 12k) and **2.4× on reads-20B** (952k vs 402k).
+- **+all** achieves **21k commits-20B/s** (1.7× baseline), **397k reads-10K/s** (0.3× baseline), **78 incremental-20B/s** (1.2× baseline).
 
 ### Irmini optimizations (memory)
 
@@ -398,36 +399,36 @@ dominates write-heavy scenarios (incremental ~10 ops/s, concurrent ~265 ops/s).
 ```
 Name                            Scenario                    ops/s
 ----------------------------------------------------------------
-Irmini baseline                 commits-20B                 21229
-Irmini baseline                 reads-20B                 1920821
-Irmini baseline                 incremental-20B              3385
-Irmini baseline                 commits-10K                 11082
-Irmini baseline                 reads-10K                 1930546
-Irmini baseline                 incremental-10K              2632
-Irmini+inline                   commits-20B                193779
-Irmini+inline                   reads-20B                 1303388
-Irmini+inline                   incremental-20B              3954
-Irmini+inline                   commits-10K                 11098
-Irmini+inline                   reads-10K                 1885419
-Irmini+inline                   incremental-10K              2725
-Irmini+cache                    commits-20B                 20759
-Irmini+cache                    reads-20B                 1752592
-Irmini+cache                    incremental-20B              3464
-Irmini+cache                    commits-10K                 11110
-Irmini+cache                    reads-10K                 1943247
-Irmini+cache                    incremental-10K              2679
-Irmini+inode                    commits-20B                 98086
-Irmini+inode                    reads-20B                 1499680
-Irmini+inode                    incremental-20B              7251
-Irmini+inode                    commits-10K                 18838
-Irmini+inode                    reads-10K                 1529986
-Irmini+inode                    incremental-10K              5882
-Irmini+all                      commits-20B                484788
-Irmini+all                      reads-20B                 1801832
-Irmini+all                      incremental-20B              6377
-Irmini+all                      commits-10K                 18187
-Irmini+all                      reads-10K                 1464083
-Irmini+all                      incremental-10K              5500
+Irmini baseline                 commits-20B                 21081
+Irmini baseline                 reads-20B                 1893933
+Irmini baseline                 incremental-20B              3104
+Irmini baseline                 commits-10K                 10976
+Irmini baseline                 reads-10K                 1903906
+Irmini baseline                 incremental-10K              2708
+Irmini+inline                   commits-20B                191405
+Irmini+inline                   reads-20B                 1112370
+Irmini+inline                   incremental-20B              3877
+Irmini+inline                   commits-10K                 10944
+Irmini+inline                   reads-10K                 1918536
+Irmini+inline                   incremental-10K              2543
+Irmini+cache                    commits-20B                 20845
+Irmini+cache                    reads-20B                 1848362
+Irmini+cache                    incremental-20B              3242
+Irmini+cache                    commits-10K                 10770
+Irmini+cache                    reads-10K                 1826151
+Irmini+cache                    incremental-10K              2649
+Irmini+inode                    commits-20B                 84430
+Irmini+inode                    reads-20B                 1379342
+Irmini+inode                    incremental-20B              7360
+Irmini+inode                    commits-10K                 16996
+Irmini+inode                    reads-10K                 1373650
+Irmini+inode                    incremental-10K              5297
+Irmini+all                      commits-20B                465620
+Irmini+all                      reads-20B                 1703617
+Irmini+all                      incremental-20B              7942
+Irmini+all                      commits-10K                 17395
+Irmini+all                      reads-10K                 1405692
+Irmini+all                      incremental-10K              5163
 Irmini+cache (lavyek)           commits-10K                  9643
 Irmini+cache (lavyek)           reads-10K                 1317720
 Irmini+cache (lavyek)           incremental-10K              3521
@@ -443,9 +444,9 @@ Irmini+cache (memory)           incremental-100B             6881
 Irmini+cache (memory)           reads-100B                1335638
 ```
 
-- **Inline** gives **9.1× speedup** on commits-20B (194k vs 21k).
-- **Inode** gives **4.6× speedup** on commits-20B (98k vs 21k) and **2.1× on incremental-20B** (7.3k vs 3.4k).
-- **+all** achieves **485k commits-20B/s** (22.8× baseline), **1.5M reads-10K/s** (0.8× baseline), **6.4k incremental-20B/s** (1.9× baseline).
+- **Inline** gives **9.1× speedup** on commits-20B (191k vs 21k) and **1.2× on incremental-20B** (3.9k vs 3.1k).
+- **Inode** gives **4.0× speedup** on commits-20B (84k vs 21k) and **2.4× on incremental-20B** (7.4k vs 3.1k).
+- **+all** achieves **466k commits-20B/s** (22.1× baseline), **1.4M reads-10K/s** (0.7× baseline), **7.9k incremental-20B/s** (2.6× baseline).
 
 ### Tezos trace replay
 
