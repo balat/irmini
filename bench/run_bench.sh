@@ -213,7 +213,7 @@ if [ "$SKIP_TRACE" = false ] && [ -n "$TRACE_FILE" ]; then
 
   $BENCH --skip-git \
     --trace "$TRACE_FILE" --trace-commits "$TRACE_COMMITS" \
-    --skip-disk \
+    --skip-disk --cache 100000 \
     --json "$OUTPUT_DIR/irmini_trace.json"
 
   echo ""
@@ -235,6 +235,7 @@ if [ "$SKIP_PARALLEL" = false ] && [ -n "$TRACE_FILE" ]; then
     echo "--- ${PARALLEL_DOMAINS}d × ${fibers}f ---"
     $BENCH --skip-memory --skip-disk --skip-git \
       --trace "$TRACE_FILE" --trace-commits "$TRACE_COMMITS" \
+      --cache 100000 \
       --parallel-domains "$PARALLEL_DOMAINS" \
       --parallel-fibers "$fibers" \
       --json "$TMPDIR_PAR/parallel_${fibers}.json"
