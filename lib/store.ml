@@ -6,11 +6,9 @@ module Make (F : Codec.S) = struct
 
   type t = { backend : hash Backend.t }
 
-  let create ?cache ~backend () =
+  let create ?(cache = 100_000) ~backend () =
     let backend =
-      match cache with
-      | Some n when n > 0 -> Backend.cached ~capacity:n backend
-      | _ -> backend
+      if cache > 0 then Backend.cached ~capacity:cache backend else backend
     in
     { backend }
   let backend t = t.backend
