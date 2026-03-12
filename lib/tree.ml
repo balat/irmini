@@ -269,6 +269,16 @@ module Make (F : Codec.S) = struct
         backend.write h s;
         h
     | Node node ->
+        (* Fast path: unmodified node with known hash — skip entirely *)
+        let dominated = SMap.is_empty node.children && SSet.is_empty node.removed in
+        if dominated then
+          match node.state with
+          | Inode { hash; _ } | Lazy { hash; _ } -> hash
+          | _ -> write_tree_slow node ~inline_threshold ~inode ~backend
+        else
+          write_tree_slow node ~inline_threshold ~inode ~backend
+
+  and write_tree_slow node ~inline_threshold ~inode ~(backend : hash Backend.t) : hash =
         resolve_state node;
         (* Compute child entries (recursively writing children) *)
         let child_entries =
