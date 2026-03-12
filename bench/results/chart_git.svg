@@ -1,90 +1,90 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="840" height="530" font-family="system-ui, sans-serif" font-size="11">
-<rect width="840" height="530" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="479" font-family="system-ui, sans-serif" font-size="14">
+<rect width="900" height="479" fill="white"/>
 <defs>
 </defs>
-<text x="420.0" y="28" text-anchor="middle" font-size="16" font-weight="bold">Git backends — ops/s comparison</text>
-<g transform="translate(120,60)">
-<text x="-85" y="200.0" text-anchor="middle" font-size="12" fill="#333" transform="rotate(-90,-85,200.0)">ops/s</text>
-<line x1="0" y1="300.0" x2="70" y2="300.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="0" y1="200.0" x2="70" y2="200.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="0" y1="100.0" x2="70" y2="100.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<text x="450.0" y="32" text-anchor="middle" font-size="20" font-weight="bold">Git backends — ops/s comparison</text>
+<g transform="translate(100,50)">
+<text x="-75" y="175.0" text-anchor="middle" font-size="14" fill="#333" transform="rotate(-90,-75,175.0)">ops/s</text>
+<line x1="0" y1="262.5" x2="70" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="0" y1="175.0" x2="70" y2="175.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="0" y1="87.5" x2="70" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="0" y1="0.0" x2="70" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<text x="-4.0" y="4.0" text-anchor="end" font-size="8" fill="#999">9k</text>
-<rect x="0.0" y="312.2" width="22" height="87.8" fill="#f9dda0" rx="1"/>
-<text x="11.0" y="309.2" text-anchor="middle" font-size="7" fill="#333">2k</text>
-<rect x="24.0" y="311.4" width="22" height="88.6" fill="#f5c0c1" rx="1"/>
-<text x="35.0" y="308.4" text-anchor="middle" font-size="7" fill="#333">2k</text>
-<rect x="48.0" y="52.2" width="22" height="347.8" fill="#8bc584" rx="1"/>
-<text x="59.0" y="49.2" text-anchor="middle" font-size="7" fill="#333">8k</text>
-<text x="35.0" y="416" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">commits-20B</text>
-<line x1="120" y1="300.0" x2="190" y2="300.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="120" y1="200.0" x2="190" y2="200.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="120" y1="100.0" x2="190" y2="100.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<text x="-4.0" y="4.0" text-anchor="end" font-size="10" fill="#999">9k</text>
+<rect x="0.0" y="273.2" width="22" height="76.8" fill="#f9dda0" rx="1"/>
+<text x="11.0" y="270.2" text-anchor="middle" font-size="9" fill="#333">2k</text>
+<rect x="24.0" y="272.5" width="22" height="77.5" fill="#f5c0c1" rx="1"/>
+<text x="35.0" y="269.5" text-anchor="middle" font-size="9" fill="#333">2k</text>
+<rect x="48.0" y="45.7" width="22" height="304.3" fill="#8bc584" rx="1"/>
+<text x="59.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">8k</text>
+<text x="35.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">commits-20B</text>
+<line x1="120" y1="262.5" x2="190" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="120" y1="175.0" x2="190" y2="175.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="120" y1="87.5" x2="190" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="120" y1="0.0" x2="190" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<text x="116.0" y="4.0" text-anchor="end" font-size="8" fill="#999">179k</text>
-<rect x="120.0" y="52.2" width="22" height="347.8" fill="#f9dda0" rx="1"/>
-<text x="131.0" y="49.2" text-anchor="middle" font-size="7" fill="#333">156k</text>
-<rect x="144.0" y="83.3" width="22" height="316.7" fill="#f5c0c1" rx="1"/>
-<text x="155.0" y="80.3" text-anchor="middle" font-size="7" fill="#333">142k</text>
-<rect x="168.0" y="221.8" width="22" height="178.2" fill="#8bc584" rx="1"/>
-<text x="179.0" y="218.8" text-anchor="middle" font-size="7" fill="#333">80k</text>
-<text x="155.0" y="416" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">reads-20B</text>
-<line x1="240" y1="300.0" x2="310" y2="300.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="240" y1="200.0" x2="310" y2="200.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="240" y1="100.0" x2="310" y2="100.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<text x="116.0" y="4.0" text-anchor="end" font-size="10" fill="#999">179k</text>
+<rect x="120.0" y="45.7" width="22" height="304.3" fill="#f9dda0" rx="1"/>
+<text x="131.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">156k</text>
+<rect x="144.0" y="72.9" width="22" height="277.1" fill="#f5c0c1" rx="1"/>
+<text x="155.0" y="69.9" text-anchor="middle" font-size="9" fill="#333">142k</text>
+<rect x="168.0" y="194.1" width="22" height="155.9" fill="#8bc584" rx="1"/>
+<text x="179.0" y="191.1" text-anchor="middle" font-size="9" fill="#333">80k</text>
+<text x="155.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">reads-20B</text>
+<line x1="240" y1="262.5" x2="310" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="240" y1="175.0" x2="310" y2="175.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="240" y1="87.5" x2="310" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="240" y1="0.0" x2="310" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<text x="236.0" y="4.0" text-anchor="end" font-size="8" fill="#999">200</text>
-<rect x="240.0" y="188.0" width="22" height="212.0" fill="#f9dda0" rx="1"/>
-<text x="251.0" y="185.0" text-anchor="middle" font-size="7" fill="#333">106</text>
-<rect x="264.0" y="155.5" width="22" height="244.5" fill="#f5c0c1" rx="1"/>
-<text x="275.0" y="152.5" text-anchor="middle" font-size="7" fill="#333">122</text>
-<rect x="288.0" y="52.2" width="22" height="347.8" fill="#8bc584" rx="1"/>
-<text x="299.0" y="49.2" text-anchor="middle" font-size="7" fill="#333">174</text>
-<text x="275.0" y="416" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">incremental-20B</text>
-<line x1="360" y1="300.0" x2="430" y2="300.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="360" y1="200.0" x2="430" y2="200.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="360" y1="100.0" x2="430" y2="100.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<text x="236.0" y="4.0" text-anchor="end" font-size="10" fill="#999">200</text>
+<rect x="240.0" y="164.5" width="22" height="185.5" fill="#f9dda0" rx="1"/>
+<text x="251.0" y="161.5" text-anchor="middle" font-size="9" fill="#333">106</text>
+<rect x="264.0" y="136.0" width="22" height="214.0" fill="#f5c0c1" rx="1"/>
+<text x="275.0" y="133.0" text-anchor="middle" font-size="9" fill="#333">122</text>
+<rect x="288.0" y="45.7" width="22" height="304.3" fill="#8bc584" rx="1"/>
+<text x="299.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">174</text>
+<text x="275.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">incremental-20B</text>
+<line x1="360" y1="262.5" x2="430" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="360" y1="175.0" x2="430" y2="175.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="360" y1="87.5" x2="430" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="360" y1="0.0" x2="430" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<text x="356.0" y="4.0" text-anchor="end" font-size="8" fill="#999">6k</text>
-<rect x="360.0" y="345.7" width="22" height="54.3" fill="#f9dda0" rx="1"/>
-<text x="371.0" y="342.7" text-anchor="middle" font-size="7" fill="#333">858</text>
-<rect x="384.0" y="340.0" width="22" height="60.0" fill="#f5c0c1" rx="1"/>
-<text x="395.0" y="337.0" text-anchor="middle" font-size="7" fill="#333">948</text>
-<rect x="408.0" y="52.2" width="22" height="347.8" fill="#8bc584" rx="1"/>
-<text x="419.0" y="49.2" text-anchor="middle" font-size="7" fill="#333">5k</text>
-<text x="395.0" y="416" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">commits-10K</text>
-<line x1="480" y1="300.0" x2="550" y2="300.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="480" y1="200.0" x2="550" y2="200.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="480" y1="100.0" x2="550" y2="100.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<text x="356.0" y="4.0" text-anchor="end" font-size="10" fill="#999">6k</text>
+<rect x="360.0" y="302.5" width="22" height="47.5" fill="#f9dda0" rx="1"/>
+<text x="371.0" y="299.5" text-anchor="middle" font-size="9" fill="#333">858</text>
+<rect x="384.0" y="297.5" width="22" height="52.5" fill="#f5c0c1" rx="1"/>
+<text x="395.0" y="294.5" text-anchor="middle" font-size="9" fill="#333">948</text>
+<rect x="408.0" y="45.7" width="22" height="304.3" fill="#8bc584" rx="1"/>
+<text x="419.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">5k</text>
+<text x="395.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">commits-10K</text>
+<line x1="480" y1="262.5" x2="550" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="480" y1="175.0" x2="550" y2="175.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="480" y1="87.5" x2="550" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="480" y1="0.0" x2="550" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<text x="476.0" y="4.0" text-anchor="end" font-size="8" fill="#999">104k</text>
-<rect x="480.0" y="212.0" width="22" height="188.0" fill="#f9dda0" rx="1"/>
-<text x="491.0" y="209.0" text-anchor="middle" font-size="7" fill="#333">49k</text>
-<rect x="504.0" y="73.1" width="22" height="326.9" fill="#f5c0c1" rx="1"/>
-<text x="515.0" y="70.1" text-anchor="middle" font-size="7" fill="#333">85k</text>
-<rect x="528.0" y="52.2" width="22" height="347.8" fill="#8bc584" rx="1"/>
-<text x="539.0" y="49.2" text-anchor="middle" font-size="7" fill="#333">91k</text>
-<text x="515.0" y="416" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">reads-10K</text>
-<line x1="600" y1="300.0" x2="670" y2="300.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="600" y1="200.0" x2="670" y2="200.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="600" y1="100.0" x2="670" y2="100.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<text x="476.0" y="4.0" text-anchor="end" font-size="10" fill="#999">104k</text>
+<rect x="480.0" y="185.5" width="22" height="164.5" fill="#f9dda0" rx="1"/>
+<text x="491.0" y="182.5" text-anchor="middle" font-size="9" fill="#333">49k</text>
+<rect x="504.0" y="64.0" width="22" height="286.0" fill="#f5c0c1" rx="1"/>
+<text x="515.0" y="61.0" text-anchor="middle" font-size="9" fill="#333">85k</text>
+<rect x="528.0" y="45.7" width="22" height="304.3" fill="#8bc584" rx="1"/>
+<text x="539.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">91k</text>
+<text x="515.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">reads-10K</text>
+<line x1="600" y1="262.5" x2="670" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="600" y1="175.0" x2="670" y2="175.0" stroke="#e0e0e0" stroke-width="0.5"/>
+<line x1="600" y1="87.5" x2="670" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="600" y1="0.0" x2="670" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<text x="596.0" y="4.0" text-anchor="end" font-size="8" fill="#999">165</text>
-<rect x="600.0" y="161.3" width="22" height="238.7" fill="#f9dda0" rx="1"/>
-<text x="611.0" y="158.3" text-anchor="middle" font-size="7" fill="#333">98</text>
-<rect x="624.0" y="117.3" width="22" height="282.7" fill="#f5c0c1" rx="1"/>
-<text x="635.0" y="114.3" text-anchor="middle" font-size="7" fill="#333">117</text>
-<rect x="648.0" y="52.2" width="22" height="347.8" fill="#8bc584" rx="1"/>
-<text x="659.0" y="49.2" text-anchor="middle" font-size="7" fill="#333">144</text>
-<text x="635.0" y="416" text-anchor="middle" font-size="11" font-weight="bold" fill="#333">incremental-10K</text>
-<line x1="0" y1="400" x2="670" y2="400" stroke="#333" stroke-width="1"/>
+<text x="596.0" y="4.0" text-anchor="end" font-size="10" fill="#999">165</text>
+<rect x="600.0" y="141.1" width="22" height="208.9" fill="#f9dda0" rx="1"/>
+<text x="611.0" y="138.1" text-anchor="middle" font-size="9" fill="#333">98</text>
+<rect x="624.0" y="102.7" width="22" height="247.3" fill="#f5c0c1" rx="1"/>
+<text x="635.0" y="99.7" text-anchor="middle" font-size="9" fill="#333">117</text>
+<rect x="648.0" y="45.7" width="22" height="304.3" fill="#8bc584" rx="1"/>
+<text x="659.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">144</text>
+<text x="635.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">incremental-10K</text>
+<line x1="0" y1="350" x2="670" y2="350" stroke="#333" stroke-width="1"/>
 </g>
-<g transform="translate(120,500)">
-<rect x="0" y="0" width="12" height="12" fill="#f9dda0" rx="2"/>
-<text x="16" y="10" font-size="10" fill="#333">Irmin-Lwt (git)</text>
-<rect x="180" y="0" width="12" height="12" fill="#f5c0c1" rx="2"/>
-<text x="196" y="10" font-size="10" fill="#333">Irmin-Eio (git)</text>
-<rect x="360" y="0" width="12" height="12" fill="#8bc584" rx="2"/>
-<text x="376" y="10" font-size="10" fill="#333">Irmini (git)</text>
+<g transform="translate(100,440)">
+<rect x="0" y="0" width="14" height="14" fill="#f9dda0" rx="2"/>
+<text x="18" y="12" font-size="13" fill="#333">Irmin-Lwt (git)</text>
+<rect x="200" y="0" width="14" height="14" fill="#f5c0c1" rx="2"/>
+<text x="218" y="12" font-size="13" fill="#333">Irmin-Eio (git)</text>
+<rect x="400" y="0" width="14" height="14" fill="#8bc584" rx="2"/>
+<text x="418" y="12" font-size="13" fill="#333">Irmini (git)</text>
 </g>
 </svg>

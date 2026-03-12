@@ -164,24 +164,29 @@ def generate_chart(title, results, backends):
         key=scenario_sort_key
     )
 
-    # Layout
-    margin_left = 120
-    margin_right = 40
-    margin_top = 60
-    group_gap = 50
-    bar_width = max(10, min(22, 250 // max(1, len(backends))))
-    bar_gap = 2
-
+    # Layout — target max width ~1200px for readability
+    margin_left = 100
+    margin_right = 30
+    margin_top = 50
     n_backends = len(backends)
+    n_scenarios = len(scenarios)
+    max_chart_width = 1100
+
+    # Compute bar dimensions to fit within max width
+    # Start generous, shrink if needed
+    bar_width = max(8, min(22, max_chart_width // max(1, n_scenarios * n_backends)))
+    bar_gap = 2
+    group_gap = max(20, min(50, max_chart_width // max(1, n_scenarios * 3)))
+
     group_width = n_backends * (bar_width + bar_gap) - bar_gap
-    chart_width = len(scenarios) * (group_width + group_gap) - group_gap
-    chart_height = 400
+    chart_width = n_scenarios * (group_width + group_gap) - group_gap
+    chart_height = 350
 
     # Legend layout
-    legend_col_width = 180
+    legend_col_width = 200
     legend_cols = max(1, min(4, (margin_left + chart_width + margin_right) // legend_col_width))
     legend_rows = (n_backends + legend_cols - 1) // legend_cols
-    margin_bottom = 50 + legend_rows * 20
+    margin_bottom = 55 + legend_rows * 24
 
     svg_w = max(margin_left + chart_width + margin_right, legend_cols * legend_col_width + margin_left)
     svg_h = margin_top + chart_height + margin_bottom
@@ -201,7 +206,7 @@ def generate_chart(title, results, backends):
 
     lines = []
     lines.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{svg_w}" height="{svg_h}" '
-                 f'font-family="system-ui, sans-serif" font-size="11">')
+                 f'font-family="system-ui, sans-serif" font-size="14">')
     lines.append(f'<rect width="{svg_w}" height="{svg_h}" fill="white"/>')
 
     # Define hatching patterns for parallel variants
@@ -219,15 +224,15 @@ def generate_chart(title, results, backends):
     lines.append('</defs>')
 
     # Title
-    lines.append(f'<text x="{svg_w/2}" y="28" text-anchor="middle" font-size="16" '
+    lines.append(f'<text x="{svg_w/2}" y="32" text-anchor="middle" font-size="20" '
                  f'font-weight="bold">{title}</text>')
 
     ox, oy = margin_left, margin_top
     lines.append(f'<g transform="translate({ox},{oy})">')
 
     # Y axis label
-    lines.append(f'<text x="-85" y="{chart_height/2}" text-anchor="middle" '
-                 f'font-size="12" fill="#333" transform="rotate(-90,-85,{chart_height/2})">'
+    lines.append(f'<text x="-75" y="{chart_height/2}" text-anchor="middle" '
+                 f'font-size="14" fill="#333" transform="rotate(-90,-75,{chart_height/2})">'
                  f'ops/s</text>')
 
     # Bars per scenario
@@ -245,7 +250,7 @@ def generate_chart(title, results, backends):
                          f'stroke="#e0e0e0" stroke-width="0.5"/>')
             if i == 4:
                 lines.append(f'<text x="{gx - 4:.1f}" y="{yy + 4:.1f}" '
-                             f'text-anchor="end" font-size="8" fill="#999">'
+                             f'text-anchor="end" font-size="10" fill="#999">'
                              f'{fmt_ops(int(tick_val))}</text>')
 
         for bi, backend in enumerate(backends):
@@ -264,13 +269,13 @@ def generate_chart(title, results, backends):
             lines.append(f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_width}" '
                          f'height="{bh:.1f}" fill="{fill}" rx="1"/>')
             lines.append(f'<text x="{bx + bar_width/2:.1f}" y="{by - 3:.1f}" '
-                         f'text-anchor="middle" font-size="7" fill="#333">'
+                         f'text-anchor="middle" font-size="9" fill="#333">'
                          f'{fmt_ops(val)}</text>')
 
         # Scenario label
         cx = gx + group_width / 2
-        lines.append(f'<text x="{cx:.1f}" y="{chart_height + 16}" text-anchor="middle" '
-                     f'font-size="11" font-weight="bold" fill="#333">{scenario}</text>')
+        lines.append(f'<text x="{cx:.1f}" y="{chart_height + 18}" text-anchor="middle" '
+                     f'font-size="13" font-weight="bold" fill="#333">{scenario}</text>')
 
     # Bottom axis
     lines.append(f'<line x1="0" y1="{chart_height}" x2="{chart_width}" '
@@ -287,15 +292,15 @@ def generate_chart(title, results, backends):
         col = i % legend_cols
         row = i // legend_cols
         x = col * legend_col_width
-        y = row * 20
+        y = row * 24
         color = get_color(backend)
         if is_parallel_variant(backend):
             pid = f"hatch-{abs(hash(backend)) % 10000}"
             fill = f'url(#{pid})'
         else:
             fill = color
-        lines.append(f'<rect x="{x}" y="{y}" width="12" height="12" fill="{fill}" rx="2"/>')
-        lines.append(f'<text x="{x+16}" y="{y+10}" font-size="10" fill="#333">{backend}</text>')
+        lines.append(f'<rect x="{x}" y="{y}" width="14" height="14" fill="{fill}" rx="2"/>')
+        lines.append(f'<text x="{x+18}" y="{y+12}" font-size="13" fill="#333">{backend}</text>')
 
     lines.append('</g>')
     lines.append('</svg>')
