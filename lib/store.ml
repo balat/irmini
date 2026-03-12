@@ -37,12 +37,27 @@ module Make (F : Codec.S) = struct
         | Some commit -> Some (read_tree t (Commit.tree commit)))
 
   let commit ?inline_threshold ?inode t ~tree ~parents ~message ~author =
-    (* This is where delayed writes happen *)
-    let tree_hash = Tree.hash ?inline_threshold ?inode tree ~backend:t.backend in
+    (* Buffer writes during tree traversal, flush as a single batch.
+       This is critical for the disk backend where each individual write
+       triggers a WAL sync (fsync). *)
+    let pending_list = ref [] in
+    let local_cache : (hash, string) Hashtbl.t = Hashtbl.create 128 in
+    let buffered = {
+      t.backend with
+      write = (fun h data ->
+        Hashtbl.replace local_cache h data;
+        pending_list := (h, data) :: !pending_list);
+      read = (fun h ->
+        match Hashtbl.find_opt local_cache h with
+        | Some _ as r -> r
+        | None -> t.backend.read h);
+    } in
+    let tree_hash = Tree.hash ?inline_threshold ?inode tree ~backend:buffered in
     let c = Commit.v ~tree:tree_hash ~parents ~author ~message () in
     let data = Commit.to_bytes c in
     let h = Commit.hash c in
-    t.backend.write h data;
+    pending_list := (h, data) :: !pending_list;
+    t.backend.write_batch !pending_list;
     h
 
   let head t ~branch = t.backend.get_ref ("refs/heads/" ^ branch)
