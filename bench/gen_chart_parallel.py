@@ -4,15 +4,22 @@
 Shows throughput (ops/s) vs fibers per domain on a log-scale x-axis,
 with the sequential baseline as a reference line.
 
-Usage: gen_chart_parallel.py <output_svg>
+Usage: gen_chart_parallel.py <output_svg> [--json <results_dir>]
+
+Without --json, uses hardcoded fallback data. With --json, reads parallel
+and trace results from *.json files in the results directory.
 """
 
+import glob
+import json
 import math
+import os
+import re
 import sys
 
 
-# Data: (fibers_per_domain, ops_per_sec)
-DATA = [
+# Fallback data when no JSON is available: (fibers_per_domain, ops_per_sec)
+FALLBACK_DATA = [
     (1,      84_000),
     (10,     236_000),
     (100,    647_000),
@@ -29,8 +36,37 @@ DATA = [
     (100_000, 2_961_000),
 ]
 
-SEQUENTIAL = 54_000  # sequential baseline ops/s
-DOMAINS = 12
+FALLBACK_SEQUENTIAL = 54_000
+FALLBACK_DOMAINS = 12
+
+
+def load_from_json(results_dir):
+    """Load parallel and sequential trace data from JSON files."""
+    all_results = []
+    for path in sorted(glob.glob(os.path.join(results_dir, "*.json"))):
+        try:
+            with open(path) as f:
+                all_results.extend(json.load(f))
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    data = []
+    sequential = None
+    domains = 12
+
+    for r in all_results:
+        s = r["scenario"]
+        # Parallel results: tezos-parallel-12d×1000f
+        m = re.match(r'tezos-parallel-(\d+)d.*?(\d+)f', s)
+        if m and "lavyek" in r["name"].lower():
+            domains = int(m.group(1))
+            fibers = int(m.group(2))
+            data.append((fibers, int(r["ops_per_sec"])))
+        # Sequential baseline: tezos-*commits from lavyek
+        elif "tezos-" in s and "parallel" not in s and "lavyek" in r["name"].lower():
+            sequential = int(r["ops_per_sec"])
+
+    return data, sequential, domains
 
 
 def fmt_ops(v):
@@ -47,7 +83,7 @@ def fmt_fibers(v):
     return str(v)
 
 
-def generate_chart():
+def generate_chart(data, sequential, domains):
     # Layout
     margin_left = 90
     margin_right = 30
@@ -59,11 +95,12 @@ def generate_chart():
     svg_h = margin_top + chart_h + margin_bottom
 
     # Log-scale X axis
-    x_min_log = math.log10(DATA[0][0])  # log10(1) = 0
-    x_max_log = math.log10(DATA[-1][0])  # log10(100000) = 5
+    sorted_data_tmp = sorted(data, key=lambda d: d[0])
+    x_min_log = math.log10(max(1, sorted_data_tmp[0][0]))
+    x_max_log = math.log10(sorted_data_tmp[-1][0])
 
     # Y axis: linear, from 0 to max * 1.15
-    y_max = max(d[1] for d in DATA) * 1.15
+    y_max = max(d[1] for d in data) * 1.15
 
     def x_of(fibers):
         return margin_left + (math.log10(fibers) - x_min_log) / (x_max_log - x_min_log) * chart_w
@@ -78,7 +115,7 @@ def generate_chart():
 
     # Title
     lines.append(f'<text x="{svg_w/2}" y="24" text-anchor="middle" font-size="16" '
-                 f'font-weight="bold">Parallel Trace Replay Scaling — {DOMAINS} domains, Lavyek backend</text>')
+                 f'font-weight="bold">Parallel Trace Replay Scaling — {domains} domains, Lavyek backend</text>')
     lines.append(f'<text x="{svg_w/2}" y="42" text-anchor="middle" font-size="11" fill="#666">'
                  f'Tezos trace: 4M ops, 10310 commits</text>')
 
@@ -115,17 +152,17 @@ def generate_chart():
                  f'Fibers per domain</text>')
 
     # Sequential baseline
-    base_y = y_of(SEQUENTIAL)
+    base_y = y_of(sequential)
     lines.append(f'<line x1="{margin_left}" y1="{base_y:.1f}" '
                  f'x2="{margin_left + chart_w}" y2="{base_y:.1f}" '
                  f'stroke="#e15759" stroke-width="1.5" stroke-dasharray="6,4"/>')
     lines.append(f'<text x="{margin_left + chart_w + 2}" y="{base_y + 4:.1f}" '
-                 f'font-size="9" fill="#e15759">sequential ({fmt_ops(SEQUENTIAL)})</text>')
+                 f'font-size="9" fill="#e15759">sequential ({fmt_ops(sequential)})</text>')
 
     # Data line
     color = "#59a14f"
     # Sort by fibers for the line
-    sorted_data = sorted(DATA, key=lambda d: d[0])
+    sorted_data = sorted(data, key=lambda d: d[0])
 
     # Line path
     path_parts = []
@@ -141,7 +178,7 @@ def generate_chart():
     for fibers, ops in sorted_data:
         xx = x_of(fibers)
         yy = y_of(ops)
-        speedup = ops / SEQUENTIAL
+        speedup = ops / sequential
         lines.append(f'<circle cx="{xx:.1f}" cy="{yy:.1f}" r="4" fill="{color}" stroke="white" stroke-width="1.5"/>')
 
         # Label: show ops and speedup for key points only
@@ -171,26 +208,46 @@ def generate_chart():
     ly = margin_top + chart_h + 52
     lines.append(f'<rect x="{margin_left}" y="{ly}" width="12" height="12" fill="{color}" rx="2"/>')
     lines.append(f'<text x="{margin_left + 16}" y="{ly + 10}" font-size="10" fill="#333">'
-                 f'Irmini-parallel (lavyek) — 12 domains</text>')
+                 f'Irmini-parallel (lavyek) — {domains} domains</text>')
     lines.append(f'<line x1="{margin_left + 260}" y1="{ly + 6}" '
                  f'x2="{margin_left + 285}" y2="{ly + 6}" '
                  f'stroke="#e15759" stroke-width="1.5" stroke-dasharray="6,4"/>')
     lines.append(f'<text x="{margin_left + 290}" y="{ly + 10}" font-size="10" fill="#333">'
-                 f'Sequential baseline (54k ops/s)</text>')
+                 f'Sequential baseline ({fmt_ops(sequential)} ops/s)</text>')
 
     lines.append('</svg>')
     return "\n".join(lines)
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: gen_chart_parallel.py <output_svg>")
+    # Parse args: gen_chart_parallel.py <output_svg> [--json <results_dir>]
+    args = sys.argv[1:]
+    if not args:
+        print("Usage: gen_chart_parallel.py <output_svg> [--json <results_dir>]")
         sys.exit(1)
 
-    svg = generate_chart()
-    with open(sys.argv[1], "w") as f:
+    output_svg = args[0]
+    results_dir = None
+    if "--json" in args:
+        idx = args.index("--json")
+        if idx + 1 < len(args):
+            results_dir = args[idx + 1]
+
+    if results_dir:
+        data, sequential, domains = load_from_json(results_dir)
+        if not data:
+            print("No parallel data found in JSON, using fallback")
+            data, sequential, domains = FALLBACK_DATA, FALLBACK_SEQUENTIAL, FALLBACK_DOMAINS
+        elif sequential is None:
+            print("No sequential baseline found, using fallback")
+            sequential = FALLBACK_SEQUENTIAL
+    else:
+        data, sequential, domains = FALLBACK_DATA, FALLBACK_SEQUENTIAL, FALLBACK_DOMAINS
+
+    svg = generate_chart(data, sequential, domains)
+    with open(output_svg, "w") as f:
         f.write(svg)
-    print(f"Written {sys.argv[1]}")
+    print(f"Written {output_svg} ({len(data)} data points)")
 
 
 if __name__ == "__main__":

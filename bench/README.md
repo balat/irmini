@@ -31,6 +31,40 @@ to point to your irmin checkout.
 
 ## Quick start
 
+Run everything and update README (recommended):
+
+```
+cd /path/to/monopampam
+IRMIN_DIR=/path/to/irmin ./irmini/bench/run_bench.sh
+```
+
+This runs all benchmarks (irmini + irmin), generates SVG charts, and updates
+the Results section of this README. Without `IRMIN_DIR`, only irmini benchmarks
+are run and Irmin comparison rows are omitted from the tables.
+
+`run_bench.sh` options:
+
+| Flag                     | Default | Description                                    |
+|--------------------------|---------|------------------------------------------------|
+| `--skip-irmini`          |         | Skip irmini standard benchmarks (step 1)       |
+| `--skip-optims`          |         | Skip optimization comparison (step 2)          |
+| `--skip-trace`           |         | Skip trace replay (step 3)                     |
+| `--skip-parallel`        |         | Skip parallel scaling sweep (step 4)           |
+| `--skip-irmin`           |         | Skip Irmin-Lwt/Eio benchmarks (step 5)         |
+| `--skip-charts`          |         | Skip chart generation (step 6)                 |
+| `--skip-readme`          |         | Skip README update (step 7)                    |
+| `--trace FILE`           | auto    | Path to `.repr` trace file                     |
+| `--trace-commits N`      | 10310   | Max commits to replay                          |
+| `--parallel-fibers LIST` | 1,10,...,100000 | Comma-separated fiber counts for scaling sweep |
+| `--parallel-domains N`   | 12      | Number of OS domains for parallel replay       |
+| `--ncommits N`           | 100     | Override commit count (passed to benchmarks)   |
+| `--tree-add N`           | 1000    | Override tree-add (passed to benchmarks)       |
+
+Steps: 1) Irmini standard (all backends), 2) Optimization comparison (5 variants
+× disk/memory), 3) Trace replay (sequential), 4) Parallel scaling sweep (14
+fiber counts), 5) Irmin-Lwt/Eio benchmarks + trace replay (needs `IRMIN_DIR`),
+6) Generate SVG charts, 7) Update this README from JSON results.
+
 Irmini only (from monopampam monorepo):
 
 ```
@@ -168,12 +202,14 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 | `trace_replay.ml`         | Tezos trace replay benchmark                 |
 | `trace_replay_parallel.ml`| Parallel multicore trace replay               |
 | `bench_irmin4_main.ml`    | CLI runner for all irmini backends            |
+| `run_bench.sh`            | **Master script**: runs all benchmarks, generates charts, updates README |
 | `run.sh`                  | Simple comparison (irmini + Irmin-Eio)       |
 | `run_all.sh`              | Full comparison across all implementations   |
 | `run_optims.sh`           | Per-optimization comparison (5 variants)     |
 | `gen_chart.py`            | Chart from hardcoded data (legacy)           |
 | `gen_chart_all.py`        | Charts from JSON results by backend type     |
-| `gen_chart_parallel.py`   | Parallel scaling chart                        |
+| `gen_chart_parallel.py`   | Parallel scaling chart (from JSON or fallback)|
+| `gen_readme_results.py`   | Generates README results section from JSON   |
 | `bench-irmin-eio/`        | Irmin-Eio benchmark adapters                 |
 | `bench-irmin-lwt/`        | Irmin-Lwt benchmark adapters                 |
 
