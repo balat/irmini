@@ -1,0 +1,17 @@
+[
+  {"name": "Irmini+cache (memory)", "scenario": "incremental-10K", "total_ops": 100, "total_time": 0.018944, "ops_per_sec": 5278.7, "maxrss_kb": 47648},
+  {"name": "Irmini+cache (memory)", "scenario": "reads-10K", "total_ops": 10000, "total_time": 0.007287, "ops_per_sec": 1372347.0, "maxrss_kb": 49732},
+  {"name": "Irmini+cache (memory)", "scenario": "commits-10K", "total_ops": 100000, "total_time": 5.977228, "ops_per_sec": 16730.2, "maxrss_kb": 98100},
+  {"name": "Irmini+cache (memory)", "scenario": "incremental-100B", "total_ops": 100, "total_time": 0.014532, "ops_per_sec": 6881.4, "maxrss_kb": 101204},
+  {"name": "Irmini+cache (memory)", "scenario": "reads-100B", "total_ops": 10000, "total_time": 0.007487, "ops_per_sec": 1335638.0, "maxrss_kb": 104452},
+  {"name": "Irmini+cache (memory)", "scenario": "commits-100B", "total_ops": 100000, "total_time": 1.303476, "ops_per_sec": 76718.0, "maxrss_kb": 119780},
+  {"name": "Irmini+cache (lavyek)", "scenario": "concurrent-100f/12d", "total_ops": 20000, "total_time": 0.042180, "ops_per_sec": 474157.7, "maxrss_kb": 265152},
+  {"name": "Irmini+cache (lavyek)", "scenario": "incremental-10K", "total_ops": 100, "total_time": 0.028399, "ops_per_sec": 3521.3, "maxrss_kb": 270892},
+  {"name": "Irmini+cache (lavyek)", "scenario": "reads-10K", "total_ops": 10000, "total_time": 0.007589, "ops_per_sec": 1317720.4, "maxrss_kb": 272976},
+  {"name": "Irmini+cache (lavyek)", "scenario": "commits-10K", "total_ops": 100000, "total_time": 10.369958, "ops_per_sec": 9643.2, "maxrss_kb": 411772},
+  {"name": "Irmini+cache (lavyek)", "scenario": "incremental-100B", "total_ops": 100, "total_time": 0.020410, "ops_per_sec": 4899.5, "maxrss_kb": 380272},
+  {"name": "Irmini+cache (lavyek)", "scenario": "reads-100B", "total_ops": 10000, "total_time": 0.007470, "ops_per_sec": 1338664.6, "maxrss_kb": 350452},
+  {"name": "Irmini+cache (lavyek)", "scenario": "commits-100B", "total_ops": 100000, "total_time": 1.564289, "ops_per_sec": 63926.8, "maxrss_kb": 384756},
+  {"name": "Irmini (memory)", "scenario": "tezos-10310commits", "total_ops": 3999997, "total_time": 28.125927, "ops_per_sec": 142217.4, "maxrss_kb": 599940},
+  {"name": "Irmini (lavyek)", "scenario": "tezos-10310commits", "total_ops": 3999997, "total_time": 29.621947, "ops_per_sec": 135034.9, "maxrss_kb": 730968}
+]
