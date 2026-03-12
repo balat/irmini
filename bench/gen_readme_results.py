@@ -74,6 +74,10 @@ def classify(name, scenario):
             return "optims_disk"
         return "optims_memory"
 
+    # Parallel tezos variants go to disk chart
+    if "12d\u00d7" in name or "12d×" in name:
+        return "disk"
+
     # Parallel scaling
     if "tezos-parallel" in s:
         return "parallel"
@@ -771,6 +775,14 @@ def generate_results_section(all_results, run_date, machine_info):
                 if mem_trace:
                     parts.append(f"Irmini (memory) at {fmt_ops(mem_trace['ops_per_sec'])} ops/sec")
                 lines.append(f"- **trace-replay**: " + ". ".join(parts) + ".")
+        # Parallel trace entries
+        par_entries = [r for r in disk_all if '12d' in r['name'] and 'tezos' in r['scenario']]
+        if par_entries:
+            par_parts = []
+            for r in sorted(par_entries, key=lambda x: -x['ops_per_sec']):
+                par_parts.append(f"{r['name']} at **{fmt_ops(r['ops_per_sec'])} ops/s**")
+            lines.append(f"- **parallel trace-replay** (hatched bars): " + ". ".join(par_parts)
+                         + " \u2014 limited by irmin-pack batch serialization for Irmin-Eio.")
         lines.append("")
 
     # --- Memory ---

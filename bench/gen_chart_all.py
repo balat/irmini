@@ -85,11 +85,9 @@ COLORS = {
 }
 
 
-# Parallel variants: rendered with diagonal hatching over the base color
-PARALLEL_VARIANTS = {
-    "Irmini (lavyek) 12d×50kf",
-    "Irmin-Eio (pack) 12d×1f",
-}
+def is_parallel_variant(name):
+    """Check if a backend name is a parallel variant (shown with hatching)."""
+    return "12d\u00d7" in name or "12d×" in name
 
 OPTIM_ORDER_MEM = ["Irmini baseline", "Irmini+inline", "Irmini+cache", "Irmini+inode", "Irmini+all"]
 OPTIM_ORDER_DISK = ["Irmini baseline (disk)", "Irmini+inline (disk)", "Irmini+cache (disk)",
@@ -116,6 +114,13 @@ def get_color(name):
     """Get a color for a given backend name."""
     if name in COLORS:
         return COLORS[name]
+    # For parallel variants, match by base backend keyword
+    if is_parallel_variant(name):
+        for key in ("lavyek", "pack", "disk", "memory", "fs", "git"):
+            if key in name.lower():
+                for cname, color in COLORS.items():
+                    if key in cname.lower() and not is_parallel_variant(cname):
+                        return color
     # Fallback: hash-based color
     h = hash(name) % 360
     return f"hsl({h}, 60%, 55%)"
@@ -189,7 +194,7 @@ def generate_chart(title, results, backends):
     # Define hatching patterns for parallel variants
     lines.append('<defs>')
     for backend in backends:
-        if backend in PARALLEL_VARIANTS:
+        if is_parallel_variant(backend):
             pid = f"hatch-{abs(hash(backend)) % 10000}"
             color = get_color(backend)
             lines.append(
@@ -238,7 +243,7 @@ def generate_chart(title, results, backends):
             by = y_of(val, scenario)
             bh = chart_height - by
             color = get_color(backend)
-            if backend in PARALLEL_VARIANTS:
+            if is_parallel_variant(backend):
                 pid = f"hatch-{abs(hash(backend)) % 10000}"
                 fill = f'url(#{pid})'
             else:
@@ -271,7 +276,7 @@ def generate_chart(title, results, backends):
         x = col * legend_col_width
         y = row * 20
         color = get_color(backend)
-        if backend in PARALLEL_VARIANTS:
+        if is_parallel_variant(backend):
             pid = f"hatch-{abs(hash(backend)) % 10000}"
             fill = f'url(#{pid})'
         else:

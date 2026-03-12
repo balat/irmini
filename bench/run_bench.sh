@@ -401,13 +401,60 @@ else:
         "$OUTPUT_DIR/irmin_eio_parallel.json" \
         "--skip-pack --skip-fs --skip-git --trace $TRACE_FILE --trace-commits $TRACE_COMMITS --trace-empty-blobs --parallel-domains $PARALLEL_DOMAINS --parallel-fibers 1"
 
-      # Also run with higher fiber counts for scaling comparison
-      for fibers in 10 100 1000; do
-        echo "  --- Irmin-Eio parallel $fibers fibers/domain ---"
-        run_irmin_bench "cuihtlauac-inline-small-objects-v2" "bench-irmin-eio" "bench-irmin-eio" \
-          "$OUTPUT_DIR/irmin_eio_parallel_${fibers}f.json" \
-          "--skip-pack --skip-fs --skip-git --trace $TRACE_FILE --trace-commits $TRACE_COMMITS --trace-empty-blobs --parallel-domains $PARALLEL_DOMAINS --parallel-fibers $fibers"
-      done
+      # Generate tezos_parallel.json combining peak irmini + irmin-eio parallel results
+      python3 -c "
+import json, re, os, glob
+
+results_dir = '$OUTPUT_DIR'
+entries = []
+
+# Peak irmini parallel result
+par_file = os.path.join(results_dir, 'irmini_parallel.json')
+if os.path.exists(par_file):
+    with open(par_file) as f:
+        par_data = json.load(f)
+    if par_data:
+        peak = max(par_data, key=lambda r: r['ops_per_sec'])
+        m = re.search(r'(\d+)d.*?(\d+)f', peak['scenario'])
+        if m:
+            domains, fibers = m.group(1), m.group(2)
+            fib_str = f'{int(fibers)//1000}k' if int(fibers) >= 1000 else fibers
+            entries.append({
+                'name': f'Irmini (lavyek) {domains}d\u00d7{fib_str}f',
+                'scenario': 'tezos-${TRACE_COMMITS}commits',
+                'total_ops': peak['total_ops'],
+                'total_time': peak['total_time'],
+                'ops_per_sec': peak['ops_per_sec'],
+                'maxrss_kb': peak.get('maxrss_kb', 0),
+            })
+
+# Irmin-Eio parallel result
+eio_file = os.path.join(results_dir, 'irmin_eio_parallel.json')
+if os.path.exists(eio_file):
+    with open(eio_file) as f:
+        eio_data = json.load(f)
+    for r in eio_data:
+        if 'parallel' in r.get('scenario', ''):
+            m = re.search(r'(\d+)d.*?(\d+)f', r['scenario'])
+            if m:
+                domains, fibers = m.group(1), m.group(2)
+                entries.append({
+                    'name': f'Irmin-Eio (pack) {domains}d\u00d7{fibers}f',
+                    'scenario': 'tezos-${TRACE_COMMITS}commits',
+                    'total_ops': r['total_ops'],
+                    'total_time': r['total_time'],
+                    'ops_per_sec': r['ops_per_sec'],
+                    'maxrss_kb': r.get('maxrss_kb', 0),
+                })
+            break
+
+if entries:
+    out = os.path.join(results_dir, 'tezos_parallel.json')
+    with open(out, 'w') as f:
+        json.dump(entries, f, indent=2)
+        f.write('\n')
+    print(f'Generated {out} with {len(entries)} entries')
+"
     fi
   fi
 
