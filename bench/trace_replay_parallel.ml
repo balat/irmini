@@ -2,8 +2,8 @@
 
     Replays the Tezos trace by partitioning operations across multiple domains
     and fibers. Each worker processes a contiguous chunk of the trace, sharing
-    a backend per domain. This demonstrates how multicore parallelism speeds
-    up trace indexing. *)
+    a single store (and backend). This demonstrates how multicore parallelism
+    speeds up trace indexing. *)
 
 open Irmin
 
@@ -44,8 +44,7 @@ let use_hash_safe hashes scope =
     Returns (total_ops, commits). *)
 let replay_chunk ~rows ~start_idx ~end_idx
     ?(empty_blobs = false) ?inline_threshold ?inode
-    ~(backend : Hash.sha1 Backend.t) ~worker_id () =
-  let store = Store.Git.create ~backend () in
+    ~store ~worker_id () =
   let contexts : (int64, Tree.Git.t) Hashtbl.t = Hashtbl.create 16 in
   let hashes : (string, Hash.sha1) Hashtbl.t = Hashtbl.create 16 in
   let branch = Printf.sprintf "worker-%d" worker_id in
@@ -120,13 +119,15 @@ let replay_chunk ~rows ~start_idx ~end_idx
 
 (** Run parallel trace replay by partitioning the trace across workers.
 
-    All workers share a single backend. The backend must be thread-safe
-    for cross-domain access (use [Backend.thread_safe] for Memory, or
-    a backend that is already domain-safe like Lavyek).
+    All workers share a single store (and its underlying backend). The
+    backend must be thread-safe for cross-domain access (use
+    [Backend.thread_safe] for Memory, or a backend that is already
+    domain-safe like Lavyek).
 
     @param ndomains Number of OS domains (cores)
     @param fibers_per_domain Number of concurrent fibers per domain
-    @param backend Single shared backend for all workers *)
+    @param backend Single shared backend for all workers (wrap with
+    [Backend.cached] before passing if caching is desired) *)
 let replay ~trace_path ?(max_commits = 0) ?(flatten_paths = true)
     ?(empty_blobs = false) ?inline_threshold ?inode
     ~ndomains ~fibers_per_domain
@@ -154,6 +155,7 @@ let replay ~trace_path ?(max_commits = 0) ?(flatten_paths = true)
   in
   Printf.printf "  Trace: %d operations, %d workers (%d domains × %d fibers)\n%!"
     nrows nworkers ndomains fibers_per_domain;
+  let store = Store.Git.create ~backend () in
   let dm = Eio.Stdenv.domain_mgr env in
   (* Partition ops among workers *)
   let chunk_size = nrows / nworkers in
@@ -187,7 +189,7 @@ let replay ~trace_path ?(max_commits = 0) ?(flatten_paths = true)
               let ops, commits =
                 replay_chunk ~rows ~start_idx ~end_idx
                   ~empty_blobs ?inline_threshold ?inode
-                  ~backend ~worker_id ()
+                  ~store ~worker_id ()
               in
               fiber_results.(fid) <- (ops, commits)));
           let total_ops = Array.fold_left (fun acc (o, _) -> acc + o) 0 fiber_results in
