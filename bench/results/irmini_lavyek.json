@@ -1,9 +1,50 @@
 [
-  {"name": "Irmini (lavyek)", "scenario": "concurrent-100f/12d", "total_ops": 20000, "total_time": 0.087908, "ops_per_sec": 227510.5, "maxrss_kb": 234280},
-  {"name": "Irmini (lavyek)", "scenario": "incremental-10K", "total_ops": 100, "total_time": 0.037076, "ops_per_sec": 2697.2, "maxrss_kb": 252740},
-  {"name": "Irmini (lavyek)", "scenario": "reads-10K", "total_ops": 10000, "total_time": 0.034968, "ops_per_sec": 285976.6, "maxrss_kb": 267424},
-  {"name": "Irmini (lavyek)", "scenario": "commits-10K", "total_ops": 100000, "total_time": 10.835053, "ops_per_sec": 9229.3, "maxrss_kb": 369588},
-  {"name": "Irmini (lavyek)", "scenario": "incremental-20B", "total_ops": 100, "total_time": 0.025925, "ops_per_sec": 3857.3, "maxrss_kb": 369588},
-  {"name": "Irmini (lavyek)", "scenario": "reads-20B", "total_ops": 10000, "total_time": 0.021419, "ops_per_sec": 466874.2, "maxrss_kb": 338884},
-  {"name": "Irmini (lavyek)", "scenario": "commits-20B", "total_ops": 100000, "total_time": 1.184489, "ops_per_sec": 84424.6, "maxrss_kb": 376296}
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "incremental-10K",
+    "total_ops": 100,
+    "total_time": 0.155098,
+    "ops_per_sec": 644.8,
+    "maxrss_kb": 12072968
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "reads-10K",
+    "total_ops": 1000000,
+    "total_time": 0.314563,
+    "ops_per_sec": 3179013.1,
+    "maxrss_kb": 11879328
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "commits-10K",
+    "total_ops": 100000,
+    "total_time": 12.289643,
+    "ops_per_sec": 8136.9,
+    "maxrss_kb": 11896680
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "incremental-20B",
+    "total_ops": 100,
+    "total_time": 0.029745,
+    "ops_per_sec": 3361.9,
+    "maxrss_kb": 544636
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "reads-20B",
+    "total_ops": 1000000,
+    "total_time": 0.287679,
+    "ops_per_sec": 3476097.1,
+    "maxrss_kb": 528936
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "commits-20B",
+    "total_ops": 100000,
+    "total_time": 0.730782,
+    "ops_per_sec": 136839.7,
+    "maxrss_kb": 670152
+  }
 ]

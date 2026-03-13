@@ -1,0 +1,98 @@
+[
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "parallel-incremental-10K-12d\u00d7100f",
+    "total_ops": 1200,
+    "total_time": 1.334938,
+    "ops_per_sec": 898.9,
+    "maxrss_kb": 11928780
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "parallel-reads-10K-12d\u00d7100f",
+    "total_ops": 999600,
+    "total_time": 0.147815,
+    "ops_per_sec": 6762507.7,
+    "maxrss_kb": 11914220
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "parallel-commits-10K-12d\u00d7100f",
+    "total_ops": 1200000,
+    "total_time": 185.796183,
+    "ops_per_sec": 6458.7,
+    "maxrss_kb": 11730820
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "parallel-incremental-20B-12d\u00d7100f",
+    "total_ops": 1200,
+    "total_time": 0.215935,
+    "ops_per_sec": 5557.2,
+    "maxrss_kb": 544644
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "parallel-reads-20B-12d\u00d7100f",
+    "total_ops": 999600,
+    "total_time": 0.086629,
+    "ops_per_sec": 11538872.6,
+    "maxrss_kb": 524792
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "parallel-commits-20B-12d\u00d7100f",
+    "total_ops": 1200000,
+    "total_time": 4.874182,
+    "ops_per_sec": 246195.2,
+    "maxrss_kb": 522856
+  },
+  {
+    "name": "Irmini (disk)",
+    "scenario": "parallel-incremental-10K-12d\u00d7100f",
+    "total_ops": 1200,
+    "total_time": 16.972204,
+    "ops_per_sec": 70.7,
+    "maxrss_kb": 10240104
+  },
+  {
+    "name": "Irmini (disk)",
+    "scenario": "parallel-reads-10K-12d\u00d7100f",
+    "total_ops": 999600,
+    "total_time": 3.476307,
+    "ops_per_sec": 287546.5,
+    "maxrss_kb": 10404064
+  },
+  {
+    "name": "Irmini (disk)",
+    "scenario": "parallel-commits-10K-12d\u00d7100f",
+    "total_ops": 1200000,
+    "total_time": 2163.246229,
+    "ops_per_sec": 554.7,
+    "maxrss_kb": 10772480
+  },
+  {
+    "name": "Irmini (disk)",
+    "scenario": "parallel-incremental-20B-12d\u00d7100f",
+    "total_ops": 1200,
+    "total_time": 21.142918,
+    "ops_per_sec": 56.8,
+    "maxrss_kb": 544828
+  },
+  {
+    "name": "Irmini (disk)",
+    "scenario": "parallel-reads-20B-12d\u00d7100f",
+    "total_ops": 999600,
+    "total_time": 1.104284,
+    "ops_per_sec": 905201.9,
+    "maxrss_kb": 614704
+  },
+  {
+    "name": "Irmini (disk)",
+    "scenario": "parallel-commits-20B-12d\u00d7100f",
+    "total_ops": 1200000,
+    "total_time": 76.666754,
+    "ops_per_sec": 15652.2,
+    "maxrss_kb": 464984
+  }
+]
