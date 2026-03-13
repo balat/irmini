@@ -607,6 +607,8 @@ Only domain-safe backends shown (Irmini and Irmin-Eio).
 
 ### Parallel scenario scaling (fibers per domain)
 
+![Parallel scaling](results/chart_scaling.svg)
+
 Throughput of parallel scenarios on lavyek with 12 domains and varying fiber
 count per domain. Each domain spawns fibers with `Eio.Fiber.all` for true
 cooperative concurrency.
