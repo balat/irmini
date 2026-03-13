@@ -46,7 +46,8 @@ Content-addressable storage for OCaml.
 ```ocaml
 (* Create a memory backend *)
 let backend = Irmin.Backend.Memory.create_sha1 () in
-let store = Irmin.Store.Git.create ~backend in
+let backend = Irmin.Backend.cached ~capacity:100_000 backend in
+let store = Irmin.Store.Git.create ~backend () in
 
 (* Get an empty tree *)
 let tree = Irmin.Store.Git.tree store () in

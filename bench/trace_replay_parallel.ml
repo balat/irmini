@@ -45,7 +45,7 @@ let use_hash_safe hashes scope =
 let replay_chunk ~rows ~start_idx ~end_idx
     ?(empty_blobs = false) ?inline_threshold ?inode
     ~(backend : Hash.sha1 Backend.t) ~worker_id () =
-  let store = Store.Git.create ~cache:0 ~backend () in
+  let store = Store.Git.create ~backend () in
   let contexts : (int64, Tree.Git.t) Hashtbl.t = Hashtbl.create 16 in
   let hashes : (string, Hash.sha1) Hashtbl.t = Hashtbl.create 16 in
   let branch = Printf.sprintf "worker-%d" worker_id in
