@@ -243,24 +243,24 @@ Irmin-Eio (fs)                  incremental-20B               136      0.733    
 Irmin-Eio (fs)                  commits-10K                 10767      9.287        525
 Irmin-Eio (fs)                  reads-10K                   91709      0.109        525
 Irmin-Eio (fs)                  incremental-10K               123      0.811        559
-Irmini (lavyek)                 commits-20B                190150      0.526        550
-Irmini (lavyek)                 reads-20B                 1661703      0.006        550
-Irmini (lavyek)                 incremental-20B              5945      0.017        622
-Irmini (lavyek)                 commits-10K                  8991     11.122        612
-Irmini (lavyek)                 reads-10K                 1180796      0.008        500
-Irmini (lavyek)                 incremental-10K              3453      0.029        486
+Irmini (lavyek)                 commits-20B                136840      0.731        654
+Irmini (lavyek)                 reads-20B                 3476097      0.288        516
+Irmini (lavyek)                 incremental-20B              3362      0.030        531
+Irmini (lavyek)                 commits-10K                  8137     12.290      11617
+Irmini (lavyek)                 reads-10K                 3179013      0.315      11600
+Irmini (lavyek)                 incremental-10K               645      0.155      11790
 Irmini (lavyek)                 tezos-10310commits         135035     29.622        714
 Irmini (lavyek)                 tezos-sequential            54000     74.120        529
-Irmini (disk)                   commits-20B                 55470      1.803        324
-Irmini (disk)                   reads-20B                 1328741      0.008        348
-Irmini (disk)                   incremental-20B                79      1.268        370
-Irmini (disk)                   commits-10K                 11958      8.362        363
-Irmini (disk)                   reads-10K                 1339049      0.007        346
-Irmini (disk)                   incremental-10K                88      1.140        384
+Irmini (disk)                   commits-20B                 36657      2.728        529
+Irmini (disk)                   reads-20B                 3151780      0.317        580
+Irmini (disk)                   incremental-20B                55      1.821        594
+Irmini (disk)                   commits-10K                  8948     11.176      10935
+Irmini (disk)                   reads-10K                 2507711      0.399      10204
+Irmini (disk)                   incremental-10K                60      1.664       9853
 ```
 
-- **Irmini (lavyek)**: Commits at **190k ops/s** (20B) — faster than all Irmin backends. Reads at 1.7M (20B), 1.2M (10K).
-- **Irmini (disk)**: WAL+bloom backend with crash safety. Reads at 1.3M (20B), 1.3M (10K). Writes bottlenecked by WAL fsync: commits at 55k. Trade-off: durability over raw speed.
+- **Irmini (lavyek)**: Commits at **137k ops/s** (20B) — faster than all Irmin backends. Reads at 3.5M (20B), 3.2M (10K).
+- **Irmini (disk)**: WAL+bloom backend with crash safety. Reads at 3.2M (20B), 2.5M (10K). Writes bottlenecked by WAL fsync: commits at 37k. Trade-off: durability over raw speed.
 - **irmin-pack**: Reads at 719k–1.4M ops/s, commits at 40k–68k ops/s. Irmin-Lwt faster on commits (68k vs 40k).
 - **irmin-fs**: Slower across the board. Reads 106k–166k, commits 27k–36k.
 - **trace-replay**: Irmini (lavyek) replays 10,310 real Tezos commits (4M operations) at **54k ops/sec**. Irmini (memory) at 142k ops/sec.
@@ -272,25 +272,25 @@ Irmini (disk)                   incremental-10K                88      1.140    
 ```
 Name                            Scenario                    ops/s   total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
-Irmini (lavyek)                 commits-20B                221600      0.451        481
-Irmini (lavyek)                 reads-20B                  773814      0.013        468
-Irmini (lavyek)                 incremental-20B              4601      0.022        905
-Irmini (lavyek)                 commits-10K                 14893      6.714        743
-Irmini (lavyek)                 reads-10K                  612334      0.016        254
-Irmini (lavyek)                 incremental-10K              4916      0.020        252
-Irmini (disk)                   commits-20B                 23592      4.239        361
-Irmini (disk)                   reads-20B                  425874      0.023        545
-Irmini (disk)                   incremental-20B                99      1.013        523
-Irmini (disk)                   commits-10K                 14181      7.052        507
-Irmini (disk)                   reads-10K                  752274      0.013        105
-Irmini (disk)                   incremental-10K                71      1.410        100
+Irmini (lavyek)                 commits-20B                246195      4.874        510
+Irmini (lavyek)                 reads-20B               11538873      0.087        512
+Irmini (lavyek)                 incremental-20B              5557      0.216        531
+Irmini (lavyek)                 commits-10K                  6459    185.796      11455
+Irmini (lavyek)                 reads-10K                6762508      0.148      11634
+Irmini (lavyek)                 incremental-10K               899      1.335      11649
+Irmini (disk)                   commits-20B                 15652     76.667        454
+Irmini (disk)                   reads-20B                  905202      1.104        600
+Irmini (disk)                   incremental-20B                57     21.143        532
+Irmini (disk)                   commits-10K                   555   2163.246      10520
+Irmini (disk)                   reads-10K                  287547      3.476      10160
+Irmini (disk)                   incremental-10K                71     16.972      10000
 Irmin-Eio (pack) 12d×1f         tezos-10310commits         205337     19.500          0
 Irmini (lavyek) 12d×50kf        tezos-10310commits        5063000      0.790       1815
 ```
 
-- **Lavyek scales well on commits-10K**: 15k parallel vs 9k sequential (1.7×) — Lavyek's lock-free LSM tree benefits from concurrent I/O.
-- **Disk backend bottlenecked by WAL**: commits-20B drops from 55k to 24k (0.4×) — WAL fsync serializes writes across domains.
-- **Reads regress** on both backends (0.3–0.5×) — the synthetic read benchmark has no I/O overlap to exploit; lock overhead dominates.
+- **Lavyek reads scale very well**: reads-20B at **11.5M ops/s** (3.3× vs single-core 3.5M), reads-10K at **6.8M** (2.1×) — Lavyek's lock-free LSM tree enables true parallel reads.
+- **Lavyek commits-20B scales**: 246K parallel vs 137K sequential (1.8×).
+- **Disk backend bottlenecked by mutex**: reads-20B drops from 3.2M to 905K (0.3×), commits-20B from 37K to 16K (0.4×) — all operations serialize on a single Eio.Mutex.
 - **Tezos trace scales dramatically**: Irmini (lavyek) at **5.1M ops/s** with 50k fibers — the realistic workload has natural I/O interleaving that enables massive parallelism.
 
 ### Memory backends — single-core
