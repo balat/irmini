@@ -129,20 +129,86 @@ struct
       maxrss_kb = Bench_common.get_maxrss_kb ();
     }
 
-  let scenario_concurrent ?(nfibers = 100) ~name ~env
+  (** Run [f ~fiber_id] for each fiber distributed round-robin across OS domains. *)
+  let run_on_domains ~env ~nfibers f =
+    let ndomains = min 12 (Domain.recommended_domain_count ()) in
+    let nfibers = if nfibers <= 0 then 100 else nfibers in
+    let fibers_per_domain = Array.make ndomains [] in
+    for fid = 0 to nfibers - 1 do
+      let did = fid mod ndomains in
+      fibers_per_domain.(did) <- fid :: fibers_per_domain.(did)
+    done;
+    let dm = Eio.Stdenv.domain_mgr env in
+    let barrier = Atomic.make ndomains in
+    let domain_tasks =
+      List.init ndomains (fun did () ->
+          let my_fibers = fibers_per_domain.(did) in
+          Atomic.decr barrier;
+          while Atomic.get barrier > 0 do
+            Domain.cpu_relax ()
+          done;
+          List.iter (fun fiber_id -> f ~fiber_id) my_fibers)
+    in
+    Eio.Fiber.all
+      (List.map (fun task () -> Eio.Domain_manager.run dm task) domain_tasks);
+    nfibers, ndomains
+
+  let scenario_commits_parallel ?(nfibers = 0) ~name ~env
       (conf : Bench_common.config) repo =
     let ndomains = min 12 (Domain.recommended_domain_count ()) in
-    let ops_per_fiber = max 1 (conf.nreads / nfibers) in
-    let total_ops = ops_per_fiber * nfibers * 2 (* read + write *) in
-    (* Pre-populate store with entries under a shared prefix *)
-    let store = S.main repo in
-    let npopulate = 1000 in
+    let nfibers = if nfibers <= 0 then 100 else nfibers in
+    let commits_per_fiber = max 1 (conf.ncommits / nfibers) in
+    let total_ops = commits_per_fiber * nfibers * conf.tree_add in
     let paths =
-      Array.init npopulate (Bench_common.path ~depth:conf.depth)
+      Array.init (conf.tree_add + 1) (Bench_common.path ~depth:conf.depth)
     in
+    let (), total_time =
+      Bench_common.time (fun () ->
+          let _nf, _nd = run_on_domains ~env ~nfibers (fun ~fiber_id ->
+              let branch =
+                S.of_branch repo (Printf.sprintf "fiber-%d" fiber_id)
+              in
+              for i = 1 to commits_per_fiber do
+                let tree = S.get_tree branch [] in
+                let tree =
+                  let t = ref tree in
+                  for n = 1 to conf.tree_add do
+                    t :=
+                      S.Tree.add !t paths.(n)
+                        (Bench_common.make_value ~size:conf.value_size
+                           ((fiber_id * commits_per_fiber) + i))
+                  done;
+                  !t
+                in
+                S.set_tree_exn branch ~info [] tree
+              done)
+          in
+          ())
+    in
+    {
+      Bench_common.name;
+      scenario =
+        Printf.sprintf "commits-%s-%df/%dd"
+          (Bench_common.fmt_size conf.value_size) nfibers ndomains;
+      total_ops;
+      total_time;
+      ops_per_sec = Float.of_int total_ops /. total_time;
+      details =
+        [ ("fibers", Float.of_int nfibers);
+          ("domains", Float.of_int ndomains) ];
+      maxrss_kb = Bench_common.get_maxrss_kb ();
+    }
+
+  let scenario_reads_parallel ?(nfibers = 0) ~name ~env
+      (conf : Bench_common.config) repo =
+    let store = S.main repo in
+    let paths =
+      Array.init (conf.tree_add + 1) (Bench_common.path ~depth:conf.depth)
+    in
+    (* Populate *)
     let tree =
       let t = ref (S.Tree.empty ()) in
-      for n = 0 to npopulate - 1 do
+      for n = 1 to conf.tree_add do
         t :=
           S.Tree.add !t paths.(n)
             (Bench_common.make_value ~size:conf.value_size n)
@@ -150,60 +216,86 @@ struct
       !t
     in
     S.set_tree_exn store ~info [] tree;
-    (* Each domain writes to its own branch to avoid CAS contention,
-       and reads from main. This matches the irmini concurrent scenario
-       which does raw backend read/write without commit conflicts. *)
-    let fibers_per_domain = Array.make ndomains [] in
-    for fid = 0 to nfibers - 1 do
-      let did = fid mod ndomains in
-      fibers_per_domain.(did) <- fid :: fibers_per_domain.(did)
-    done;
+    let tree = S.get_tree store [] in
+    let ndomains = min 12 (Domain.recommended_domain_count ()) in
+    let nfibers = if nfibers <= 0 then 100 else nfibers in
+    let reads_per_fiber = max 1 (conf.nreads / nfibers) in
+    let total_ops = reads_per_fiber * nfibers in
     let (), total_time =
       Bench_common.time (fun () ->
-          let dm = Eio.Stdenv.domain_mgr env in
-          let barrier = Atomic.make ndomains in
-          let domain_tasks =
-            List.init ndomains (fun did () ->
-                let my_fibers = fibers_per_domain.(did) in
-                Atomic.decr barrier;
-                while Atomic.get barrier > 0 do
-                  Domain.cpu_relax ()
-                done;
-                List.iter
-                  (fun fiber_id ->
-                    let branch =
-                      S.of_branch repo
-                        (Printf.sprintf "bench-fiber-%d" fiber_id)
-                    in
-                    for i = 0 to ops_per_fiber - 1 do
-                      let key =
-                        Bench_common.path ~depth:conf.depth
-                          (npopulate + (fiber_id * ops_per_fiber) + i)
-                      in
-                      S.set_exn branch ~info key
-                        (Bench_common.make_value ~size:conf.value_size
-                           ((fiber_id * ops_per_fiber) + i + npopulate));
-                      let n = i mod npopulate in
-                      ignore (S.find store paths.(n))
-                    done)
-                  my_fibers)
+          let _nf, _nd = run_on_domains ~env ~nfibers (fun ~fiber_id ->
+              for i = 0 to reads_per_fiber - 1 do
+                let n = 1 + ((fiber_id * reads_per_fiber + i) mod conf.tree_add) in
+                ignore (S.Tree.find tree paths.(n))
+              done)
           in
-          Eio.Fiber.all
-            (List.map
-               (fun task () -> Eio.Domain_manager.run dm task)
-               domain_tasks))
+          ())
     in
     {
       Bench_common.name;
-      scenario = Printf.sprintf "concurrent-%df/%dd" nfibers ndomains;
+      scenario =
+        Printf.sprintf "reads-%s-%df/%dd"
+          (Bench_common.fmt_size conf.value_size) nfibers ndomains;
       total_ops;
       total_time;
       ops_per_sec = Float.of_int total_ops /. total_time;
       details =
-        [
-          ("fibers", Float.of_int nfibers);
-          ("domains", Float.of_int ndomains);
-        ];
+        [ ("fibers", Float.of_int nfibers);
+          ("domains", Float.of_int ndomains) ];
+      maxrss_kb = Bench_common.get_maxrss_kb ();
+    }
+
+  let scenario_incremental_parallel ?(nfibers = 0) ~name ~env
+      (conf : Bench_common.config) repo =
+    let store = S.main repo in
+    let paths =
+      Array.init (conf.tree_add + 1) (Bench_common.path ~depth:conf.depth)
+    in
+    (* Build initial tree *)
+    let tree =
+      let t = ref (S.Tree.empty ()) in
+      for n = 1 to conf.tree_add do
+        t :=
+          S.Tree.add !t paths.(n)
+            (Bench_common.make_value ~size:conf.value_size 0)
+      done;
+      !t
+    in
+    S.set_tree_exn store ~info [] tree;
+    let ndomains = min 12 (Domain.recommended_domain_count ()) in
+    let nfibers = if nfibers <= 0 then 100 else nfibers in
+    let ops_per_fiber = max 1 (conf.ncommits / nfibers) in
+    let total_ops = ops_per_fiber * nfibers in
+    let (), total_time =
+      Bench_common.time (fun () ->
+          let _nf, _nd = run_on_domains ~env ~nfibers (fun ~fiber_id ->
+              let branch =
+                S.of_branch repo (Printf.sprintf "fiber-%d" fiber_id)
+              in
+              for i = 1 to ops_per_fiber do
+                let tree = S.get_tree branch [] in
+                let n = 1 + (((fiber_id * ops_per_fiber) + i) mod conf.tree_add) in
+                let tree =
+                  S.Tree.add tree paths.(n)
+                    (Bench_common.make_value ~size:conf.value_size
+                       ((fiber_id * ops_per_fiber) + i))
+                in
+                S.set_tree_exn branch ~info [] tree
+              done)
+          in
+          ())
+    in
+    {
+      Bench_common.name;
+      scenario =
+        Printf.sprintf "incremental-%s-%df/%dd"
+          (Bench_common.fmt_size conf.value_size) nfibers ndomains;
+      total_ops;
+      total_time;
+      ops_per_sec = Float.of_int total_ops /. total_time;
+      details =
+        [ ("fibers", Float.of_int nfibers);
+          ("domains", Float.of_int ndomains) ];
       maxrss_kb = Bench_common.get_maxrss_kb ();
     }
 
@@ -218,9 +310,17 @@ struct
       scenario_incremental ~name large repo;
     ]
 
-  let run_all_with_concurrent ~name ~env (conf : Bench_common.config) repo =
+  let run_all_with_parallel ?nfibers ~name ~env (conf : Bench_common.config) repo =
+    let large = { conf with value_size = 10_000 } in
     run_all ~name conf repo
-    @ [ scenario_concurrent ~name ~env conf repo ]
+    @ [
+        scenario_commits_parallel ?nfibers ~name ~env conf repo;
+        scenario_reads_parallel ?nfibers ~name ~env conf repo;
+        scenario_incremental_parallel ?nfibers ~name ~env conf repo;
+        scenario_commits_parallel ?nfibers ~name ~env large repo;
+        scenario_reads_parallel ?nfibers ~name ~env large repo;
+        scenario_incremental_parallel ?nfibers ~name ~env large repo;
+      ]
 end
 
 module Bench_mem = Bench (Mem_store)

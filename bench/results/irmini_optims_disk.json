@@ -1,14 +1,6 @@
 [
   {
     "name": "Irmini+all (disk)",
-    "scenario": "concurrent-100f/12d",
-    "total_ops": 10000,
-    "total_time": 38.398794,
-    "ops_per_sec": 260.4,
-    "maxrss_kb": 62172
-  },
-  {
-    "name": "Irmini+all (disk)",
     "scenario": "incremental-10K",
     "total_ops": 50,
     "total_time": 0.723654,
@@ -54,14 +46,6 @@
     "total_time": 1.175547,
     "ops_per_sec": 21266.7,
     "maxrss_kb": 101036
-  },
-  {
-    "name": "Irmini baseline (disk)",
-    "scenario": "concurrent-100f/12d",
-    "total_ops": 10000,
-    "total_time": 38.243286,
-    "ops_per_sec": 261.5,
-    "maxrss_kb": 60864
   },
   {
     "name": "Irmini baseline (disk)",
@@ -113,14 +97,6 @@
   },
   {
     "name": "Irmini+cache (disk)",
-    "scenario": "concurrent-100f/12d",
-    "total_ops": 10000,
-    "total_time": 38.39754,
-    "ops_per_sec": 260.4,
-    "maxrss_kb": 62416
-  },
-  {
-    "name": "Irmini+cache (disk)",
     "scenario": "incremental-10K",
     "total_ops": 50,
     "total_time": 0.746922,
@@ -169,14 +145,6 @@
   },
   {
     "name": "Irmini+inline (disk)",
-    "scenario": "concurrent-100f/12d",
-    "total_ops": 10000,
-    "total_time": 38.037236,
-    "ops_per_sec": 262.9,
-    "maxrss_kb": 60732
-  },
-  {
-    "name": "Irmini+inline (disk)",
     "scenario": "incremental-10K",
     "total_ops": 50,
     "total_time": 0.742226,
@@ -222,14 +190,6 @@
     "total_time": 0.927994,
     "ops_per_sec": 26939.8,
     "maxrss_kb": 88284
-  },
-  {
-    "name": "Irmini+inode (disk)",
-    "scenario": "concurrent-100f/12d",
-    "total_ops": 10000,
-    "total_time": 38.256335,
-    "ops_per_sec": 261.4,
-    "maxrss_kb": 60652
   },
   {
     "name": "Irmini+inode (disk)",

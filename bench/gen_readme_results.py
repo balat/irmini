@@ -82,13 +82,21 @@ def classify(name, scenario):
             return "optims_lavyek"
         return "optims_memory"
 
-    # Non-default concurrent scaling → skip (handled by concurrent section)
-    if s.startswith("concurrent-") and s != "concurrent-100f/12d":
-        return "skip"
+    # Parallel scenario results (commits-20B-100f/12d etc.)
+    if re.search(r'-\d+f/\d+d$', s):
+        if "memory" in n or "mem" in n:
+            return "memory_parallel"
+        elif "git" in n:
+            return "skip"
+        else:
+            return "disk_parallel"
 
-    # Parallel tezos variants go to disk chart
+    # Parallel tezos variants (e.g. "Irmini (lavyek) 12d×50kf")
     if "12d\u00d7" in name or "12d×" in name:
-        return "disk"
+        if "memory" in n or "mem" in n:
+            return "memory_parallel"
+        else:
+            return "disk_parallel"
 
     # Parallel scaling
     if "tezos-parallel" in s:
@@ -113,8 +121,6 @@ def scenario_sort_key(scenario):
     if scenario in SCENARIO_ORDER:
         return (0, SCENARIO_ORDER.index(scenario))
     s = scenario.lower()
-    if s.startswith("concurrent"):
-        return (1, s)
     if "tezos" in s:
         return (2, s)
     return (3, s)
@@ -287,8 +293,6 @@ def analyze_disk(results):
     lavyek_c20 = lookup.get(("Irmini (lavyek)", "commits-20B"))
     lavyek_r20 = lookup.get(("Irmini (lavyek)", "reads-20B"))
     lavyek_r10 = lookup.get(("Irmini (lavyek)", "reads-10K"))
-    lavyek_conc = lookup.get(("Irmini (lavyek)", "concurrent-100f/12d"))
-
     if lavyek_c20:
         parts = [f"Commits at **{fmt_ops(lavyek_c20['ops_per_sec'])} ops/s** (20B)"]
         # Compare to Irmin backends
@@ -301,8 +305,6 @@ def analyze_disk(results):
             extras.append(f"Reads at {fmt_ops(lavyek_r20['ops_per_sec'])} (20B)")
         if lavyek_r10:
             extras.append(f"{fmt_ops(lavyek_r10['ops_per_sec'])} (10K)")
-        if lavyek_conc:
-            extras.append(f"Concurrent at **{fmt_ops(lavyek_conc['ops_per_sec'])} ops/s**")
         if extras:
             s += " " + ", ".join(extras) + "."
         bullets.append(f"**Irmini (lavyek)**: {s}")
@@ -735,11 +737,25 @@ def generate_key_observations(groups):
     return bullets
 
 
+def remap_parallel_scenarios(results):
+    """Remap parallel scenario names to base form for table display.
+
+    e.g. "commits-20B-100f/12d" -> "commits-20B"
+    """
+    remapped = []
+    for r in results:
+        m = re.match(r'^(.+)-(\d+)f/(\d+)d$', r["scenario"])
+        if m:
+            remapped.append({**r, "scenario": m.group(1)})
+    return remapped
+
+
 def generate_results_section(all_results, run_date, machine_info):
     """Generate the complete ## Results section."""
     # Classify all results
     groups = {
         "disk": [], "memory": [], "git": [],
+        "disk_parallel": [], "memory_parallel": [],
         "optims_disk": [], "optims_memory": [], "optims_lavyek": [],
         "trace": [], "parallel": [],
     }
@@ -766,7 +782,7 @@ def generate_results_section(all_results, run_date, machine_info):
                   and not ("memory" in r["name"].lower() or "mem" in r["name"].lower())]
     disk_all = disk_results + disk_trace
     if disk_all:
-        lines.append("### Disk backends (fs, pack, lavyek)")
+        lines.append("### Disk backends — single-core (fs, pack, lavyek)")
         lines.append("")
         lines.append("![Disk backends](results/chart_disk.svg)")
         lines.append("")
@@ -789,14 +805,27 @@ def generate_results_section(all_results, run_date, machine_info):
                 if mem_trace:
                     parts.append(f"Irmini (memory) at {fmt_ops(mem_trace['ops_per_sec'])} ops/sec")
                 lines.append(f"- **trace-replay**: " + ". ".join(parts) + ".")
-        # Parallel trace entries
-        par_entries = [r for r in disk_all if '12d' in r['name'] and 'tezos' in r['scenario']]
-        if par_entries:
-            par_parts = []
-            for r in sorted(par_entries, key=lambda x: -x['ops_per_sec']):
-                par_parts.append(f"{r['name']} at **{fmt_ops(r['ops_per_sec'])} ops/s**")
-            lines.append(f"- **parallel trace-replay** (hatched bars): " + ". ".join(par_parts)
-                         + " \u2014 limited by irmin-pack batch serialization for Irmin-Eio.")
+        lines.append("")
+
+    # --- Disk parallel ---
+    if groups["disk_parallel"]:
+        # Only keep main parallel config (100f/12d) and tezos parallel entries
+        main_disk_par = [r for r in groups["disk_parallel"]
+                         if re.search(r'-100f/\d+d$', r["scenario"])
+                         or not re.search(r'-\d+f/\d+d$', r["scenario"])]
+        disk_par_remapped = remap_parallel_scenarios(main_disk_par)
+        # Include tezos parallel data (already has base scenario name)
+        tezos_par = [r for r in main_disk_par
+                     if not re.search(r'-\d+f/\d+d$', r["scenario"])]
+        disk_par_remapped.extend(tezos_par)
+        lines.append("### Disk backends — multi-core (100 fibers, 12 domains)")
+        lines.append("")
+        lines.append("![Disk parallel](results/chart_disk_parallel.svg)")
+        lines.append("")
+        lines.append("```")
+        for line in generate_table(disk_par_remapped, BACKEND_ORDER_DISK):
+            lines.append(line)
+        lines.append("```")
         lines.append("")
 
     # --- Memory ---
@@ -806,7 +835,7 @@ def generate_results_section(all_results, run_date, machine_info):
                     and ("memory" in r["name"].lower() or "mem" in r["name"].lower())]
     memory_all = memory_results + memory_trace
     if memory_all:
-        lines.append("### Memory backends")
+        lines.append("### Memory backends — single-core")
         lines.append("")
         lines.append("![Memory backends](results/chart_memory.svg)")
         lines.append("")
@@ -817,6 +846,23 @@ def generate_results_section(all_results, run_date, machine_info):
         lines.append("")
         for bullet in analyze_memory(memory_all):
             lines.append(f"- {bullet}")
+        lines.append("")
+
+    # --- Memory parallel ---
+    if groups["memory_parallel"]:
+        # Only keep main parallel config (100f/12d)
+        main_mem_par = [r for r in groups["memory_parallel"]
+                        if re.search(r'-100f/\d+d$', r["scenario"])
+                        or not re.search(r'-\d+f/\d+d$', r["scenario"])]
+        mem_par_remapped = remap_parallel_scenarios(main_mem_par)
+        lines.append("### Memory backends — multi-core (100 fibers, 12 domains)")
+        lines.append("")
+        lines.append("![Memory parallel](results/chart_memory_parallel.svg)")
+        lines.append("")
+        lines.append("```")
+        for line in generate_table(mem_par_remapped, BACKEND_ORDER_MEMORY):
+            lines.append(line)
+        lines.append("```")
         lines.append("")
 
     # --- Git ---
@@ -848,7 +894,7 @@ def generate_results_section(all_results, run_date, machine_info):
         lines.append("")
         # Note about disk WAL
         lines.append("Note: the disk backend now uses WAL with fsync for crash safety, which")
-        lines.append("dominates write-heavy scenarios (incremental ~10 ops/s, concurrent ~265 ops/s).")
+        lines.append("dominates write-heavy scenarios (incremental ~10 ops/s).")
         lines.append("")
         for bullet in analyze_optims(groups["optims_disk"], is_disk=True):
             lines.append(f"- {bullet}")
@@ -965,62 +1011,95 @@ def generate_results_section(all_results, run_date, machine_info):
             lines.append(f"- {bullet}")
         lines.append("")
 
-    # --- Concurrent scaling ---
-    concurrent_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "irmini_concurrent.json")
-    if os.path.exists(concurrent_file):
+    # --- Parallel speedup ---
+    all_parallel = [r for r in groups.get("disk_parallel", []) + groups.get("memory_parallel", [])
+                    if re.search(r'-100f/\d+d$', r["scenario"])]
+    if all_parallel:
+        # Build sequential lookup from disk + memory groups
+        seq_lookup = {}
+        for r in groups["disk"] + groups["memory"]:
+            seq_lookup[(r["name"], r["scenario"])] = r["ops_per_sec"]
+
+        # Compute speedup for each parallel result
+        speedup_data = []  # (base_scenario, name, speedup, par_ops, seq_ops)
+        for r in all_parallel:
+            m = re.match(r'^(.+)-\d+f/\d+d$', r["scenario"])
+            if not m:
+                continue
+            base = m.group(1)
+            seq_val = seq_lookup.get((r["name"], base))
+            if seq_val and seq_val > 0:
+                sp = r["ops_per_sec"] / seq_val
+                speedup_data.append((base, r["name"], sp, r["ops_per_sec"], seq_val))
+
+        if speedup_data:
+            lines.append("### Parallel speedup")
+            lines.append("")
+            lines.append("![Parallel speedup](results/chart_speedup.svg)")
+            lines.append("")
+            lines.append("Speedup of parallel scenarios (100 fibers, 12 domains) vs sequential baseline.")
+            lines.append("Only domain-safe backends shown (Irmini and Irmin-Eio).")
+            lines.append("")
+
+            # Table: scenarios as rows, backends as columns
+            scenarios_seen = sorted(set(s for s, _, _, _, _ in speedup_data),
+                                    key=scenario_sort_key)
+            backends_seen = sorted(set(n for _, n, _, _, _ in speedup_data))
+            sp_lookup = {(s, n): (sp, par, seq) for s, n, sp, par, seq in speedup_data}
+
+            lines.append("```")
+            header = f"{'Scenario':>20s}"
+            for bname in backends_seen:
+                header += f"  {bname:>22s}"
+            lines.append(header)
+            lines.append("-" * len(header))
+
+            for scenario in scenarios_seen:
+                row = f"{scenario:>20s}"
+                for bname in backends_seen:
+                    entry = sp_lookup.get((scenario, bname))
+                    if entry:
+                        sp, par, _seq = entry
+                        row += f"  {fmt_ops(par) + ' (' + f'{sp:.1f}x' + ')':>22s}"
+                    else:
+                        row += f"  {'—':>22s}"
+                lines.append(row)
+            lines.append("```")
+            lines.append("")
+
+    # --- Parallel scaling ---
+    scaling_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "irmini_scaling.json")
+    if os.path.exists(scaling_file):
         try:
-            with open(concurrent_file) as f:
-                conc_data = json.load(f)
-            if conc_data:
-                lines.append("### Concurrent scaling")
+            with open(scaling_file) as f:
+                scale_data = json.load(f)
+            if scale_data:
+                lines.append("### Parallel scaling")
                 lines.append("")
-                lines.append("![Concurrent scaling](results/chart_concurrent_scaling.svg)")
+                lines.append("![Parallel scaling](results/chart_scaling.svg)")
                 lines.append("")
-                lines.append("Concurrent read/write operations with 12 OS domains and varying fiber count.")
-                lines.append("Each fiber performs backend-level read and write operations in parallel.")
+                lines.append("Throughput of commits and reads scenarios with 12 domains and varying fiber count.")
                 lines.append("")
 
-                # Group by backend
-                conc_backends = {}
-                for r in conc_data:
-                    name = r["name"]
-                    if name not in conc_backends:
-                        conc_backends[name] = []
-                    conc_backends[name].append(r)
+                # Group by (backend, base_scenario)
+                scale_series = {}
+                for r in scale_data:
+                    m = re.match(r'^(.+)-(\d+)f/(\d+)d$', r["scenario"])
+                    if not m:
+                        continue
+                    base = m.group(1)
+                    fibers = int(m.group(2))
+                    key = (r["name"], base)
+                    if key not in scale_series:
+                        scale_series[key] = []
+                    scale_series[key].append((fibers, r["ops_per_sec"]))
 
-                # Table
-                lines.append("```")
-                header = f"{'Fibers':>8s}"
-                backend_names = sorted(conc_backends.keys())
-                for bname in backend_names:
-                    header += f"  {bname:>20s}"
-                lines.append(header)
-                lines.append("-" * len(header))
-
-                # Collect all fiber counts
-                all_fibers = sorted(set(
-                    int(re.search(r'(\d+)f/', r["scenario"]).group(1))
-                    for r in conc_data if re.search(r'(\d+)f/', r["scenario"])
-                ))
-                for fib in all_fibers:
-                    row = f"{fib:>8d}"
-                    for bname in backend_names:
-                        val = ""
-                        for r in conc_backends[bname]:
-                            m = re.search(r'(\d+)f/', r["scenario"])
-                            if m and int(m.group(1)) == fib:
-                                ops = r["ops_per_sec"]
-                                if ops >= 1_000_000:
-                                    val = f"{ops/1_000_000:.1f}M"
-                                elif ops >= 1_000:
-                                    val = f"{ops/1_000:.0f}k"
-                                else:
-                                    val = str(int(ops))
-                                break
-                        row += f"  {val:>20s}"
-                    lines.append(row)
-                lines.append("```")
-                lines.append("")
+                # Table per series
+                for (bname, base), data in sorted(scale_series.items()):
+                    sorted_data = sorted(data, key=lambda d: d[0])
+                    peak_fib, peak_ops = max(sorted_data, key=lambda d: d[1])
+                    lines.append(f"**{bname} — {base}** (peak: {fmt_ops(peak_ops)} at {peak_fib} fibers)")
+                    lines.append("")
         except (json.JSONDecodeError, IOError):
             pass
 
@@ -1071,12 +1150,12 @@ def update_charts(results_dir):
         dst = os.path.join(results_dir, "chart_parallel_scaling.svg")
         subprocess.run([sys.executable, chart_parallel, dst], check=True)
 
-    # gen_chart_concurrent.py
-    chart_concurrent = os.path.join(bench_dir, "gen_chart_concurrent.py")
-    if os.path.exists(chart_concurrent):
-        print("Generating concurrent scaling chart...")
-        dst = os.path.join(results_dir, "chart_concurrent_scaling.svg")
-        subprocess.run([sys.executable, chart_concurrent, dst, "--json", results_dir], check=True)
+    # gen_chart_scaling.py
+    chart_scaling = os.path.join(bench_dir, "gen_chart_scaling.py")
+    if os.path.exists(chart_scaling):
+        print("Generating parallel scaling chart...")
+        dst = os.path.join(results_dir, "chart_scaling.svg")
+        subprocess.run([sys.executable, chart_scaling, dst, "--json", results_dir], check=True)
 
 
 def main():

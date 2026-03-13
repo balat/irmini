@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="503" font-family="system-ui, sans-serif" font-size="14">
-<rect width="1256" height="503" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1088" height="503" font-family="system-ui, sans-serif" font-size="14">
+<rect width="1088" height="503" fill="white"/>
 <defs>
 </defs>
-<text x="628.0" y="32" text-anchor="middle" font-size="20" font-weight="bold">Irmini optimizations (disk) — ops/s comparison</text>
+<text x="544.0" y="32" text-anchor="middle" font-size="20" font-weight="bold">Irmini optimizations (disk)</text>
 <g transform="translate(100,50)">
 <text x="-75" y="175.0" text-anchor="middle" font-size="14" fill="#333" transform="rotate(-90,-75,175.0)">ops/s</text>
 <line x1="0" y1="262.5" x2="118" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -101,23 +101,7 @@
 <rect x="936.0" y="110.7" width="22" height="239.3" fill="#4e79a7" rx="1"/>
 <text x="947.0" y="107.7" text-anchor="middle" font-size="9" fill="#333">69</text>
 <text x="899.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">incremental-10K</text>
-<line x1="1008" y1="262.5" x2="1126" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="1008" y1="175.0" x2="1126" y2="175.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="1008" y1="87.5" x2="1126" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
-<line x1="1008" y1="0.0" x2="1126" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
-<text x="1004.0" y="4.0" text-anchor="end" font-size="10" fill="#999">302</text>
-<rect x="1008.0" y="47.3" width="22" height="302.7" fill="#bbb" rx="1"/>
-<text x="1019.0" y="44.3" text-anchor="middle" font-size="9" fill="#333">261</text>
-<rect x="1032.0" y="45.7" width="22" height="304.3" fill="#9c755f" rx="1"/>
-<text x="1043.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">262</text>
-<rect x="1056.0" y="48.5" width="22" height="301.5" fill="#76b7b2" rx="1"/>
-<text x="1067.0" y="45.5" text-anchor="middle" font-size="9" fill="#333">260</text>
-<rect x="1080.0" y="47.4" width="22" height="302.6" fill="#b07aa1" rx="1"/>
-<text x="1091.0" y="44.4" text-anchor="middle" font-size="9" fill="#333">261</text>
-<rect x="1104.0" y="48.5" width="22" height="301.5" fill="#4e79a7" rx="1"/>
-<text x="1115.0" y="45.5" text-anchor="middle" font-size="9" fill="#333">260</text>
-<text x="1067.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">concurrent-100f/12d</text>
-<line x1="0" y1="350" x2="1126" y2="350" stroke="#333" stroke-width="1"/>
+<line x1="0" y1="350" x2="958" y2="350" stroke="#333" stroke-width="1"/>
 </g>
 <g transform="translate(100,440)">
 <rect x="0" y="0" width="14" height="14" fill="#bbb" rx="2"/>

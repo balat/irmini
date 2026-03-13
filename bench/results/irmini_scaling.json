@@ -1,0 +1,146 @@
+[
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "incremental-10K-1f/12d",
+    "total_ops": 100,
+    "total_time": 0.036513,
+    "ops_per_sec": 2738.7,
+    "maxrss_kb": 233452
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "reads-10K-1f/12d",
+    "total_ops": 10000,
+    "total_time": 0.021103,
+    "ops_per_sec": 473868.4,
+    "maxrss_kb": 233708
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "commits-10K-1f/12d",
+    "total_ops": 100000,
+    "total_time": 11.209829,
+    "ops_per_sec": 8920.7,
+    "maxrss_kb": 418696
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "incremental-20B-1f/12d",
+    "total_ops": 100,
+    "total_time": 0.025534,
+    "ops_per_sec": 3916.3,
+    "maxrss_kb": 437864
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "reads-20B-1f/12d",
+    "total_ops": 10000,
+    "total_time": 0.017034,
+    "ops_per_sec": 587059.3,
+    "maxrss_kb": 375996
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "commits-20B-1f/12d",
+    "total_ops": 100000,
+    "total_time": 0.559189,
+    "ops_per_sec": 178830.5,
+    "maxrss_kb": 351728
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "incremental-10K-10f/12d",
+    "total_ops": 100,
+    "total_time": 0.015689,
+    "ops_per_sec": 6373.8,
+    "maxrss_kb": 255364
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "reads-10K-10f/12d",
+    "total_ops": 10000,
+    "total_time": 0.016009,
+    "ops_per_sec": 624645.0,
+    "maxrss_kb": 254272
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "commits-10K-10f/12d",
+    "total_ops": 100000,
+    "total_time": 4.680004,
+    "ops_per_sec": 21367.5,
+    "maxrss_kb": 767780
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "incremental-20B-10f/12d",
+    "total_ops": 100,
+    "total_time": 0.015411,
+    "ops_per_sec": 6488.8,
+    "maxrss_kb": 932736
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "reads-20B-10f/12d",
+    "total_ops": 10000,
+    "total_time": 0.016036,
+    "ops_per_sec": 623595.6,
+    "maxrss_kb": 534576
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "commits-20B-10f/12d",
+    "total_ops": 100000,
+    "total_time": 0.216982,
+    "ops_per_sec": 460867.5,
+    "maxrss_kb": 538332
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "incremental-10K-50f/12d",
+    "total_ops": 100,
+    "total_time": 0.019288,
+    "ops_per_sec": 5184.6,
+    "maxrss_kb": 260468
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "reads-10K-50f/12d",
+    "total_ops": 10000,
+    "total_time": 0.02695,
+    "ops_per_sec": 371055.8,
+    "maxrss_kb": 260868
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "commits-10K-50f/12d",
+    "total_ops": 100000,
+    "total_time": 5.550415,
+    "ops_per_sec": 18016.7,
+    "maxrss_kb": 856948
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "incremental-20B-50f/12d",
+    "total_ops": 100,
+    "total_time": 0.016451,
+    "ops_per_sec": 6078.7,
+    "maxrss_kb": 995388
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "reads-20B-50f/12d",
+    "total_ops": 10000,
+    "total_time": 0.015612,
+    "ops_per_sec": 640527.8,
+    "maxrss_kb": 561360
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "commits-20B-50f/12d",
+    "total_ops": 100000,
+    "total_time": 0.287988,
+    "ops_per_sec": 347236.8,
+    "maxrss_kb": 573768
+  }
+]

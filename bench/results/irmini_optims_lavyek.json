@@ -1,14 +1,6 @@
 [
   {
     "name": "Irmini+all (lavyek)",
-    "scenario": "concurrent-100f/12d",
-    "total_ops": 10000,
-    "total_time": 0.026881,
-    "ops_per_sec": 372010.3,
-    "maxrss_kb": 235356
-  },
-  {
-    "name": "Irmini+all (lavyek)",
     "scenario": "incremental-10K",
     "total_ops": 50,
     "total_time": 0.015205,
@@ -54,14 +46,6 @@
     "total_time": 0.069282,
     "ops_per_sec": 360843.8,
     "maxrss_kb": 239752
-  },
-  {
-    "name": "Irmini baseline (lavyek)",
-    "scenario": "concurrent-100f/12d",
-    "total_ops": 10000,
-    "total_time": 0.049301,
-    "ops_per_sec": 202836.0,
-    "maxrss_kb": 233900
   },
   {
     "name": "Irmini baseline (lavyek)",
@@ -113,14 +97,6 @@
   },
   {
     "name": "Irmini+cache (lavyek)",
-    "scenario": "concurrent-100f/12d",
-    "total_ops": 10000,
-    "total_time": 0.033927,
-    "ops_per_sec": 294750.8,
-    "maxrss_kb": 235268
-  },
-  {
-    "name": "Irmini+cache (lavyek)",
     "scenario": "incremental-10K",
     "total_ops": 50,
     "total_time": 0.034526,
@@ -169,14 +145,6 @@
   },
   {
     "name": "Irmini+inline (lavyek)",
-    "scenario": "concurrent-100f/12d",
-    "total_ops": 10000,
-    "total_time": 0.057448,
-    "ops_per_sec": 174070.7,
-    "maxrss_kb": 233776
-  },
-  {
-    "name": "Irmini+inline (lavyek)",
     "scenario": "incremental-10K",
     "total_ops": 50,
     "total_time": 0.031742,
@@ -222,14 +190,6 @@
     "total_time": 0.140523,
     "ops_per_sec": 177906.9,
     "maxrss_kb": 319880
-  },
-  {
-    "name": "Irmini+inode (lavyek)",
-    "scenario": "concurrent-100f/12d",
-    "total_ops": 10000,
-    "total_time": 0.048014,
-    "ops_per_sec": 208271.9,
-    "maxrss_kb": 234264
   },
   {
     "name": "Irmini+inode (lavyek)",

@@ -176,15 +176,7 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
    HAMT trie path is rewritten (O(log n) instead of O(n)). This scenario
    is the most sensitive to inode optimization.
 
-4. **concurrent** *(disk, lavyek only)* — Pre-populates the backend with
-   1000 objects, then spawns `nfibers` (default 100) fibers distributed
-   across up to 12 OS domains. Each fiber performs `nreads / nfibers`
-   iterations of alternating write + read operations directly on the
-   backend (bypassing the tree layer). This measures **raw backend
-   throughput under contention**: lock-free data structures (lavyek),
-   mutex overhead (disk), and OS-level I/O parallelism.
-
-5. **trace-replay** *(via `--trace`)* — Replays a recorded Tezos trace
+4. **trace-replay** *(via `--trace`)* — Replays a recorded Tezos trace
    (`.repr` file in `IrmRepBT` format) against the store. The trace
    contains real operations from a Tezos node: Checkout, Add, Remove,
    Copy, Find, Mem, Mem_tree, Commit. This is the most **realistic**
@@ -208,7 +200,8 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 | `run_optims.sh`           | Per-optimization comparison (5 variants)     |
 | `gen_chart.py`            | Chart from hardcoded data (legacy)           |
 | `gen_chart_all.py`        | Charts from JSON results by backend type     |
-| `gen_chart_parallel.py`   | Parallel scaling chart (from JSON or fallback)|
+| `gen_chart_parallel.py`   | Parallel trace replay scaling chart            |
+| `gen_chart_scaling.py`    | Parallel scenario scaling chart (fibers sweep)  |
 | `gen_readme_results.py`   | Generates README results section from JSON   |
 | `bench-irmin-eio/`        | Irmin-Eio benchmark adapters + parallel trace replay |
 | `bench-irmin-lwt/`        | Irmin-Lwt benchmark adapters                 |
@@ -219,7 +212,7 @@ Run on 2026-03-13, AMD 12-core, 100 commits × 1000 adds, depth 10, 10000 reads.
 Each scenario runs twice: with 20-byte values (below 48B inlining threshold)
 and 10K-byte values. All three implementations use the same parameters.
 
-### Disk backends (fs, pack, lavyek)
+### Disk backends — single-core (fs, pack, lavyek)
 
 ![Disk backends](results/chart_disk.svg)
 
@@ -250,34 +243,52 @@ Irmin-Eio (fs)                  incremental-20B               136      0.733    
 Irmin-Eio (fs)                  commits-10K                 10767      9.287        525
 Irmin-Eio (fs)                  reads-10K                   91709      0.109        525
 Irmin-Eio (fs)                  incremental-10K               123      0.811        559
-Irmini (lavyek)                 commits-20B                199803      0.500        385
-Irmini (lavyek)                 reads-20B                 1578527      0.006        371
-Irmini (lavyek)                 incremental-20B              5762      0.017        399
-Irmini (lavyek)                 commits-10K                  9544     10.478        389
-Irmini (lavyek)                 reads-10K                 1369300      0.007        263
-Irmini (lavyek)                 incremental-10K              3444      0.029        249
-Irmini (lavyek)                 concurrent-100f/12d        196138      0.102        230
+Irmini (lavyek)                 commits-20B                190150      0.526        550
+Irmini (lavyek)                 reads-20B                 1661703      0.006        550
+Irmini (lavyek)                 incremental-20B              5945      0.017        622
+Irmini (lavyek)                 commits-10K                  8991     11.122        612
+Irmini (lavyek)                 reads-10K                 1180796      0.008        500
+Irmini (lavyek)                 incremental-10K              3453      0.029        486
 Irmini (lavyek)                 tezos-10310commits         135035     29.622        714
 Irmini (lavyek)                 tezos-sequential            54000     74.120        529
-Irmini (disk)                   commits-20B                 31605      3.164        125
-Irmini (disk)                   reads-20B                 1678998      0.006        165
-Irmini (disk)                   incremental-20B                82      1.223        152
-Irmini (disk)                   commits-10K                 11500      8.696        129
-Irmini (disk)                   reads-10K                 1128290      0.009         98
-Irmini (disk)                   incremental-10K                75      1.330         98
-Irmini (disk)                   concurrent-100f/12d           263     76.119         61
+Irmini (disk)                   commits-20B                 55470      1.803        324
+Irmini (disk)                   reads-20B                 1328741      0.008        348
+Irmini (disk)                   incremental-20B                79      1.268        370
+Irmini (disk)                   commits-10K                 11958      8.362        363
+Irmini (disk)                   reads-10K                 1339049      0.007        346
+Irmini (disk)                   incremental-10K                88      1.140        384
+```
+
+- **Irmini (lavyek)**: Commits at **190k ops/s** (20B) — faster than all Irmin backends. Reads at 1.7M (20B), 1.2M (10K).
+- **Irmini (disk)**: WAL+bloom backend with crash safety. Reads at 1.3M (20B), 1.3M (10K). Writes bottlenecked by WAL fsync: commits at 55k. Trade-off: durability over raw speed.
+- **irmin-pack**: Reads at 719k–1.4M ops/s, commits at 40k–68k ops/s. Irmin-Lwt faster on commits (68k vs 40k).
+- **irmin-fs**: Slower across the board. Reads 106k–166k, commits 27k–36k.
+- **trace-replay**: Irmini (lavyek) replays 10,310 real Tezos commits (4M operations) at **54k ops/sec**. Irmini (memory) at 142k ops/sec.
+
+### Disk backends — multi-core (100 fibers, 12 domains)
+
+![Disk parallel](results/chart_disk_parallel.svg)
+
+```
+Name                            Scenario                    ops/s   total(s)   RSS(MiB)
+----------------------------------------------------------------------------------
+Irmini (lavyek)                 commits-20B                221600      0.451        481
+Irmini (lavyek)                 reads-20B                  773814      0.013        468
+Irmini (lavyek)                 incremental-20B              4601      0.022        905
+Irmini (lavyek)                 commits-10K                 14893      6.714        743
+Irmini (lavyek)                 reads-10K                  612334      0.016        254
+Irmini (lavyek)                 incremental-10K              4916      0.020        252
+Irmini (disk)                   commits-20B                 23592      4.239        361
+Irmini (disk)                   reads-20B                  425874      0.023        545
+Irmini (disk)                   incremental-20B                99      1.013        523
+Irmini (disk)                   commits-10K                 14181      7.052        507
+Irmini (disk)                   reads-10K                  752274      0.013        105
+Irmini (disk)                   incremental-10K                71      1.410        100
 Irmin-Eio (pack) 12d×1f         tezos-10310commits         205337     19.500          0
 Irmini (lavyek) 12d×50kf        tezos-10310commits        5063000      0.790       1815
 ```
 
-- **Irmini (lavyek)**: Commits at **200k ops/s** (20B) — faster than all Irmin backends. Reads at 1.6M (20B), 1.4M (10K), Concurrent at **196k ops/s**.
-- **Irmini (disk)**: WAL+bloom backend with crash safety. Reads at 1.7M (20B), 1.1M (10K). Writes bottlenecked by WAL fsync: commits at 32k. Trade-off: durability over raw speed.
-- **irmin-pack**: Reads at 719k–1.4M ops/s, commits at 40k–68k ops/s. Irmin-Lwt faster on commits (68k vs 40k).
-- **irmin-fs**: Slower across the board. Reads 106k–166k, commits 27k–36k.
-- **trace-replay**: Irmini (lavyek) replays 10,310 real Tezos commits (4M operations) at **54k ops/sec**. Irmini (memory) at 142k ops/sec.
-- **parallel trace-replay** (hatched bars): Irmini (lavyek) 12d×50kf at **5.1M ops/s**. Irmin-Eio (pack) 12d×1f at **205k ops/s** — limited by irmin-pack batch serialization for Irmin-Eio.
-
-### Memory backends
+### Memory backends — single-core
 
 ![Memory backends](results/chart_memory.svg)
 
@@ -296,20 +307,34 @@ Irmin-Eio (memory)              incremental-20B              1440      0.069    
 Irmin-Eio (memory)              commits-10K                 16103      6.210        151
 Irmin-Eio (memory)              reads-10K                  552602      0.018         68
 Irmin-Eio (memory)              incremental-10K              1249      0.080         62
-Irmini (memory)                 commits-20B                230504      0.434        154
-Irmini (memory)                 reads-20B                 1579776      0.006        154
-Irmini (memory)                 incremental-20B              6956      0.014        154
-Irmini (memory)                 commits-10K                 16607      6.021        154
-Irmini (memory)                 reads-10K                 1379161      0.007        130
-Irmini (memory)                 incremental-10K              5307      0.019        134
-Irmini (memory)                 concurrent-100f/12d        190717      0.210         62
+Irmini (memory)                 commits-20B                226954      0.441        304
+Irmini (memory)                 reads-20B                 1687170      0.006        303
+Irmini (memory)                 incremental-20B              7696      0.013        302
+Irmini (memory)                 commits-10K                 16950      5.900        302
+Irmini (memory)                 reads-10K                 1447160      0.007        329
+Irmini (memory)                 incremental-10K              5209      0.019        484
 Irmini (memory)                 tezos-10310commits         142217     28.126        586
 ```
 
-- **Commits (20B)**: Irmin ~162k ops/s vs Irmini **231k** — Irmin's in-memory tree is faster on bulk writes (no content-addressed hashing overhead).
-- **Reads (20B)**: Irmin 1.3M–1.3M vs Irmini **1.6M** — Irmin keeps the full tree in memory; irmini navigates content-addressed structures.
-- **Incremental (20B)**: Irmini at **7.0k ops/s** is **4.8–5.9× faster** than Irmin (1.2k–1.4k) thanks to inode structural sharing.
-- **10K values**: All three converge on commits (~16k ops/s) — I/O dominates.
+- **Commits (20B)**: Irmin ~162k ops/s vs Irmini **227k** — Irmin's in-memory tree is faster on bulk writes (no content-addressed hashing overhead).
+- **Reads (20B)**: Irmin 1.3M–1.3M vs Irmini **1.7M** — Irmin keeps the full tree in memory; irmini navigates content-addressed structures.
+- **Incremental (20B)**: Irmini at **7.7k ops/s** is **5.3–6.6× faster** than Irmin (1.2k–1.4k) thanks to inode structural sharing.
+- **10K values**: All three converge on commits (~17k ops/s) — I/O dominates.
+
+### Memory backends — multi-core (100 fibers, 12 domains)
+
+![Memory parallel](results/chart_memory_parallel.svg)
+
+```
+Name                            Scenario                    ops/s   total(s)   RSS(MiB)
+----------------------------------------------------------------------------------
+Irmini (memory)                 commits-20B                140106      0.714        482
+Irmini (memory)                 reads-20B                  592592      0.017        422
+Irmini (memory)                 incremental-20B              3258      0.031        419
+Irmini (memory)                 commits-10K                 22780      4.390        417
+Irmini (memory)                 reads-10K                  697737      0.014         88
+Irmini (memory)                 incremental-10K              2671      0.037         75
+```
 
 ### Git backends
 
@@ -330,16 +355,16 @@ Irmin-Eio (git)                 incremental-20B               122      0.817    
 Irmin-Eio (git)                 commits-10K                   948    105.424        515
 Irmin-Eio (git)                 reads-10K                   85357      0.117        509
 Irmin-Eio (git)                 incremental-10K               117      0.854        525
-Irmini (git)                    commits-20B                  8289     12.064        171
-Irmini (git)                    reads-20B                 1516269      0.007        170
-Irmini (git)                    incremental-20B               328      0.305        169
-Irmini (git)                    commits-10K                  5654     17.685        168
-Irmini (git)                    reads-10K                 1518355      0.007        138
-Irmini (git)                    incremental-10K               254      0.394        131
+Irmini (git)                    commits-20B                  8514     11.746        131
+Irmini (git)                    reads-20B                 1427751      0.007        107
+Irmini (git)                    incremental-20B               321      0.311        106
+Irmini (git)                    commits-10K                  5591     17.887        104
+Irmini (git)                    reads-10K                 1381796      0.007         64
+Irmini (git)                    incremental-10K               265      0.377         49
 ```
 
-- **Irmini (git)**: 100% git-compatible (inodes disabled, no inlining). Commits at **8.3k ops/s** — **4× faster** than Irmin (2.0k). Uses **131–170 MiB RSS** vs Irmin's 482–524 MiB.
-- **Reads**: Irmin-Lwt leads on 20B (156k vs 1.5M) thanks to in-memory caching. On 10K, Irmini (1.5M) matches Irmin-Eio (85k).
+- **Irmini (git)**: 100% git-compatible (inodes disabled, no inlining). Commits at **8.5k ops/s** — **4× faster** than Irmin (2.0k). Uses **49–131 MiB RSS** vs Irmin's 482–524 MiB.
+- **Reads**: Irmin-Lwt leads on 20B (156k vs 1.4M) thanks to in-memory caching. On 10K, Irmini (1.4M) matches Irmin-Eio (85k).
 - **Incremental**: All comparable — dominated by Git I/O.
 
 ### Irmini optimizations (disk)
@@ -355,39 +380,34 @@ Irmini baseline (disk)          incremental-20B                66
 Irmini baseline (disk)          commits-10K                  8121
 Irmini baseline (disk)          reads-10K                 1301447
 Irmini baseline (disk)          incremental-10K                88
-Irmini baseline (disk)          concurrent-100f/12d           262
 Irmini+inline (disk)            commits-20B                 26940
 Irmini+inline (disk)            reads-20B                 1218283
 Irmini+inline (disk)            incremental-20B                76
 Irmini+inline (disk)            commits-10K                  8162
 Irmini+inline (disk)            reads-10K                 1814302
 Irmini+inline (disk)            incremental-10K                67
-Irmini+inline (disk)            concurrent-100f/12d           263
 Irmini+cache (disk)             commits-20B                 12253
 Irmini+cache (disk)             reads-20B                  553894
 Irmini+cache (disk)             incremental-20B                67
 Irmini+cache (disk)             commits-10K                  8234
 Irmini+cache (disk)             reads-10K                 1000645
 Irmini+cache (disk)             incremental-10K                67
-Irmini+cache (disk)             concurrent-100f/12d           260
 Irmini+inode (disk)             commits-20B                 19604
 Irmini+inode (disk)             reads-20B                  952212
 Irmini+inode (disk)             incremental-20B                74
 Irmini+inode (disk)             commits-10K                 10729
 Irmini+inode (disk)             reads-10K                 1475828
 Irmini+inode (disk)             incremental-10K                74
-Irmini+inode (disk)             concurrent-100f/12d           261
 Irmini+all (disk)               commits-20B                 21267
 Irmini+all (disk)               reads-20B                 1691524
 Irmini+all (disk)               incremental-20B                79
 Irmini+all (disk)               commits-10K                 11211
 Irmini+all (disk)               reads-10K                  396857
 Irmini+all (disk)               incremental-10K                69
-Irmini+all (disk)               concurrent-100f/12d           260
 ```
 
 Note: the disk backend now uses WAL with fsync for crash safety, which
-dominates write-heavy scenarios (incremental ~10 ops/s, concurrent ~265 ops/s).
+dominates write-heavy scenarios (incremental ~10 ops/s).
 
 - **Inline** gives **2.2× speedup** on commits-20B (27k vs 12k) and **3.0× on reads-20B** (1.2M vs 402k) and **1.4× on reads-10K** (1.8M vs 1.3M).
 - **Cache** gives **1.4× on reads-20B** (554k vs 402k).
@@ -450,35 +470,30 @@ Irmini baseline (lavyek)        incremental-20B              2230
 Irmini baseline (lavyek)        commits-10K                  7157
 Irmini baseline (lavyek)        reads-10K                 1931257
 Irmini baseline (lavyek)        incremental-10K              1520
-Irmini baseline (lavyek)        concurrent-100f/12d        202836
 Irmini+inline (lavyek)          commits-20B                177907
 Irmini+inline (lavyek)          reads-20B                 1279766
 Irmini+inline (lavyek)          incremental-20B              2442
 Irmini+inline (lavyek)          commits-10K                  7115
 Irmini+inline (lavyek)          reads-10K                 1950839
 Irmini+inline (lavyek)          incremental-10K              1575
-Irmini+inline (lavyek)          concurrent-100f/12d        174071
 Irmini+cache (lavyek)           commits-20B                 19796
 Irmini+cache (lavyek)           reads-20B                 1602592
 Irmini+cache (lavyek)           incremental-20B              2218
 Irmini+cache (lavyek)           commits-10K                  7304
 Irmini+cache (lavyek)           reads-10K                 1754352
 Irmini+cache (lavyek)           incremental-10K              1448
-Irmini+cache (lavyek)           concurrent-100f/12d        294751
 Irmini+inode (lavyek)           commits-20B                 80225
 Irmini+inode (lavyek)           reads-20B                 1507441
 Irmini+inode (lavyek)           incremental-20B              5374
 Irmini+inode (lavyek)           commits-10K                  9798
 Irmini+inode (lavyek)           reads-10K                 1538065
 Irmini+inode (lavyek)           incremental-10K              3533
-Irmini+inode (lavyek)           concurrent-100f/12d        208272
 Irmini+all (lavyek)             commits-20B                360844
 Irmini+all (lavyek)             reads-20B                 1687441
 Irmini+all (lavyek)             incremental-20B              5756
 Irmini+all (lavyek)             commits-10K                  9491
 Irmini+all (lavyek)             reads-10K                 1387280
 Irmini+all (lavyek)             incremental-10K              3288
-Irmini+all (lavyek)             concurrent-100f/12d        372010
 ```
 
 
@@ -548,30 +563,47 @@ Sequential            54,000         1x
 - Scaling is super-linear up to ~10k fibers (76x on 12 cores) thanks to I/O overlap: while one fiber waits on disk, others make progress.
 - Beyond 50k fibers, scheduling overhead dominates and throughput drops.
 
-### Concurrent scaling
+### Parallel speedup
 
-![Concurrent scaling](results/chart_concurrent_scaling.svg)
+![Parallel speedup](results/chart_speedup.svg)
 
-Concurrent read/write operations with 12 OS domains and varying fiber count.
-Each fiber performs backend-level read and write operations in parallel.
+Speedup of parallel scenarios (100 fibers, 12 domains) vs sequential baseline.
+Only domain-safe backends shown (Irmini and Irmin-Eio).
 
 ```
-  Fibers       Irmini (lavyek)       Irmini (memory)
-----------------------------------------------------
-       1                  113k                  107k
-      10                  371k                  381k
-      50                  219k                  185k
-     100                  211k                  191k
-     500                  205k                  181k
-    1000                  220k                  188k
-    5000                  225k                  198k
+            Scenario           Irmini (disk)         Irmini (lavyek)         Irmini (memory)
+--------------------------------------------------------------------------------------------
+         commits-20B              24k (0.4x)             222k (1.2x)             140k (0.6x)
+           reads-20B             426k (0.3x)             774k (0.5x)             593k (0.4x)
+     incremental-20B               98 (1.3x)             4.6k (0.8x)             3.3k (0.4x)
+         commits-10K              14k (1.2x)              15k (1.7x)              23k (1.3x)
+           reads-10K             752k (0.6x)             612k (0.5x)             698k (0.5x)
+     incremental-10K               70 (0.8x)             4.9k (1.4x)             2.7k (0.5x)
 ```
+
+### Parallel scaling
+
+![Parallel scaling](results/chart_scaling.svg)
+
+Throughput of commits and reads scenarios with 12 domains and varying fiber count.
+
+**Irmini (lavyek) — commits-10K** (peak: 21k at 10 fibers)
+
+**Irmini (lavyek) — commits-20B** (peak: 461k at 10 fibers)
+
+**Irmini (lavyek) — incremental-10K** (peak: 6.4k at 10 fibers)
+
+**Irmini (lavyek) — incremental-20B** (peak: 6.5k at 10 fibers)
+
+**Irmini (lavyek) — reads-10K** (peak: 625k at 10 fibers)
+
+**Irmini (lavyek) — reads-20B** (peak: 641k at 50 fibers)
 
 ### Key observations
 
-- **Irmini vs Irmin on commits (20B)**: Irmin leads at ~162k vs Irmini 231k. The gap has narrowed with inlining (was 3× with 100B values, now 0.7×).
-- **Irmini vs Irmin on incremental**: Irmini is **4.8–5.9× faster** (7.0k vs 1.2k–1.4k) thanks to inode structural sharing (O(log n) tree updates).
-- **Git backend**: Irmini is **4× faster** than Irmin on git commits (8.3k vs 2.0k) while using **3× less memory** (131–170 MiB vs 482–524 MiB).
-- **10K values**: All three implementations converge (~16k commits/s) — I/O dominates and inlining cannot help.
+- **Irmini vs Irmin on commits (20B)**: Irmin leads at ~162k vs Irmini 227k. The gap has narrowed with inlining (was 3× with 100B values, now 0.7×).
+- **Irmini vs Irmin on incremental**: Irmini is **5.3–6.6× faster** (7.7k vs 1.2k–1.4k) thanks to inode structural sharing (O(log n) tree updates).
+- **Git backend**: Irmini is **4× faster** than Irmin on git commits (8.5k vs 2.0k) while using **4× less memory** (49–131 MiB vs 482–524 MiB).
+- **10K values**: All three implementations converge (~17k commits/s) — I/O dominates and inlining cannot help.
 - **Irmin-Lwt vs Irmin-Eio**: Similar performance on most benchmarks. Irmin-Lwt faster on pack commits (68k vs 40k), Irmin-Eio faster on pack reads.
 - **Tezos trace replay**: 142k ops/sec (memory), 135k ops/sec (lavyek), 54k ops/sec (lavyek) over 10K real Tezos commits validates that irmini handles realistic workloads.

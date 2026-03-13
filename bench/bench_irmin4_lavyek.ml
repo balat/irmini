@@ -30,5 +30,15 @@ let run_all ?inline_threshold ?inode ?(cache = 100_000) ?nfibers ?name:custom_na
     run_one (fun ~backend ->
         Bench_irmin4.scenario_incremental ?inline_threshold ?inode ~name ~backend large);
     run_one (fun ~backend ->
-        Bench_irmin4.scenario_concurrent ?nfibers ~name ~backend ~env conf);
+        Bench_irmin4.scenario_commits_parallel ?nfibers ?inline_threshold ?inode ~name ~backend ~env conf);
+    run_one (fun ~backend ->
+        Bench_irmin4.scenario_reads_parallel ?nfibers ?inline_threshold ?inode ~name ~backend ~env conf);
+    run_one (fun ~backend ->
+        Bench_irmin4.scenario_incremental_parallel ?nfibers ?inline_threshold ?inode ~name ~backend ~env conf);
+    run_one (fun ~backend ->
+        Bench_irmin4.scenario_commits_parallel ?nfibers ?inline_threshold ?inode ~name ~backend ~env large);
+    run_one (fun ~backend ->
+        Bench_irmin4.scenario_reads_parallel ?nfibers ?inline_threshold ?inode ~name ~backend ~env large);
+    run_one (fun ~backend ->
+        Bench_irmin4.scenario_incremental_parallel ?nfibers ?inline_threshold ?inode ~name ~backend ~env large);
   ]
