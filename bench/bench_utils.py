@@ -53,8 +53,16 @@ def classify_backend(name, scenario=""):
     if "tezos-parallel-" in s or s == "tezos-sequential":
         return "skip"
 
-    # Parallel scenario results (commits-20B-100f/12d etc.)
-    if re.search(r'-\d+f/\d+d$', s):
+    # Parallel scenario results (commits-20B-100f/12d or parallel-reads-20B-12d×100f)
+    # Only classify as disk_parallel/memory_parallel if it's a standard parallel run
+    # (100 fibers), not a scaling sweep (variable fiber counts → handled by scaling chart).
+    m_old = re.search(r'-(\d+)f/(\d+)d$', s)
+    m_new = re.search(r'-(\d+)d[×x](\d+)f$', s)
+    if m_old or m_new:
+        fibers = int(m_old.group(1)) if m_old else int(m_new.group(2))
+        # Skip scaling sweep data (handled by gen_chart_scaling.py)
+        if fibers != 100:
+            return "skip"
         # Optimization variants: skip parallel (not run for optims)
         if any(x in n for x in ["baseline", "+inline", "+cache", "+inode", "+all"]):
             return "skip"
@@ -366,18 +374,30 @@ def extract_fibers(scenario):
 def remap_parallel_scenarios(results, rename_backends=False):
     """Remap parallel scenario names to their base form for charting.
 
-    e.g. "commits-20B-100f/12d" -> "commits-20B"
+    Handles both old format "commits-20B-100f/12d" and new format
+    "parallel-commits-20B-12d×100f".
     If rename_backends=True, also rename backends with the parallel config suffix
     (e.g. "Irmini (lavyek)" -> "Irmini (lavyek) 12d×100f") so they get hatching.
     """
     remapped = []
     for r in results:
+        # Old format: commits-20B-100f/12d
         m = re.match(r'^(.+)-(\d+)f/(\d+)d$', r["scenario"])
         if m:
             new_r = {**r, "scenario": m.group(1)}
             if rename_backends:
                 fibers = m.group(2)
                 domains = m.group(3)
+                new_r["name"] = f"{r['name']} {domains}d×{fibers}f"
+            remapped.append(new_r)
+            continue
+        # New format: parallel-commits-20B-12d×100f
+        m2 = re.match(r'^parallel-(.+)-(\d+)d[×x](\d+)f$', r["scenario"])
+        if m2:
+            new_r = {**r, "scenario": m2.group(1)}
+            if rename_backends:
+                domains = m2.group(2)
+                fibers = m2.group(3)
                 new_r["name"] = f"{r['name']} {domains}d×{fibers}f"
             remapped.append(new_r)
     return remapped

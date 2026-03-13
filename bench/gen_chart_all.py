@@ -399,13 +399,15 @@ def main():
         if not raw:
             print(f"  No results for {cat}, skipping")
             continue
-        # Only keep the main parallel config (100f/12d) and tezos parallel entries
-        main_par = [r for r in raw
-                    if re.search(r'-100f/\d+d$', r["scenario"])
-                    or not re.search(r'-\d+f/\d+d$', r["scenario"])]
-        remapped = remap_parallel_scenarios(main_par, rename_backends=True)
-        # Include tezos parallel data as-is (already has parallel config in name)
-        tezos_par = [r for r in main_par if not re.search(r'-\d+f/\d+d$', r["scenario"])]
+        # Remap parallel scenarios to base names (e.g. parallel-reads-20B-12d×100f -> reads-20B)
+        # and rename backends with parallel config suffix for hatching
+        remapped = remap_parallel_scenarios(raw, rename_backends=True)
+        # Include entries already identified by backend name (e.g. tezos parallel)
+        # that remap_parallel_scenarios doesn't handle
+        remapped_scenarios = {id(r) for r in raw
+                              if re.search(r'-\d+f/\d+d$', r["scenario"])
+                              or re.search(r'-\d+d[×x]\d+f$', r["scenario"])}
+        tezos_par = [r for r in raw if id(r) not in remapped_scenarios]
         remapped.extend(tezos_par)
         # Build set of (base_backend, scenario) pairs that have parallel data
         par_pairs = set()
