@@ -24,6 +24,7 @@
 #   --skip-irmin        Skip Irmin-Lwt/Eio benchmarks
 #   --skip-charts       Skip chart generation
 #   --skip-readme       Skip README update
+#   --regen             Skip all benchmarks, only regenerate charts + README
 #   --trace FILE        Path to .repr trace file (default: auto-detect)
 #   --trace-commits N   Max commits to replay (default: 10310)
 #   --parallel-fibers   Comma-separated fiber counts (default: 1,10,100,...)
@@ -53,6 +54,7 @@ SKIP_SCALING=false
 SKIP_IRMIN=false
 SKIP_CHARTS=false
 SKIP_README=false
+REGEN=false
 TRACE_FILE=""
 TRACE_COMMITS=10310
 PARALLEL_FIBERS="1,10,100,1000,10000,20000,30000,40000,45000,50000,55000,60000,70000,100000"
@@ -71,6 +73,7 @@ while [[ $# -gt 0 ]]; do
     --skip-irmin)     SKIP_IRMIN=true; shift ;;
     --skip-charts)    SKIP_CHARTS=true; shift ;;
     --skip-readme)    SKIP_README=true; shift ;;
+    --regen)          REGEN=true; shift ;;
     --trace)          TRACE_FILE="$2"; shift 2 ;;
     --trace-commits)  TRACE_COMMITS="$2"; shift 2 ;;
     --parallel-fibers)  PARALLEL_FIBERS="$2"; shift 2 ;;
@@ -124,6 +127,16 @@ echo ""
 
 cd "$MONOREPO_DIR"
 
+# --regen: skip all benchmark steps
+if [ "$REGEN" = true ]; then
+  SKIP_IRMINI=true
+  SKIP_OPTIMS=true
+  SKIP_TRACE=true
+  SKIP_PARALLEL=true
+  SKIP_SCALING=true
+  SKIP_IRMIN=true
+fi
+
 # ============================================================
 # 1. Irmini standard benchmarks
 # ============================================================
@@ -151,84 +164,58 @@ if [ "$SKIP_OPTIMS" = false ]; then
   echo ""
 
   OPTIM_PARAMS="--ncommits 50 --tree-add 500 --depth 10 --nreads 5000 --value-size 20"
-  SKIP_OTHER="--skip-lavyek --skip-git"
   TMPDIR_OPTIMS="$(mktemp -d)"
   trap 'rm -rf "$TMPDIR_OPTIMS"' EXIT
 
-  # --- Disk ---
-  DISK="$OPTIM_PARAMS $SKIP_OTHER --skip-memory"
+  # Optimization variants: name suffix, extra flags
+  # Each backend runs these 5 variants.
+  run_optim_variants() {
+    local backend="$1"      # disk|memory|lavyek
+    local backend_flag="$2" # --only-backend value
+    local name_suffix="$3"  # " (disk)" or "" or " (lavyek)"
+    local extra_base="$4"   # extra flags for baseline (e.g. --cache 0 for lavyek)
 
-  echo "--- Baseline (disk) ---"
-  $BENCH $DISK --inline-threshold 0 --no-inode --name "Irmini baseline (disk)" --json "$TMPDIR_OPTIMS/disk_baseline.json"
-  echo "--- +inline (disk) ---"
-  $BENCH $DISK --no-inode --name "Irmini+inline (disk)" --json "$TMPDIR_OPTIMS/disk_inline.json"
-  echo "--- +cache (disk) ---"
-  $BENCH $DISK --inline-threshold 0 --no-inode --cache 100000 --name "Irmini+cache (disk)" --json "$TMPDIR_OPTIMS/disk_cache.json"
-  echo "--- +inode (disk) ---"
-  $BENCH $DISK --inline-threshold 0 --name "Irmini+inode (disk)" --json "$TMPDIR_OPTIMS/disk_inode.json"
-  echo "--- +all (disk) ---"
-  $BENCH $DISK --cache 100000 --name "Irmini+all (disk)" --json "$TMPDIR_OPTIMS/disk_all.json"
+    local COMMON="$OPTIM_PARAMS --only-backend $backend_flag"
 
-  # Merge disk optims
-  python3 -c "
-import json, sys, glob
+    echo "--- Baseline ($backend) ---"
+    $BENCH $COMMON $extra_base --inline-threshold 0 --no-inode \
+      --name "Irmini baseline$name_suffix" --json "$TMPDIR_OPTIMS/${backend}_baseline.json"
+    echo "--- +inline ($backend) ---"
+    $BENCH $COMMON $extra_base --no-inode \
+      --name "Irmini+inline$name_suffix" --json "$TMPDIR_OPTIMS/${backend}_inline.json"
+    echo "--- +cache ($backend) ---"
+    $BENCH $COMMON $extra_base --inline-threshold 0 --no-inode --cache 100000 \
+      --name "Irmini+cache$name_suffix" --json "$TMPDIR_OPTIMS/${backend}_cache.json"
+    echo "--- +inode ($backend) ---"
+    $BENCH $COMMON $extra_base --inline-threshold 0 \
+      --name "Irmini+inode$name_suffix" --json "$TMPDIR_OPTIMS/${backend}_inode.json"
+    echo "--- +all ($backend) ---"
+    $BENCH $COMMON --cache 100000 \
+      --name "Irmini+all$name_suffix" --json "$TMPDIR_OPTIMS/${backend}_all.json"
+  }
+
+  merge_optim_results() {
+    local backend="$1"
+    local out_name="$2"
+    python3 -c "
+import json, glob
 results = []
-for f in sorted(glob.glob('$TMPDIR_OPTIMS/disk_*.json')):
+for f in sorted(glob.glob('$TMPDIR_OPTIMS/${backend}_*.json')):
     with open(f) as fh: results.extend(json.load(fh))
-with open('$OUTPUT_DIR/irmini_optims_disk.json', 'w') as fh:
+with open('$OUTPUT_DIR/${out_name}.json', 'w') as fh:
     json.dump(results, fh, indent=2); fh.write('\n')
-print(f'Merged {len(results)} disk optim results')
+print(f'Merged {len(results)} $backend optim results')
 "
+  }
 
-  # --- Memory ---
-  MEM="$OPTIM_PARAMS $SKIP_OTHER --skip-disk"
+  run_optim_variants "disk"   "disk"   " (disk)"   ""
+  merge_optim_results "disk" "irmini_optims_disk"
 
-  echo "--- Baseline (memory) ---"
-  $BENCH $MEM --inline-threshold 0 --no-inode --name "Irmini baseline" --json "$TMPDIR_OPTIMS/mem_baseline.json"
-  echo "--- +inline (memory) ---"
-  $BENCH $MEM --no-inode --name "Irmini+inline" --json "$TMPDIR_OPTIMS/mem_inline.json"
-  echo "--- +cache (memory) ---"
-  $BENCH $MEM --inline-threshold 0 --no-inode --cache 100000 --name "Irmini+cache" --json "$TMPDIR_OPTIMS/mem_cache.json"
-  echo "--- +inode (memory) ---"
-  $BENCH $MEM --inline-threshold 0 --name "Irmini+inode" --json "$TMPDIR_OPTIMS/mem_inode.json"
-  echo "--- +all (memory) ---"
-  $BENCH $MEM --cache 100000 --name "Irmini+all" --json "$TMPDIR_OPTIMS/mem_all.json"
+  run_optim_variants "memory" "memory" ""           ""
+  merge_optim_results "memory" "irmini_optims_memory"
 
-  # Merge memory optims
-  python3 -c "
-import json, sys, glob
-results = []
-for f in sorted(glob.glob('$TMPDIR_OPTIMS/mem_*.json')):
-    with open(f) as fh: results.extend(json.load(fh))
-with open('$OUTPUT_DIR/irmini_optims_memory.json', 'w') as fh:
-    json.dump(results, fh, indent=2); fh.write('\n')
-print(f'Merged {len(results)} memory optim results')
-"
-
-  # --- Lavyek ---
-  LAVYEK="$OPTIM_PARAMS --skip-memory --skip-disk --skip-git"
-
-  echo "--- Baseline (lavyek) ---"
-  $BENCH $LAVYEK --cache 0 --inline-threshold 0 --no-inode --name "Irmini baseline (lavyek)" --json "$TMPDIR_OPTIMS/lavyek_baseline.json"
-  echo "--- +inline (lavyek) ---"
-  $BENCH $LAVYEK --cache 0 --no-inode --name "Irmini+inline (lavyek)" --json "$TMPDIR_OPTIMS/lavyek_inline.json"
-  echo "--- +cache (lavyek) ---"
-  $BENCH $LAVYEK --cache 100000 --inline-threshold 0 --no-inode --name "Irmini+cache (lavyek)" --json "$TMPDIR_OPTIMS/lavyek_cache.json"
-  echo "--- +inode (lavyek) ---"
-  $BENCH $LAVYEK --cache 0 --inline-threshold 0 --name "Irmini+inode (lavyek)" --json "$TMPDIR_OPTIMS/lavyek_inode.json"
-  echo "--- +all (lavyek) ---"
-  $BENCH $LAVYEK --cache 100000 --name "Irmini+all (lavyek)" --json "$TMPDIR_OPTIMS/lavyek_all.json"
-
-  # Merge lavyek optims
-  python3 -c "
-import json, sys, glob
-results = []
-for f in sorted(glob.glob('$TMPDIR_OPTIMS/lavyek_*.json')):
-    with open(f) as fh: results.extend(json.load(fh))
-with open('$OUTPUT_DIR/irmini_optims_lavyek.json', 'w') as fh:
-    json.dump(results, fh, indent=2); fh.write('\n')
-print(f'Merged {len(results)} lavyek optim results')
-"
+  run_optim_variants "lavyek" "lavyek" " (lavyek)"  "--cache 0"
+  merge_optim_results "lavyek" "irmini_optims_lavyek"
 
   rm -rf "$TMPDIR_OPTIMS"
   echo ""

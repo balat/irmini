@@ -9,139 +9,22 @@ Usage: gen_readme_results.py <results_dir> [--readme PATH] [--date DATE] [--upda
 """
 
 import argparse
-import glob
 import json
-import math
 import os
 import re
 import subprocess
 import sys
 from datetime import date
 
-
-# --- Ordering ---
-
-SCENARIO_ORDER = [
-    "commits-20B", "reads-20B", "incremental-20B",
-    "commits-10K", "reads-10K", "incremental-10K",
-]
-
-BACKEND_ORDER_DISK = [
-    "Irmin-Lwt (pack)", "Irmin-Lwt (fs)",
-    "Irmin-Eio (pack)", "Irmin-Eio (fs)",
-    "Irmini (lavyek)", "Irmini (disk)",
-]
-
-BACKEND_ORDER_MEMORY = [
-    "Irmin-Lwt (memory)", "Irmin-Eio (memory)", "Irmini (memory)",
-]
-
-BACKEND_ORDER_GIT = [
-    "Irmin-Lwt (git)", "Irmin-Eio (git)", "Irmini (git)",
-]
-
-BACKEND_ORDER_OPTIMS_MEMORY = [
-    "Irmini baseline", "Irmini+inline", "Irmini+cache",
-    "Irmini+inode", "Irmini+all",
-]
-
-BACKEND_ORDER_OPTIMS_DISK = [
-    "Irmini baseline (disk)", "Irmini+inline (disk)", "Irmini+cache (disk)",
-    "Irmini+inode (disk)", "Irmini+all (disk)",
-]
-
-BACKEND_ORDER_OPTIMS_LAVYEK = [
-    "Irmini baseline (lavyek)", "Irmini+inline (lavyek)", "Irmini+cache (lavyek)",
-    "Irmini+inode (lavyek)", "Irmini+all (lavyek)",
-]
-
-
-def load_results(results_dir):
-    """Load and merge all JSON result files."""
-    all_results = []
-    for path in sorted(glob.glob(os.path.join(results_dir, "*.json"))):
-        try:
-            with open(path) as f:
-                data = json.load(f)
-            all_results.extend(data)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"  Warning: skipping {path}: {e}", file=sys.stderr)
-    return all_results
-
-
-def classify(name, scenario):
-    """Classify a result into a category."""
-    n = name.lower()
-    s = scenario.lower()
-
-    # Optimization variants
-    if any(x in n for x in ["baseline", "+inline", "+cache", "+inode", "+all"]):
-        if "(disk)" in n:
-            return "optims_disk"
-        if "(lavyek)" in n:
-            return "optims_lavyek"
-        return "optims_memory"
-
-    # Parallel scenario results (commits-20B-100f/12d etc.)
-    if re.search(r'-\d+f/\d+d$', s):
-        if "memory" in n or "mem" in n:
-            return "memory_parallel"
-        elif "git" in n:
-            return "skip"
-        else:
-            return "disk_parallel"
-
-    # Parallel tezos variants (e.g. "Irmini (lavyek) 12d×50kf")
-    if "12d\u00d7" in name or "12d×" in name:
-        if "memory" in n or "mem" in n:
-            return "memory_parallel"
-        else:
-            return "disk_parallel"
-
-    # Parallel scaling
-    if "tezos-parallel" in s:
-        return "parallel"
-
-    # Trace replay (sequential)
-    if "tezos-" in s:
-        return "trace"
-
-    # By backend type
-    if "memory" in n or "mem" in n:
-        return "memory"
-    if "git" in n:
-        return "git"
-
-    # Everything else: fs, disk, pack, lavyek
-    return "disk"
-
-
-def scenario_sort_key(scenario):
-    """Sort key for scenarios."""
-    if scenario in SCENARIO_ORDER:
-        return (0, SCENARIO_ORDER.index(scenario))
-    s = scenario.lower()
-    if "tezos" in s:
-        return (2, s)
-    return (3, s)
-
-
-def backend_sort_key(name, order):
-    """Sort key using a predefined order list."""
-    if name in order:
-        return (0, order.index(name))
-    return (1, name)
-
-
-def fmt_ops(v):
-    """Format ops/s for display."""
-    if v >= 1_000_000:
-        return f"{v/1_000_000:.1f}M"
-    if v >= 10_000:
-        return f"{v/1_000:.0f}k"
-    if v >= 1_000:
-        return f"{v/1_000:.1f}k"
-    return str(int(v))
+sys.path.insert(0, os.path.dirname(__file__))
+from bench_utils import (
+    load_results, classify_for_readme as classify,
+    SCENARIO_ORDER, BACKEND_ORDER_DISK, BACKEND_ORDER_MEMORY, BACKEND_ORDER_GIT,
+    BACKEND_ORDER_OPTIMS_MEMORY, BACKEND_ORDER_OPTIMS_DISK, BACKEND_ORDER_OPTIMS_LAVYEK,
+    scenario_sort_key, backend_sort_key, build_lookup, get_sorted_scenarios,
+    get_sorted_backends, fmt_ops, fmt_fibers, extract_fibers,
+    remap_parallel_scenarios,
+)
 
 
 def fmt_ops_table(v):
@@ -158,36 +41,6 @@ def fmt_rss(kb):
     """Format RSS from KB to MiB."""
     mib = kb / 1024
     return str(int(round(mib)))
-
-
-def build_lookup(results):
-    """Build a lookup dict: (name, scenario) -> result."""
-    lookup = {}
-    for r in results:
-        lookup[(r["name"], r["scenario"])] = r
-    return lookup
-
-
-def get_sorted_scenarios(results):
-    """Get unique scenarios sorted by scenario_sort_key."""
-    seen = set()
-    scenarios = []
-    for r in results:
-        if r["scenario"] not in seen:
-            scenarios.append(r["scenario"])
-            seen.add(r["scenario"])
-    return sorted(scenarios, key=scenario_sort_key)
-
-
-def get_sorted_backends(results, order):
-    """Get unique backend names sorted by the given order."""
-    seen = set()
-    names = []
-    for r in results:
-        if r["name"] not in seen:
-            names.append(r["name"])
-            seen.add(r["name"])
-    return sorted(names, key=lambda n: backend_sort_key(n, order))
 
 
 def generate_table(results, order, include_rss=True):
@@ -238,17 +91,11 @@ def generate_parallel_table(parallel_results, seq_baseline):
         lines.append(f"{'Sequential':<17s} {ops_str:>10s} {'1x':>10s} {'':>11s}")
 
     # Sort parallel results by fiber count
-    def extract_fibers(scenario):
-        """Extract fiber count from scenario like 'tezos-parallel-12d×1000f'."""
-        import re
-        m = re.search(r'(\d+)f', scenario)
-        return int(m.group(1)) if m else 0
-
     sorted_results = sorted(parallel_results, key=lambda r: extract_fibers(r["scenario"]))
 
     for r in sorted_results:
         fibers = extract_fibers(r["scenario"])
-        domains_match = __import__("re").search(r'(\d+)d', r["scenario"])
+        domains_match = re.search(r'(\d+)d', r["scenario"])
         domains = int(domains_match.group(1)) if domains_match else 12
 
         config = f"{domains}d × {fibers:>6,}f"
@@ -273,13 +120,6 @@ def generate_parallel_table(parallel_results, seq_baseline):
         lines.append(f"{config:<17s} {ops_str:>10s} {speedup_str:>10s} {rss_str:>11s}")
 
     return lines
-
-
-def extract_fibers(scenario):
-    """Extract fiber count from scenario like 'tezos-parallel-12d×1000f'."""
-    import re
-    m = re.search(r'(\d+)f', scenario)
-    return int(m.group(1)) if m else 0
 
 
 # --- Analysis generation ---
@@ -635,13 +475,6 @@ def analyze_parallel(parallel_results, seq_baseline):
     return bullets
 
 
-def fmt_fibers(n):
-    """Format fiber count for display."""
-    if n >= 1000:
-        return f"{n // 1000}k"
-    return str(n)
-
-
 def generate_key_observations(groups):
     """Generate overall key observations section."""
     bullets = []
@@ -735,19 +568,6 @@ def generate_key_observations(groups):
             )
 
     return bullets
-
-
-def remap_parallel_scenarios(results):
-    """Remap parallel scenario names to base form for table display.
-
-    e.g. "commits-20B-100f/12d" -> "commits-20B"
-    """
-    remapped = []
-    for r in results:
-        m = re.match(r'^(.+)-(\d+)f/(\d+)d$', r["scenario"])
-        if m:
-            remapped.append({**r, "scenario": m.group(1)})
-    return remapped
 
 
 def generate_results_section(all_results, run_date, machine_info):
@@ -950,7 +770,7 @@ def generate_results_section(all_results, run_date, machine_info):
 
         # Get trace file info from scenario
         sample = trace_data[0]
-        commits_match = __import__("re").search(r'(\d+)commits', sample["scenario"])
+        commits_match = re.search(r'(\d+)commits', sample["scenario"])
         ncommits = commits_match.group(1) if commits_match else "?"
         total_ops = sample.get("total_ops", 0)
         ops_str = f"{total_ops/1_000_000:.0f}M" if total_ops >= 1_000_000 else str(total_ops)

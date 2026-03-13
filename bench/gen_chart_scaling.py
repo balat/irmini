@@ -8,20 +8,16 @@ Reads from irmini_scaling.json and irmini_inode.json (for standard parallel).
 Usage: gen_chart_scaling.py <output_svg> --json <results_dir>
 """
 
-import glob
-import json
 import math
 import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(__file__))
+from bench_utils import load_results, COLORS, fmt_ops_chart as fmt_ops, fmt_fibers
 
-COLORS = {
-    "Irmini (lavyek)": "#59a14f",
-    "Irmini (memory)": "#4e79a7",
-    "Irmini (disk)": "#6d9dc5",
-    "Irmin-Eio (pack)": "#e15759",
-}
+# Only show these backends in scaling chart
+SCALING_BACKENDS = {"Irmini (lavyek)", "Irmini (memory)", "Irmini (disk)", "Irmin-Eio (pack)"}
 
 # Dash patterns per base scenario
 DASHES = {
@@ -34,18 +30,12 @@ DASHES = {
 }
 
 
-def load_from_json(results_dir):
+def load_scaling_series(results_dir):
     """Load parallel scaling data from JSON files.
 
     Returns dict: (backend_name, base_scenario) -> [(fibers, ops_per_sec, domains)]
     """
-    all_results = []
-    for path in sorted(glob.glob(os.path.join(results_dir, "*.json"))):
-        try:
-            with open(path) as f:
-                all_results.extend(json.load(f))
-        except (json.JSONDecodeError, IOError):
-            pass
+    all_results = load_results(results_dir)
 
     series = {}
     for r in all_results:
@@ -54,7 +44,7 @@ def load_from_json(results_dir):
         if not m:
             continue
         name = r["name"]
-        if name not in COLORS:
+        if name not in SCALING_BACKENDS:
             continue
         base = m.group(1)
         fibers = int(m.group(2))
@@ -65,20 +55,6 @@ def load_from_json(results_dir):
         series[key].append((fibers, int(r["ops_per_sec"]), domains))
 
     return series
-
-
-def fmt_ops(v):
-    if v >= 1_000_000:
-        return f"{v/1_000_000:.1f}M"
-    if v >= 1_000:
-        return f"{v/1_000:.0f}k"
-    return str(int(v))
-
-
-def fmt_fibers(v):
-    if v >= 1_000:
-        return f"{v//1_000}k"
-    return str(v)
 
 
 def generate_chart(series):
@@ -246,7 +222,7 @@ def main():
         print("Error: --json <results_dir> required")
         sys.exit(1)
 
-    series = load_from_json(results_dir)
+    series = load_scaling_series(results_dir)
     if not series:
         print("No parallel scaling data found")
         sys.exit(1)
