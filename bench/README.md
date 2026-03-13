@@ -287,6 +287,35 @@ Irmini (lavyek, no fsync)       parallel-reads-20B-12d×100f  11538873      0.08
 - **irmin-fs**: Slower across the board. Reads 106k–166k, commits 376–190k.
 - **trace-replay**: Irmini (lavyek) replays 10,310 real Tezos commits (4M operations) at **135k ops/sec**. Irmini (memory) at 142k ops/sec.
 
+#### Fsync impact
+
+Both disk and lavyek backends support `?use_fsync` (default: `true`). When
+enabled, each write is fsynced to the WAL for crash safety. The performance
+impact differs dramatically between the two backends:
+
+| Scenario | Disk (fsync) | Disk (no fsync) | Lavyek (fsync) | Lavyek (no fsync) |
+|---|---|---|---|---|
+| commits-20B | 55,470 | 39,843 | **376** | 136,840 |
+| commits-10K | 11,958 | 6,322 | **83** | 8,137 |
+| reads-20B | 1,328,741 | 2,530,090 | 3,661,705 | 3,476,097 |
+
+**Why lavyek collapses with fsync**: The root cause is fsync granularity.
+The disk backend uses `write_batch`: it accumulates all objects in the WAL
+with `Wal.append` (no fsync), then calls **one `Wal.sync`** at the end of
+the batch. A commit writing 1,000 objects costs **1 fsync**.
+
+Lavyek, by contrast, calls `Lavyek.put ~sync:true` for each individual
+key-value pair. Each `put` triggers its own fsync internally. A commit
+writing 1,000 objects costs **1,000 fsyncs**. At ~0.1–1ms per fsync on SSD,
+this means 100–1000ms per commit, which matches the observed 265s for 100
+commits of 1,000 entries (2.65s/commit).
+
+**Reads are unaffected** — fsync only impacts write paths. Lavyek with fsync
+still reads at 3.4–3.7M ops/s.
+
+**Fix**: Adding a `Lavyek.put_batch` that accumulates writes and fsyncs once
+at the end would bring lavyek+fsync performance in line with disk.
+
 ### Disk backends — multi-core (100 fibers, 12 domains)
 
 ![Disk parallel](results/chart_disk_parallel.svg)
