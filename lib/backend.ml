@@ -377,18 +377,19 @@ module Disk = struct
     {
       read =
         (fun h ->
-          let key = state.to_hex h in
-          match String_map.find_opt key state.index with
-          | None -> None
-          | Some entry -> (
-              match state.data_file with
+          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+              let key = state.to_hex h in
+              match String_map.find_opt key state.index with
               | None -> None
-              | Some file ->
-                  let buf = Cstruct.create entry.length in
-                  Eio.File.pread_exact file
-                    ~file_offset:(Optint.Int63.of_int entry.offset)
-                    [ buf ];
-                  Some (Cstruct.to_string buf)));
+              | Some entry -> (
+                  match state.data_file with
+                  | None -> None
+                  | Some file ->
+                      let buf = Cstruct.create entry.length in
+                      Eio.File.pread_exact file
+                        ~file_offset:(Optint.Int63.of_int entry.offset)
+                        [ buf ];
+                      Some (Cstruct.to_string buf))));
       write =
         (fun h data ->
           Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
@@ -415,10 +416,13 @@ module Disk = struct
                 | _ -> ()));
       exists =
         (fun h ->
-          let key = state.to_hex h in
-          (* Fast path: bloom filter for negative lookups *)
-          Bloom.mem state.bloom key && String_map.mem key state.index);
-      get_ref = (fun name -> String_map.find_opt name state.refs);
+          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+              let key = state.to_hex h in
+              Bloom.mem state.bloom key && String_map.mem key state.index));
+      get_ref =
+        (fun name ->
+          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+              String_map.find_opt name state.refs));
       set_ref =
         (fun name hash ->
           Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
@@ -445,7 +449,10 @@ module Disk = struct
                 true
               end
               else false));
-      list_refs = (fun () -> String_map.bindings state.refs |> List.map fst);
+      list_refs =
+        (fun () ->
+          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+              String_map.bindings state.refs |> List.map fst));
       write_batch =
         (fun objects ->
           Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
