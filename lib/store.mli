@@ -17,8 +17,8 @@ module Make (F : Codec.S) : sig
 
   val create : backend:hash Backend.t -> unit -> t
   (** [create ~backend ()] creates a store backed by [backend].
-      The store is a lightweight wrapper; caching should be applied
-      to the backend via {!Backend.cached} before creating the store. *)
+      The store is a lightweight wrapper; caching should be configured
+      at backend creation time via the [~cache] parameter. *)
 
   (** {2 Tree Operations} *)
 

@@ -75,7 +75,8 @@ let () =
       value_size = !value_size;
     }
   in
-  let cache = !cache in
+  let cache_int = !cache in
+  let cache = if cache_int > 0 then Some cache_int else None in
   let inline_threshold =
     if !inline_threshold >= 0 then Some !inline_threshold else None
   in
@@ -85,7 +86,7 @@ let () =
     "Configuration: %d commits, %d adds/commit, depth %d, %d reads, \
      %d-byte values%s%s@.@."
     conf.ncommits conf.tree_add conf.depth conf.nreads conf.value_size
-    (if cache > 0 then Printf.sprintf ", cache=%d" cache else "")
+    (match cache with Some n -> Printf.sprintf ", cache=%d" n | None -> "")
     (match inline_threshold with
      | Some n -> Printf.sprintf ", inline_threshold=%d" n
      | None -> "");
@@ -113,12 +114,12 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_disk") in
     rm_rf root;
     let disk_name = match name with Some n -> n | None -> "Irmini (disk)" in
-    run disk_name (Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache ?name ~sw ~env root conf)
+    run disk_name (Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache:cache_int ?name ~sw ~env root conf)
   end;
   (* 2. Irmini memory *)
   if not !skip_memory then begin
     let mem_name = match name with Some n -> n | None -> "Irmini (memory)" in
-    run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache ?name conf)
+    run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache:cache_int ?name conf)
   end;
   (* 3. Irmini git *)
   if not !skip_git then begin
@@ -126,7 +127,7 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_git") in
     rm_rf root;
     Eio.Path.mkdirs ~exists_ok:true ~perm:0o755 root;
-    run "Irmini (git)" (Bench_irmin4.run_all_git ~cache ~sw ~fs:cwd root conf)
+    run "Irmini (git)" (Bench_irmin4.run_all_git ~cache:cache_int ~sw ~fs:cwd root conf)
   end;
   (* 4. Irmini + Lavyek *)
   if not !skip_lavyek then begin
@@ -134,7 +135,7 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in
     rm_rf root;
     run "Irmini (lavyek)"
-      (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache ?name ~sw ~env root conf)
+      (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache:cache_int ?name ~sw ~env root conf)
   end;
   (* 5. Trace replay — runs on each active backend *)
   if !trace_file <> "" then begin
@@ -154,16 +155,14 @@ let () =
       results := [r] @ !results
     in
     if not !skip_memory then begin
-      let b = Irmin.Backend.Memory.create_sha1 () in
-      let backend = if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b in
+      let backend = Irmin.Backend.Memory.create_sha1 ?cache () in
       run_trace ~backend_name:"Irmini (memory)" ~backend
     end;
     if not !skip_disk then begin
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_disk_trace") in
       rm_rf root;
-      let b = Irmin.Backend.Disk.create_sha1 ~sw root in
-      let backend = if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b in
+      let backend = Irmin.Backend.Disk.create_sha1 ?cache ~sw root in
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () -> run_trace ~backend_name:"Irmini (disk)" ~backend)
@@ -172,8 +171,7 @@ let () =
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_lavyek_trace") in
       rm_rf root;
-      let b = Irmin_lavyek.create ~sw root in
-      let backend = if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b in
+      let backend = Irmin_lavyek.create ?cache ~sw root in
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () -> run_trace ~backend_name:"Irmini (lavyek)" ~backend)
@@ -187,8 +185,7 @@ let () =
     Format.printf "@.--- Parallel Trace Replay (%d domains × %d fibers) ---@.@."
       ndomains fibers_per_domain;
     if not !skip_memory then begin
-      let b = Irmin.Backend.Memory.create_sha1 () in
-      let b = if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b in
+      let b = Irmin.Backend.Memory.create_sha1 ?cache () in
       let backend = Irmin.Backend.thread_safe b in
       let r =
         Trace_replay_parallel.replay
@@ -209,8 +206,7 @@ let () =
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_lavyek_parallel") in
       rm_rf root;
-      let b = Irmin_lavyek.create ~sw root in
-      let backend = if cache > 0 then Irmin.Backend.cached ~capacity:cache b else b in
+      let backend = Irmin_lavyek.create ?cache ~sw root in
       let r =
         Trace_replay_parallel.replay
           ~trace_path:!trace_file

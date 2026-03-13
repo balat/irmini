@@ -15,13 +15,18 @@ val create_with_hash :
     store at [root]. *)
 
 val create_sha1 :
+  ?cache:int ->
   sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Irmin.Hash.sha1 Irmin.Backend.t
-(** Create a Lavyek-backed SHA-1 store. *)
+(** Create a Lavyek-backed SHA-1 store. If [cache] is given, wraps with an
+    LRU cache of that capacity. *)
 
 val create_sha256 :
+  ?cache:int ->
   sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Irmin.Hash.sha256 Irmin.Backend.t
-(** Create a Lavyek-backed SHA-256 store. *)
+(** Create a Lavyek-backed SHA-256 store. If [cache] is given, wraps with an
+    LRU cache of that capacity. *)
 
 val create :
+  ?cache:int ->
   sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Irmin.Hash.sha1 Irmin.Backend.t
 (** Alias for {!create_sha1}. *)

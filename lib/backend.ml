@@ -13,6 +13,36 @@ type 'hash t = {
 
 type stats = { reads : int; writes : int; cache_hits : int; cache_misses : int }
 
+let default_cache_capacity = 100_000
+
+(** Wrap a backend with an LRU cache for read operations.
+
+    The cache itself is NOT thread-safe. When using with multiple domains,
+    apply [cached] BEFORE [thread_safe] so the mutex protects the cache:
+    {[let b = thread_safe (cached ~capacity:100_000 backend)]}
+    Applying [cached] after [thread_safe] leaves the cache unprotected. *)
+let cached ?(capacity = default_cache_capacity) (type h) (backend : h t) : h t =
+  let cache : (h, string) Lru.t = Lru.create capacity in
+  {
+    backend with
+    read =
+      (fun h ->
+        match Lru.find cache h with
+        | Some v -> Some v
+        | None ->
+            let result = backend.read h in
+            Option.iter (fun v -> Lru.add cache h v) result;
+            result);
+    write =
+      (fun h data ->
+        backend.write h data;
+        Lru.add cache h data);
+    write_batch =
+      (fun objects ->
+        backend.write_batch objects;
+        List.iter (fun (h, data) -> Lru.add cache h data) objects);
+  }
+
 (** In-memory backend using immutable maps.
 
     NOT thread-safe: concurrent access from multiple Eio domains will cause
@@ -80,37 +110,14 @@ module Memory = struct
       close = (fun () -> ());
     }
 
-  let create_sha1 () = create_with_hash Hash.to_hex Hash.equal
-  let create_sha256 () = create_with_hash Hash.to_hex Hash.equal
+  let create_sha1 ?cache () =
+    let b = create_with_hash Hash.to_hex Hash.equal in
+    match cache with Some capacity -> cached ~capacity b | None -> b
+
+  let create_sha256 ?cache () =
+    let b = create_with_hash Hash.to_hex Hash.equal in
+    match cache with Some capacity -> cached ~capacity b | None -> b
 end
-
-(** Wrap a backend with an LRU cache for read operations.
-
-    The cache itself is NOT thread-safe. When using with multiple domains,
-    apply [cached] BEFORE [thread_safe] so the mutex protects the cache:
-    {[let b = thread_safe (cached ~capacity:100_000 backend)]}
-    Applying [cached] after [thread_safe] leaves the cache unprotected. *)
-let cached ?(capacity = 100_000) (type h) (backend : h t) : h t =
-  let cache : (h, string) Lru.t = Lru.create capacity in
-  {
-    backend with
-    read =
-      (fun h ->
-        match Lru.find cache h with
-        | Some v -> Some v
-        | None ->
-            let result = backend.read h in
-            Option.iter (fun v -> Lru.add cache h v) result;
-            result);
-    write =
-      (fun h data ->
-        backend.write h data;
-        Lru.add cache h data);
-    write_batch =
-      (fun objects ->
-        backend.write_batch objects;
-        List.iter (fun (h, data) -> Lru.add cache h data) objects);
-  }
 
 let readonly (backend : 'h t) : 'h t =
   let fail () = invalid_arg "Backend is read-only" in
@@ -541,9 +548,11 @@ module Disk = struct
               state.data_file <- None));
     }
 
-  let create_sha1 ~sw root =
-    create_with_hash ~sw root Hash.to_hex Hash.sha1_of_hex Hash.equal
+  let create_sha1 ?cache ~sw root =
+    let b = create_with_hash ~sw root Hash.to_hex Hash.sha1_of_hex Hash.equal in
+    match cache with Some capacity -> cached ~capacity b | None -> b
 
-  let create_sha256 ~sw root =
-    create_with_hash ~sw root Hash.to_hex Hash.sha256_of_hex Hash.equal
+  let create_sha256 ?cache ~sw root =
+    let b = create_with_hash ~sw root Hash.to_hex Hash.sha256_of_hex Hash.equal in
+    match cache with Some capacity -> cached ~capacity b | None -> b
 end

@@ -126,8 +126,8 @@ let replay_chunk ~rows ~start_idx ~end_idx
 
     @param ndomains Number of OS domains (cores)
     @param fibers_per_domain Number of concurrent fibers per domain
-    @param backend Single shared backend for all workers (wrap with
-    [Backend.cached] before passing if caching is desired) *)
+    @param backend Single shared backend for all workers (create with
+    [~cache] if caching is desired) *)
 let replay ~trace_path ?(max_commits = 0) ?(flatten_paths = true)
     ?(empty_blobs = false) ?inline_threshold ?inode
     ~ndomains ~fibers_per_domain

@@ -62,10 +62,16 @@ let create_with_hash ~sw root to_hex of_hex equal : _ Backend.t =
     close = (fun () -> Lavyek.close db);
   }
 
-let create_sha1 ~sw root =
-  create_with_hash ~sw root Hash.to_hex Hash.sha1_of_hex Hash.equal
+let create_sha1 ?cache ~sw root =
+  let b = create_with_hash ~sw root Hash.to_hex Hash.sha1_of_hex Hash.equal in
+  match cache with
+  | Some capacity -> Backend.cached ~capacity b
+  | None -> b
 
-let create_sha256 ~sw root =
-  create_with_hash ~sw root Hash.to_hex Hash.sha256_of_hex Hash.equal
+let create_sha256 ?cache ~sw root =
+  let b = create_with_hash ~sw root Hash.to_hex Hash.sha256_of_hex Hash.equal in
+  match cache with
+  | Some capacity -> Backend.cached ~capacity b
+  | None -> b
 
 let create = create_sha1

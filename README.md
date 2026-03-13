@@ -45,8 +45,7 @@ Content-addressable storage for OCaml.
 
 ```ocaml
 (* Create a memory backend *)
-let backend = Irmin.Backend.Memory.create_sha1 () in
-let backend = Irmin.Backend.cached ~capacity:100_000 backend in
+let backend = Irmin.Backend.Memory.create_sha1 ~cache:100_000 () in
 let store = Irmin.Store.Git.create ~backend () in
 
 (* Get an empty tree *)
@@ -77,8 +76,8 @@ Backends are records of functions (not functors), making them composable:
 Backend combinators:
 
 ```ocaml
-(* LRU cache — default 100,000 entries *)
-let backend = Irmin.Backend.cached ~capacity:200_000 backend
+(* LRU cache — pass ~cache at creation, or use Backend.cached for advanced use *)
+let backend = Irmin.Backend.Memory.create_sha1 ~cache:200_000 ()
 
 (* Read-only wrapper *)
 let backend = Irmin.Backend.readonly backend

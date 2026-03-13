@@ -51,19 +51,26 @@ module Memory : sig
   (** [create_with_hash to_hex equal] creates an in-memory backend. Caller
       computes hashes; backend just stores (hash, data) pairs. *)
 
-  val create_sha1 : unit -> Hash.sha1 t
-  (** Create an in-memory SHA-1 backend. *)
+  val create_sha1 : ?cache:int -> unit -> Hash.sha1 t
+  (** Create an in-memory SHA-1 backend. If [cache] is given, wraps with an
+      LRU cache of that capacity. *)
 
-  val create_sha256 : unit -> Hash.sha256 t
-  (** Create an in-memory SHA-256 backend. *)
+  val create_sha256 : ?cache:int -> unit -> Hash.sha256 t
+  (** Create an in-memory SHA-256 backend. If [cache] is given, wraps with an
+      LRU cache of that capacity. *)
 end
 
 (** {1 Backend Combinators} *)
 
+val default_cache_capacity : int
+(** Recommended default cache capacity (100 000 entries).
+    Suitable for most workloads; adjust based on memory budget and
+    working set size. *)
+
 val cached : ?capacity:int -> 'h t -> 'h t
 (** [cached ?capacity backend] wraps a backend with an LRU cache (default:
-    100 000 entries). Reads are served from cache when possible, and writes
-    populate the cache. *)
+    {!default_cache_capacity} entries). Reads are served from cache when
+    possible, and writes populate the cache. *)
 
 val thread_safe : 'h t -> 'h t
 (** [thread_safe backend] wraps a backend with a [Mutex.t] so it can be
@@ -97,12 +104,15 @@ module Disk : sig
       - objects.idx: index mapping hex hash to (offset, length)
       - refs/: directory with one file per ref *)
 
-  val create_sha1 : sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Hash.sha1 t
-  (** Create a disk-based SHA-1 backend. *)
+  val create_sha1 :
+    ?cache:int -> sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Hash.sha1 t
+  (** Create a disk-based SHA-1 backend. If [cache] is given, wraps with an
+      LRU cache of that capacity. *)
 
   val create_sha256 :
-    sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Hash.sha256 t
-  (** Create a disk-based SHA-256 backend. *)
+    ?cache:int -> sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Hash.sha256 t
+  (** Create a disk-based SHA-256 backend. If [cache] is given, wraps with an
+      LRU cache of that capacity. *)
 end
 
 (** {1 Statistics} *)

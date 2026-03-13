@@ -253,10 +253,8 @@ let run_all_memory ?inline_threshold ?inode ?(cache = 0) ?name:custom_name (conf
       let suffix = if cache > 0 then "+cache" else "" in
       "Irmini" ^ suffix ^ " (memory)"
   in
-  let mk () =
-    let b = Backend.Memory.create_sha1 () in
-    if cache > 0 then Backend.cached ~capacity:cache b else b
-  in
+  let cache = if cache > 0 then Some cache else None in
+  let mk () = Backend.Memory.create_sha1 ?cache () in
   let large = { conf with value_size = 10_000 } in
   [
     scenario_commits ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
@@ -272,10 +270,7 @@ let run_all_git ?(cache = 0) ~sw ~fs root (conf : Bench_common.config) =
   let name = "Irmini" ^ suffix ^ " (git)" in
   let path = Fpath.v (snd root) in
   let store = Git_interop.init_git ~sw ~fs ~path in
-  let mk () =
-    let b = Store.Git.backend store in
-    if cache > 0 then Backend.cached ~capacity:cache b else b
-  in
+  let mk () = Store.Git.backend store in
   (* Git backend: disable inlining and inodes for 100% git compatibility *)
   let inline_threshold = Some 0 in
   let inode = Some false in
@@ -296,10 +291,8 @@ let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?name:custom_name ~sw ~en
       let suffix = if cache > 0 then "+cache" else "" in
       "Irmini" ^ suffix ^ " (disk)"
   in
-  let mk () =
-    let b = Backend.Disk.create_sha1 ~sw root in
-    if cache > 0 then Backend.cached ~capacity:cache b else b
-  in
+  let cache = if cache > 0 then Some cache else None in
+  let mk () = Backend.Disk.create_sha1 ?cache ~sw root in
   let run_one f =
     let backend = mk () in
     Fun.protect ~finally:(fun () -> backend.close ()) (fun () -> f ~backend)
