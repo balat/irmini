@@ -9,22 +9,117 @@ Usage: gen_readme_results.py <results_dir> [--readme PATH] [--date DATE] [--upda
 """
 
 import argparse
+import glob
 import json
+import math
 import os
-import re
 import subprocess
 import sys
 from datetime import date
 
-sys.path.insert(0, os.path.dirname(__file__))
-from bench_utils import (
-    load_results, classify_for_readme as classify,
-    SCENARIO_ORDER, BACKEND_ORDER_DISK, BACKEND_ORDER_MEMORY, BACKEND_ORDER_GIT,
-    BACKEND_ORDER_OPTIMS_MEMORY, BACKEND_ORDER_OPTIMS_DISK, BACKEND_ORDER_OPTIMS_LAVYEK,
-    scenario_sort_key, backend_sort_key, build_lookup, get_sorted_scenarios,
-    get_sorted_backends, fmt_ops, fmt_fibers, extract_fibers,
-    remap_parallel_scenarios,
-)
+
+# --- Ordering ---
+
+SCENARIO_ORDER = [
+    "commits-20B", "reads-20B", "incremental-20B",
+    "commits-10K", "reads-10K", "incremental-10K",
+]
+
+BACKEND_ORDER_DISK = [
+    "Irmin-Lwt (pack)", "Irmin-Lwt (fs)",
+    "Irmin-Eio (pack)", "Irmin-Eio (fs)",
+    "Irmini (lavyek)", "Irmini (disk)",
+]
+
+BACKEND_ORDER_MEMORY = [
+    "Irmin-Lwt (memory)", "Irmin-Eio (memory)", "Irmini (memory)",
+]
+
+BACKEND_ORDER_GIT = [
+    "Irmin-Lwt (git)", "Irmin-Eio (git)", "Irmini (git)",
+]
+
+BACKEND_ORDER_OPTIMS_MEMORY = [
+    "Irmini baseline", "Irmini+inline", "Irmini+cache",
+    "Irmini+inode", "Irmini+all",
+]
+
+BACKEND_ORDER_OPTIMS_DISK = [
+    "Irmini baseline (disk)", "Irmini+inline (disk)", "Irmini+cache (disk)",
+    "Irmini+inode (disk)", "Irmini+all (disk)",
+]
+
+
+def load_results(results_dir):
+    """Load and merge all JSON result files."""
+    all_results = []
+    for path in sorted(glob.glob(os.path.join(results_dir, "*.json"))):
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            all_results.extend(data)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"  Warning: skipping {path}: {e}", file=sys.stderr)
+    return all_results
+
+
+def classify(name, scenario):
+    """Classify a result into a category."""
+    n = name.lower()
+    s = scenario.lower()
+
+    # Optimization variants
+    if any(x in n for x in ["baseline", "+inline", "+cache", "+inode", "+all"]):
+        if "(disk)" in n:
+            return "optims_disk"
+        return "optims_memory"
+
+    # Parallel scaling
+    if "tezos-parallel" in s:
+        return "parallel"
+
+    # Trace replay (sequential)
+    if "tezos-" in s:
+        return "trace"
+
+    # By backend type
+    if "memory" in n or "mem" in n:
+        return "memory"
+    if "git" in n:
+        return "git"
+
+    # Everything else: fs, disk, pack, lavyek
+    return "disk"
+
+
+def scenario_sort_key(scenario):
+    """Sort key for scenarios."""
+    if scenario in SCENARIO_ORDER:
+        return (0, SCENARIO_ORDER.index(scenario))
+    s = scenario.lower()
+    if s.startswith("concurrent"):
+        return (1, s)
+    if "tezos" in s:
+        return (2, s)
+    return (3, s)
+
+
+def backend_sort_key(name, order):
+    """Sort key using a predefined order list."""
+    if name in order:
+        return (0, order.index(name))
+    return (1, name)
+
+
+def fmt_ops(v):
+    """Format ops/s for display."""
+    if v >= 1_000_000:
+        return f"{v/1_000_000:.1f}M"
+    if v >= 10_000:
+        return f"{v/1_000:.0f}k"
+    if v >= 1_000:
+        return f"{v/1_000:.1f}k"
+    return str(int(v))
 
 
 def fmt_ops_table(v):
@@ -41,6 +136,36 @@ def fmt_rss(kb):
     """Format RSS from KB to MiB."""
     mib = kb / 1024
     return str(int(round(mib)))
+
+
+def build_lookup(results):
+    """Build a lookup dict: (name, scenario) -> result."""
+    lookup = {}
+    for r in results:
+        lookup[(r["name"], r["scenario"])] = r
+    return lookup
+
+
+def get_sorted_scenarios(results):
+    """Get unique scenarios sorted by scenario_sort_key."""
+    seen = set()
+    scenarios = []
+    for r in results:
+        if r["scenario"] not in seen:
+            scenarios.append(r["scenario"])
+            seen.add(r["scenario"])
+    return sorted(scenarios, key=scenario_sort_key)
+
+
+def get_sorted_backends(results, order):
+    """Get unique backend names sorted by the given order."""
+    seen = set()
+    names = []
+    for r in results:
+        if r["name"] not in seen:
+            names.append(r["name"])
+            seen.add(r["name"])
+    return sorted(names, key=lambda n: backend_sort_key(n, order))
 
 
 def generate_table(results, order, include_rss=True):
@@ -91,11 +216,17 @@ def generate_parallel_table(parallel_results, seq_baseline):
         lines.append(f"{'Sequential':<17s} {ops_str:>10s} {'1x':>10s} {'':>11s}")
 
     # Sort parallel results by fiber count
+    def extract_fibers(scenario):
+        """Extract fiber count from scenario like 'tezos-parallel-12d×1000f'."""
+        import re
+        m = re.search(r'(\d+)f', scenario)
+        return int(m.group(1)) if m else 0
+
     sorted_results = sorted(parallel_results, key=lambda r: extract_fibers(r["scenario"]))
 
     for r in sorted_results:
         fibers = extract_fibers(r["scenario"])
-        domains_match = re.search(r'(\d+)d', r["scenario"])
+        domains_match = __import__("re").search(r'(\d+)d', r["scenario"])
         domains = int(domains_match.group(1)) if domains_match else 12
 
         config = f"{domains}d × {fibers:>6,}f"
@@ -122,6 +253,13 @@ def generate_parallel_table(parallel_results, seq_baseline):
     return lines
 
 
+def extract_fibers(scenario):
+    """Extract fiber count from scenario like 'tezos-parallel-12d×1000f'."""
+    import re
+    m = re.search(r'(\d+)f', scenario)
+    return int(m.group(1)) if m else 0
+
+
 # --- Analysis generation ---
 
 def analyze_disk(results):
@@ -133,6 +271,8 @@ def analyze_disk(results):
     lavyek_c20 = lookup.get(("Irmini (lavyek)", "commits-20B"))
     lavyek_r20 = lookup.get(("Irmini (lavyek)", "reads-20B"))
     lavyek_r10 = lookup.get(("Irmini (lavyek)", "reads-10K"))
+    lavyek_conc = lookup.get(("Irmini (lavyek)", "concurrent-100f/12d"))
+
     if lavyek_c20:
         parts = [f"Commits at **{fmt_ops(lavyek_c20['ops_per_sec'])} ops/s** (20B)"]
         # Compare to Irmin backends
@@ -145,6 +285,8 @@ def analyze_disk(results):
             extras.append(f"Reads at {fmt_ops(lavyek_r20['ops_per_sec'])} (20B)")
         if lavyek_r10:
             extras.append(f"{fmt_ops(lavyek_r10['ops_per_sec'])} (10K)")
+        if lavyek_conc:
+            extras.append(f"Concurrent at **{fmt_ops(lavyek_conc['ops_per_sec'])} ops/s**")
         if extras:
             s += " " + ", ".join(extras) + "."
         bullets.append(f"**Irmini (lavyek)**: {s}")
@@ -475,6 +617,13 @@ def analyze_parallel(parallel_results, seq_baseline):
     return bullets
 
 
+def fmt_fibers(n):
+    """Format fiber count for display."""
+    if n >= 1000:
+        return f"{n // 1000}k"
+    return str(n)
+
+
 def generate_key_observations(groups):
     """Generate overall key observations section."""
     bullets = []
@@ -575,15 +724,12 @@ def generate_results_section(all_results, run_date, machine_info):
     # Classify all results
     groups = {
         "disk": [], "memory": [], "git": [],
-        "disk_parallel": [], "memory_parallel": [],
-        "optims_disk": [], "optims_memory": [], "optims_lavyek": [],
+        "optims_disk": [], "optims_memory": [],
         "trace": [], "parallel": [],
     }
 
     for r in all_results:
         cat = classify(r["name"], r["scenario"])
-        if cat == "skip":
-            continue
         groups[cat].append(r)
 
     lines = []
@@ -602,7 +748,7 @@ def generate_results_section(all_results, run_date, machine_info):
                   and not ("memory" in r["name"].lower() or "mem" in r["name"].lower())]
     disk_all = disk_results + disk_trace
     if disk_all:
-        lines.append("### Disk backends — single-core (fs, pack, lavyek)")
+        lines.append("### Disk backends (fs, pack, lavyek)")
         lines.append("")
         lines.append("![Disk backends](results/chart_disk.svg)")
         lines.append("")
@@ -627,27 +773,6 @@ def generate_results_section(all_results, run_date, machine_info):
                 lines.append(f"- **trace-replay**: " + ". ".join(parts) + ".")
         lines.append("")
 
-    # --- Disk parallel ---
-    if groups["disk_parallel"]:
-        # Only keep main parallel config (100f/12d) and tezos parallel entries
-        main_disk_par = [r for r in groups["disk_parallel"]
-                         if re.search(r'-100f/\d+d$', r["scenario"])
-                         or not re.search(r'-\d+f/\d+d$', r["scenario"])]
-        disk_par_remapped = remap_parallel_scenarios(main_disk_par)
-        # Include tezos parallel data (already has base scenario name)
-        tezos_par = [r for r in main_disk_par
-                     if not re.search(r'-\d+f/\d+d$', r["scenario"])]
-        disk_par_remapped.extend(tezos_par)
-        lines.append("### Disk backends — multi-core (100 fibers, 12 domains)")
-        lines.append("")
-        lines.append("![Disk parallel](results/chart_disk_parallel.svg)")
-        lines.append("")
-        lines.append("```")
-        for line in generate_table(disk_par_remapped, BACKEND_ORDER_DISK):
-            lines.append(line)
-        lines.append("```")
-        lines.append("")
-
     # --- Memory ---
     memory_results = groups["memory"]
     memory_trace = [r for r in groups["trace"]
@@ -655,7 +780,7 @@ def generate_results_section(all_results, run_date, machine_info):
                     and ("memory" in r["name"].lower() or "mem" in r["name"].lower())]
     memory_all = memory_results + memory_trace
     if memory_all:
-        lines.append("### Memory backends — single-core")
+        lines.append("### Memory backends")
         lines.append("")
         lines.append("![Memory backends](results/chart_memory.svg)")
         lines.append("")
@@ -666,23 +791,6 @@ def generate_results_section(all_results, run_date, machine_info):
         lines.append("")
         for bullet in analyze_memory(memory_all):
             lines.append(f"- {bullet}")
-        lines.append("")
-
-    # --- Memory parallel ---
-    if groups["memory_parallel"]:
-        # Only keep main parallel config (100f/12d)
-        main_mem_par = [r for r in groups["memory_parallel"]
-                        if re.search(r'-100f/\d+d$', r["scenario"])
-                        or not re.search(r'-\d+f/\d+d$', r["scenario"])]
-        mem_par_remapped = remap_parallel_scenarios(main_mem_par)
-        lines.append("### Memory backends — multi-core (100 fibers, 12 domains)")
-        lines.append("")
-        lines.append("![Memory parallel](results/chart_memory_parallel.svg)")
-        lines.append("")
-        lines.append("```")
-        for line in generate_table(mem_par_remapped, BACKEND_ORDER_MEMORY):
-            lines.append(line)
-        lines.append("```")
         lines.append("")
 
     # --- Git ---
@@ -714,7 +822,7 @@ def generate_results_section(all_results, run_date, machine_info):
         lines.append("")
         # Note about disk WAL
         lines.append("Note: the disk backend now uses WAL with fsync for crash safety, which")
-        lines.append("dominates write-heavy scenarios (incremental ~10 ops/s).")
+        lines.append("dominates write-heavy scenarios (incremental ~10 ops/s, concurrent ~265 ops/s).")
         lines.append("")
         for bullet in analyze_optims(groups["optims_disk"], is_disk=True):
             lines.append(f"- {bullet}")
@@ -732,21 +840,6 @@ def generate_results_section(all_results, run_date, machine_info):
         lines.append("```")
         lines.append("")
         for bullet in analyze_optims(groups["optims_memory"], is_disk=False):
-            lines.append(f"- {bullet}")
-        lines.append("")
-
-    # --- Optims lavyek ---
-    if groups["optims_lavyek"]:
-        lines.append("### Irmini optimizations (lavyek)")
-        lines.append("")
-        lines.append("![Irmini optimizations lavyek](results/chart_optims_lavyek.svg)")
-        lines.append("")
-        lines.append("```")
-        for line in generate_table(groups["optims_lavyek"], BACKEND_ORDER_OPTIMS_LAVYEK, include_rss=False):
-            lines.append(line)
-        lines.append("```")
-        lines.append("")
-        for bullet in analyze_optims(groups["optims_lavyek"], is_disk=False):
             lines.append(f"- {bullet}")
         lines.append("")
 
@@ -770,7 +863,7 @@ def generate_results_section(all_results, run_date, machine_info):
 
         # Get trace file info from scenario
         sample = trace_data[0]
-        commits_match = re.search(r'(\d+)commits', sample["scenario"])
+        commits_match = __import__("re").search(r'(\d+)commits', sample["scenario"])
         ncommits = commits_match.group(1) if commits_match else "?"
         total_ops = sample.get("total_ops", 0)
         ops_str = f"{total_ops/1_000_000:.0f}M" if total_ops >= 1_000_000 else str(total_ops)
@@ -831,98 +924,6 @@ def generate_results_section(all_results, run_date, machine_info):
             lines.append(f"- {bullet}")
         lines.append("")
 
-    # --- Parallel speedup ---
-    all_parallel = [r for r in groups.get("disk_parallel", []) + groups.get("memory_parallel", [])
-                    if re.search(r'-100f/\d+d$', r["scenario"])]
-    if all_parallel:
-        # Build sequential lookup from disk + memory groups
-        seq_lookup = {}
-        for r in groups["disk"] + groups["memory"]:
-            seq_lookup[(r["name"], r["scenario"])] = r["ops_per_sec"]
-
-        # Compute speedup for each parallel result
-        speedup_data = []  # (base_scenario, name, speedup, par_ops, seq_ops)
-        for r in all_parallel:
-            m = re.match(r'^(.+)-\d+f/\d+d$', r["scenario"])
-            if not m:
-                continue
-            base = m.group(1)
-            seq_val = seq_lookup.get((r["name"], base))
-            if seq_val and seq_val > 0:
-                sp = r["ops_per_sec"] / seq_val
-                speedup_data.append((base, r["name"], sp, r["ops_per_sec"], seq_val))
-
-        if speedup_data:
-            lines.append("### Parallel speedup")
-            lines.append("")
-            lines.append("![Parallel speedup](results/chart_speedup.svg)")
-            lines.append("")
-            lines.append("Speedup of parallel scenarios (100 fibers, 12 domains) vs sequential baseline.")
-            lines.append("Only domain-safe backends shown (Irmini and Irmin-Eio).")
-            lines.append("")
-
-            # Table: scenarios as rows, backends as columns
-            scenarios_seen = sorted(set(s for s, _, _, _, _ in speedup_data),
-                                    key=scenario_sort_key)
-            backends_seen = sorted(set(n for _, n, _, _, _ in speedup_data))
-            sp_lookup = {(s, n): (sp, par, seq) for s, n, sp, par, seq in speedup_data}
-
-            lines.append("```")
-            header = f"{'Scenario':>20s}"
-            for bname in backends_seen:
-                header += f"  {bname:>22s}"
-            lines.append(header)
-            lines.append("-" * len(header))
-
-            for scenario in scenarios_seen:
-                row = f"{scenario:>20s}"
-                for bname in backends_seen:
-                    entry = sp_lookup.get((scenario, bname))
-                    if entry:
-                        sp, par, _seq = entry
-                        row += f"  {fmt_ops(par) + ' (' + f'{sp:.1f}x' + ')':>22s}"
-                    else:
-                        row += f"  {'—':>22s}"
-                lines.append(row)
-            lines.append("```")
-            lines.append("")
-
-    # --- Parallel scaling ---
-    scaling_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "irmini_scaling.json")
-    if os.path.exists(scaling_file):
-        try:
-            with open(scaling_file) as f:
-                scale_data = json.load(f)
-            if scale_data:
-                lines.append("### Parallel scaling")
-                lines.append("")
-                lines.append("![Parallel scaling](results/chart_scaling.svg)")
-                lines.append("")
-                lines.append("Throughput of commits and reads scenarios with 12 domains and varying fiber count.")
-                lines.append("")
-
-                # Group by (backend, base_scenario)
-                scale_series = {}
-                for r in scale_data:
-                    m = re.match(r'^(.+)-(\d+)f/(\d+)d$', r["scenario"])
-                    if not m:
-                        continue
-                    base = m.group(1)
-                    fibers = int(m.group(2))
-                    key = (r["name"], base)
-                    if key not in scale_series:
-                        scale_series[key] = []
-                    scale_series[key].append((fibers, r["ops_per_sec"]))
-
-                # Table per series
-                for (bname, base), data in sorted(scale_series.items()):
-                    sorted_data = sorted(data, key=lambda d: d[0])
-                    peak_fib, peak_ops = max(sorted_data, key=lambda d: d[1])
-                    lines.append(f"**{bname} — {base}** (peak: {fmt_ops(peak_ops)} at {peak_fib} fibers)")
-                    lines.append("")
-        except (json.JSONDecodeError, IOError):
-            pass
-
     # --- Key observations ---
     obs = generate_key_observations(groups)
     if obs:
@@ -957,11 +958,30 @@ def update_charts(results_dir):
     """Run chart generation scripts."""
     bench_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # gen_chart_all.py
+    # gen_chart_all.py with stable filenames (timestamp="")
     chart_all = os.path.join(bench_dir, "gen_chart_all.py")
     if os.path.exists(chart_all):
         print("Generating backend charts...")
-        subprocess.run([sys.executable, chart_all, results_dir], check=True)
+        # We need stable names, so we pass an empty timestamp
+        # But gen_chart_all.py uses timestamp in filenames, so we pass a fixed marker
+        # Actually, we'll just call it and then rename
+        subprocess.run([sys.executable, chart_all, results_dir, ""], check=True)
+        # Rename timestamped files to stable names
+        for cat in ["disk", "memory", "git", "optims_disk", "optims_memory"]:
+            src = os.path.join(results_dir, f"chart_{cat}_.svg")
+            dst = os.path.join(results_dir, f"chart_{cat}.svg")
+            if os.path.exists(src):
+                os.rename(src, dst)
+                print(f"  Renamed {src} -> {dst}")
+            else:
+                # Try to find any timestamped version
+                import fnmatch
+                for fname in os.listdir(results_dir):
+                    if fnmatch.fnmatch(fname, f"chart_{cat}_*.svg") and fname != f"chart_{cat}.svg":
+                        src2 = os.path.join(results_dir, fname)
+                        os.rename(src2, dst)
+                        print(f"  Renamed {src2} -> {dst}")
+                        break
 
     # gen_chart_parallel.py
     chart_parallel = os.path.join(bench_dir, "gen_chart_parallel.py")
@@ -969,13 +989,6 @@ def update_charts(results_dir):
         print("Generating parallel scaling chart...")
         dst = os.path.join(results_dir, "chart_parallel_scaling.svg")
         subprocess.run([sys.executable, chart_parallel, dst], check=True)
-
-    # gen_chart_scaling.py
-    chart_scaling = os.path.join(bench_dir, "gen_chart_scaling.py")
-    if os.path.exists(chart_scaling):
-        print("Generating parallel scaling chart...")
-        dst = os.path.join(results_dir, "chart_scaling.svg")
-        subprocess.run([sys.executable, chart_scaling, dst, "--json", results_dir], check=True)
 
 
 def main():

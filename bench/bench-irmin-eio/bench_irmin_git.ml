@@ -11,12 +11,12 @@ let run_all ~clock conf root =
   Store.Repo.close repo;
   results
 
-let run_all_with_parallel ?nfibers ~clock ~env conf root =
+let run_all_with_concurrent ~clock ~env conf root =
   Lwt_eio.with_event_loop ~clock @@ fun _ ->
   let config = Irmin_git.config ~bare:true root in
   let repo = Store.Repo.v config in
   let results =
-    B.run_all_with_parallel ?nfibers ~name:"Irmin-Eio (git)" ~env conf repo
+    B.run_all_with_concurrent ~name:"Irmin-Eio (git)" ~env conf repo
   in
   Store.Repo.close repo;
   results

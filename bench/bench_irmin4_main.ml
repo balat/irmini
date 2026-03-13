@@ -6,8 +6,6 @@
 
     Usage: bench_irmin4_main [--ncommits N] [--tree-add N] [--depth N]
                              [--nreads N] [--value-size N]
-                             [--only-backend memory|disk|lavyek|git]
-                             [--only-scenario commits|reads|incremental]
                              [--skip-lavyek] [--skip-disk]
                              [--cache N] *)
 
@@ -30,11 +28,8 @@ let () =
   let trace_max_commits = ref 0 in
   let trace_empty_blobs = ref false in
   let no_flatten = ref false in
-  let nfibers = ref 0 in
   let parallel_domains = ref 0 in
   let parallel_fibers = ref 100 in
-  let only_backend = ref "" in
-  let only_scenario = ref "" in
   Arg.parse
     [
       ("--ncommits", Arg.Set_int ncommits, "Number of commits (default: 100)");
@@ -64,16 +59,10 @@ let () =
        "Replace blob values with empty strings during trace replay");
       ("--no-flatten", Arg.Set no_flatten,
        "Disable Tezos path flattening during trace replay");
-      ("--nfibers", Arg.Set_int nfibers,
-       "Total number of fibers for parallel scenarios (0 = one per domain)");
       ("--parallel-domains", Arg.Set_int parallel_domains,
        "Number of domains for parallel trace replay (0 = skip, default: 0)");
       ("--parallel-fibers", Arg.Set_int parallel_fibers,
        "Number of fibers per domain for parallel replay (default: 100)");
-      ("--only-backend", Arg.Set_string only_backend,
-       "Run only this backend: memory|disk|lavyek|git");
-      ("--only-scenario", Arg.Set_string only_scenario,
-       "Run only this scenario: commits|reads|incremental");
     ]
     (fun _ -> ())
     "bench_irmin4 - Irmini performance benchmarks";
@@ -91,31 +80,7 @@ let () =
     if !inline_threshold >= 0 then Some !inline_threshold else None
   in
   let inode = if !no_inode then Some false else None in
-  let nfibers = if !nfibers > 0 then Some !nfibers else None in
   let name = if !name <> "" then Some !name else None in
-  (* --only-backend overrides skip flags *)
-  if !only_backend <> "" then begin
-    let b = !only_backend in
-    skip_memory := b <> "memory";
-    skip_disk := b <> "disk";
-    skip_lavyek := b <> "lavyek";
-    skip_git := b <> "git";
-    if b <> "memory" && b <> "disk" && b <> "lavyek" && b <> "git" then begin
-      Format.eprintf "Unknown backend: %s (must be memory|disk|lavyek|git)@." b;
-      exit 1
-    end
-  end;
-  (* --only-scenario filters scenario list *)
-  let scenarios =
-    match !only_scenario with
-    | "" -> None
-    | "commits" -> Some Bench_irmin4.[Commits]
-    | "reads" -> Some Bench_irmin4.[Reads]
-    | "incremental" -> Some Bench_irmin4.[Incremental]
-    | s ->
-      Format.eprintf "Unknown scenario: %s (must be commits|reads|incremental)@." s;
-      exit 1
-  in
   Format.printf
     "Configuration: %d commits, %d adds/commit, depth %d, %d reads, \
      %d-byte values%s%s@.@."
@@ -148,12 +113,12 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_disk") in
     rm_rf root;
     let disk_name = match name with Some n -> n | None -> "Irmini (disk)" in
-    run disk_name (Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache ?nfibers ?scenarios ?name ~sw ~env root conf)
+    run disk_name (Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache ?name ~sw ~env root conf)
   end;
   (* 2. Irmini memory *)
   if not !skip_memory then begin
     let mem_name = match name with Some n -> n | None -> "Irmini (memory)" in
-    run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache ?nfibers ?scenarios ?name ~env conf)
+    run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache ?name conf)
   end;
   (* 3. Irmini git *)
   if not !skip_git then begin
@@ -161,7 +126,7 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_git") in
     rm_rf root;
     Eio.Path.mkdirs ~exists_ok:true ~perm:0o755 root;
-    run "Irmini (git)" (Bench_irmin4.run_all_git ~cache ?scenarios ~sw ~fs:cwd root conf)
+    run "Irmini (git)" (Bench_irmin4.run_all_git ~cache ~sw ~fs:cwd root conf)
   end;
   (* 4. Irmini + Lavyek *)
   if not !skip_lavyek then begin
@@ -169,7 +134,7 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in
     rm_rf root;
     run "Irmini (lavyek)"
-      (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache ?nfibers ?scenarios ?name ~sw ~env root conf)
+      (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache ?name ~sw ~env root conf)
   end;
   (* 5. Trace replay — runs on each active backend *)
   if !trace_file <> "" then begin

@@ -1,50 +1,9 @@
 [
-  {
-    "name": "Irmini (disk)",
-    "scenario": "incremental-10K",
-    "total_ops": 50,
-    "total_time": 5.165129,
-    "ops_per_sec": 9.7,
-    "maxrss_kb": 68860
-  },
-  {
-    "name": "Irmini (disk)",
-    "scenario": "reads-10K",
-    "total_ops": 5000,
-    "total_time": 0.070058,
-    "ops_per_sec": 71369.6,
-    "maxrss_kb": 78072
-  },
-  {
-    "name": "Irmini (disk)",
-    "scenario": "commits-10K",
-    "total_ops": 25000,
-    "total_time": 18.876854,
-    "ops_per_sec": 1324.4,
-    "maxrss_kb": 80012
-  },
-  {
-    "name": "Irmini (disk)",
-    "scenario": "incremental-20B",
-    "total_ops": 50,
-    "total_time": 4.919693,
-    "ops_per_sec": 10.2,
-    "maxrss_kb": 80012
-  },
-  {
-    "name": "Irmini (disk)",
-    "scenario": "reads-20B",
-    "total_ops": 5000,
-    "total_time": 0.022783,
-    "ops_per_sec": 219461.5,
-    "maxrss_kb": 83844
-  },
-  {
-    "name": "Irmini (disk)",
-    "scenario": "commits-20B",
-    "total_ops": 25000,
-    "total_time": 16.214705,
-    "ops_per_sec": 1541.8,
-    "maxrss_kb": 81368
-  }
+  {"name": "Irmini (disk)", "scenario": "concurrent-100f/12d", "total_ops": 10000, "total_time": 36.874204, "ops_per_sec": 271.2, "maxrss_kb": 60900},
+  {"name": "Irmini (disk)", "scenario": "incremental-10K", "total_ops": 50, "total_time": 5.165129, "ops_per_sec": 9.7, "maxrss_kb": 68860},
+  {"name": "Irmini (disk)", "scenario": "reads-10K", "total_ops": 5000, "total_time": 0.070058, "ops_per_sec": 71369.6, "maxrss_kb": 78072},
+  {"name": "Irmini (disk)", "scenario": "commits-10K", "total_ops": 25000, "total_time": 18.876854, "ops_per_sec": 1324.4, "maxrss_kb": 80012},
+  {"name": "Irmini (disk)", "scenario": "incremental-20B", "total_ops": 50, "total_time": 4.919693, "ops_per_sec": 10.2, "maxrss_kb": 80012},
+  {"name": "Irmini (disk)", "scenario": "reads-20B", "total_ops": 5000, "total_time": 0.022783, "ops_per_sec": 219461.5, "maxrss_kb": 83844},
+  {"name": "Irmini (disk)", "scenario": "commits-20B", "total_ops": 25000, "total_time": 16.214705, "ops_per_sec": 1541.8, "maxrss_kb": 81368}
 ]

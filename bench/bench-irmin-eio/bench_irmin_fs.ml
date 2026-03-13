@@ -10,11 +10,11 @@ let run_all ~clock ~fs conf root =
   Store.Repo.close repo;
   results
 
-let run_all_with_parallel ?nfibers ~clock ~fs ~env conf root =
+let run_all_with_concurrent ~clock ~fs ~env conf root =
   let config = Irmin_fs_unix.config ~root:Eio.Path.(fs / root) ~clock in
   let repo = Store.Repo.v config in
   let results =
-    B.run_all_with_parallel ?nfibers ~name:"Irmin-Eio (fs)" ~env conf repo
+    B.run_all_with_concurrent ~name:"Irmin-Eio (fs)" ~env conf repo
   in
   Store.Repo.close repo;
   results
