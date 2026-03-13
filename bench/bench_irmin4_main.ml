@@ -15,8 +15,8 @@ let () =
   let ncommits = ref 100 in
   let tree_add = ref 1000 in
   let depth = ref 10 in
-  let nreads = ref 10_000 in
-  let value_size = ref 100 in
+  let nreads = ref 1_000_000 in
+  let value_size = ref 20 in
   let skip_memory = ref false in
   let skip_lavyek = ref false in
   let skip_disk = ref false in
@@ -41,9 +41,9 @@ let () =
        "Tree entries added per commit (default: 1000)");
       ("--depth", Arg.Set_int depth, "Depth of paths (default: 10)");
       ("--nreads", Arg.Set_int nreads,
-       "Number of reads in read phase (default: 10000)");
+       "Number of reads in read phase (default: 1000000)");
       ("--value-size", Arg.Set_int value_size,
-       "Size of values in bytes (default: 100)");
+       "Size of values in bytes (default: 20)");
       ("--skip-memory", Arg.Set skip_memory, "Skip memory backend benchmark");
       ("--skip-lavyek", Arg.Set skip_lavyek, "Skip Lavyek backend benchmark");
       ("--skip-disk", Arg.Set skip_disk, "Skip disk backend benchmark");
