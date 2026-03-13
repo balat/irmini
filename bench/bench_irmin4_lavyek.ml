@@ -3,7 +3,7 @@
     Each scenario gets a fresh Lavyek store in a separate subdirectory
     to avoid WAL replay issues between runs. *)
 
-let run_all ?inline_threshold ?inode ?(cache = 0)
+let run_all ?inline_threshold ?inode ?(cache = 0) ?use_fsync
     ?ndomains ?fibers_per_domain ?scenarios ?name:custom_name
     ~sw ~env root (conf : Bench_common.config) =
   let name = match custom_name with
@@ -16,7 +16,7 @@ let run_all ?inline_threshold ?inode ?(cache = 0)
     incr n;
     let subdir = Eio.Path.(root / Printf.sprintf "scenario_%d" !n) in
     let cache = if cache > 0 then Some cache else None in
-    Irmin_lavyek.create ?cache ~sw subdir
+    Irmin_lavyek.create ?cache ?use_fsync ~sw subdir
   in
   let mk_backend () = mk () in
   let mk_backend_ts () = mk () in

@@ -8,7 +8,7 @@
     "maxrss_kb": 599940
   },
   {
-    "name": "Irmini (lavyek)",
+    "name": "Irmini (lavyek, no fsync)",
     "scenario": "tezos-10310commits",
     "total_ops": 3999997,
     "total_time": 29.621947,

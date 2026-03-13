@@ -1,6 +1,6 @@
 [
   {
-    "name": "Irmini (lavyek)",
+    "name": "Irmini (lavyek, no fsync)",
     "scenario": "parallel-incremental-10K-12d\u00d7100f",
     "total_ops": 1200,
     "total_time": 1.334938,
@@ -8,7 +8,7 @@
     "maxrss_kb": 11928780
   },
   {
-    "name": "Irmini (lavyek)",
+    "name": "Irmini (lavyek, no fsync)",
     "scenario": "parallel-reads-10K-12d\u00d7100f",
     "total_ops": 999600,
     "total_time": 0.147815,
@@ -16,7 +16,7 @@
     "maxrss_kb": 11914220
   },
   {
-    "name": "Irmini (lavyek)",
+    "name": "Irmini (lavyek, no fsync)",
     "scenario": "parallel-commits-10K-12d\u00d7100f",
     "total_ops": 1200000,
     "total_time": 185.796183,
@@ -24,7 +24,7 @@
     "maxrss_kb": 11730820
   },
   {
-    "name": "Irmini (lavyek)",
+    "name": "Irmini (lavyek, no fsync)",
     "scenario": "parallel-incremental-20B-12d\u00d7100f",
     "total_ops": 1200,
     "total_time": 0.215935,
@@ -32,7 +32,7 @@
     "maxrss_kb": 544644
   },
   {
-    "name": "Irmini (lavyek)",
+    "name": "Irmini (lavyek, no fsync)",
     "scenario": "parallel-reads-20B-12d\u00d7100f",
     "total_ops": 999600,
     "total_time": 0.086629,
@@ -40,7 +40,7 @@
     "maxrss_kb": 524792
   },
   {
-    "name": "Irmini (lavyek)",
+    "name": "Irmini (lavyek, no fsync)",
     "scenario": "parallel-commits-20B-12d\u00d7100f",
     "total_ops": 1200000,
     "total_time": 4.874182,

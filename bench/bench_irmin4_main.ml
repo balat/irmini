@@ -33,6 +33,7 @@ let () =
   let no_flatten = ref false in
   let parallel_domains = ref 0 in
   let parallel_fibers = ref 100 in
+  let fsync_variants = ref false in
   let only_backend = ref "" in
   let only_scenario = ref "" in
   Arg.parse
@@ -70,6 +71,8 @@ let () =
        "Number of domains for parallel scenarios and trace replay (0 = skip, default: 0)");
       ("--parallel-fibers", Arg.Set_int parallel_fibers,
        "Number of fibers per domain for parallel scenarios and trace replay (default: 100)");
+      ("--fsync-variants", Arg.Set fsync_variants,
+       "Run fsync variants: disk without fsync, lavyek with fsync");
       ("--only-backend", Arg.Set_string only_backend,
        "Run only this backend: memory|disk|lavyek|git");
       ("--only-scenario", Arg.Set_string only_scenario,
@@ -145,20 +148,27 @@ let () =
     results := rs @ !results
   in
   (* 1. Irmini disk *)
-  if not !skip_disk then begin
+  if not !skip_disk && not !fsync_variants then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_disk") in
     rm_rf root;
     let disk_name = match name with Some n -> n | None -> "Irmini (disk)" in
     run disk_name (Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf)
   end;
+  (* 1b. Irmini disk without fsync *)
+  if !fsync_variants && not !skip_disk then begin
+    Eio.Switch.run @@ fun sw ->
+    let root = Eio.Path.(cwd / "_build/_bench_disk_nofsync") in
+    rm_rf root;
+    run "Irmini (disk, no fsync)" (Bench_irmin4.run_all_disk ?inline_threshold ?inode ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (disk, no fsync)" ~sw ~env root conf)
+  end;
   (* 2. Irmini memory *)
-  if not !skip_memory then begin
+  if not !skip_memory && not !fsync_variants then begin
     let mem_name = match name with Some n -> n | None -> "Irmini (memory)" in
     run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~env conf)
   end;
   (* 3. Irmini git *)
-  if not !skip_git then begin
+  if not !skip_git && not !fsync_variants then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_git") in
     rm_rf root;
@@ -166,12 +176,20 @@ let () =
     run "Irmini (git)" (Bench_irmin4.run_all_git ~cache:cache_int ?scenarios ~sw ~fs:cwd root conf)
   end;
   (* 4. Irmini + Lavyek *)
-  if not !skip_lavyek then begin
+  if not !skip_lavyek && not !fsync_variants then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in
     rm_rf root;
     run "Irmini (lavyek)"
       (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf)
+  end;
+  (* 4b. Irmini + Lavyek without fsync *)
+  if !fsync_variants && not !skip_lavyek then begin
+    Eio.Switch.run @@ fun sw ->
+    let root = Eio.Path.(cwd / "_build/_bench_lavyek_nofsync") in
+    rm_rf root;
+    run "Irmini (lavyek, no fsync)"
+      (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (lavyek, no fsync)" ~sw ~env root conf)
   end;
   (* 5. Trace replay — runs on each active backend *)
   if !trace_file <> "" then begin

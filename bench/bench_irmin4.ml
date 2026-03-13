@@ -484,7 +484,7 @@ let run_all_git ?(cache = 0) ?scenarios ~sw ~fs root
   run_scenarios ?inline_threshold ?inode ?scenarios
     ~mk_backend ~name conf
 
-let run_all_disk ?inline_threshold ?inode ?(cache = 0)
+let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?use_fsync
     ?ndomains ?fibers_per_domain ?scenarios ?name:custom_name
     ~sw ~env root (conf : Bench_common.config) =
   let name = match custom_name with
@@ -494,7 +494,7 @@ let run_all_disk ?inline_threshold ?inode ?(cache = 0)
       "Irmini" ^ suffix ^ " (disk)"
   in
   let cache = if cache > 0 then Some cache else None in
-  let mk_backend () = Backend.Disk.create_sha1 ?cache ~sw root in
+  let mk_backend () = Backend.Disk.create_sha1 ?cache ?use_fsync ~sw root in
   let mk_backend_ts () = mk_backend () in
   let close (backend : Hash.sha1 Backend.t) = backend.close () in
   run_scenarios ?inline_threshold ?inode ?ndomains ?fibers_per_domain ?scenarios

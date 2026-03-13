@@ -247,14 +247,17 @@ COLORS = {
     "Irmin-Eio (fs)":     "#f0a1a2",
     "Irmin-Eio (git)":    "#f5c0c1",
     "Irmini (memory)":    "#4e79a7",
-    "Irmini (disk)":      "#6d9dc5",
-    "Irmini (lavyek)":    "#59a14f",
+    "Irmini (disk)":      "#466680",
+    "Irmini (disk, no fsync)": "#6d9dc5",
+    "Irmini (lavyek)":    "#2d6e2e",
+    "Irmini (lavyek, fsync)":    "#2d6e2e",
+    "Irmini (lavyek, no fsync)": "#59a14f",
     "Irmini (git)":       "#8bc584",
     # Tezos trace replay
     "Irmin-Lwt (pack-mem)": "#f28e2b",
     "Irmin-Eio (pack-mem)": "#e15759",
     # Parallel variants (same color as base, rendered with hatching)
-    "Irmini (lavyek) 12d×50kf": "#59a14f",
+    "Irmini (lavyek, no fsync) 12d×50kf": "#59a14f",
     "Irmin-Eio (pack) 12d×1f":  "#e87c7e",
     # Optimization variants (memory and disk share same colors)
     "Irmini baseline":    "#bbb",
@@ -303,6 +306,19 @@ def lighten_hex(color, factor=0.45):
     r = int(r + (255 - r) * factor)
     g = int(g + (255 - g) * factor)
     b = int(b + (255 - b) * factor)
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def darken_hex(color, factor=0.35):
+    """Darken a hex color by mixing with black."""
+    if not color.startswith("#") or len(color) != 7:
+        return color
+    r = int(color[1:3], 16)
+    g = int(color[3:5], 16)
+    b = int(color[5:7], 16)
+    r = int(r * (1 - factor))
+    g = int(g * (1 - factor))
+    b = int(b * (1 - factor))
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
