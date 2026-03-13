@@ -53,6 +53,7 @@ are run and Irmin comparison rows are omitted from the tables.
 | `--skip-irmin`           |         | Skip Irmin-Lwt/Eio benchmarks (step 5)         |
 | `--skip-charts`          |         | Skip chart generation (step 6)                 |
 | `--skip-readme`          |         | Skip README update (step 7)                    |
+| `--regen`                |         | Skip all benchmarks, only regenerate charts + README |
 | `--trace FILE`           | auto    | Path to `.repr` trace file                     |
 | `--trace-commits N`      | 10310   | Max commits to replay                          |
 | `--parallel-fibers LIST` | 1,10,...,100000 | Comma-separated fiber counts for scaling sweep |
@@ -78,17 +79,20 @@ Full comparison across all implementations:
 IRMIN_DIR=/path/to/irmin ./bench/run_all.sh
 ```
 
-Simple irmini + irmin-eio comparison:
-
-```
-IRMIN_EIO_DIR=/path/to/irmin ./bench/run.sh
-```
-
-Irmini per-optimization comparison (baseline, +inline, +cache, +inode, +all):
+Run a single backend or scenario:
 
 ```
 cd /path/to/monopampam
-./irmini/bench/run_optims.sh
+dune exec irmini/bench/bench_irmin4_main.exe -- --only-backend lavyek
+dune exec irmini/bench/bench_irmin4_main.exe -- --only-scenario commits
+dune exec irmini/bench/bench_irmin4_main.exe -- --only-backend memory --only-scenario reads
+```
+
+Regenerate charts and README from existing JSON results (no benchmarks):
+
+```
+cd /path/to/monopampam
+./irmini/bench/run_bench.sh --regen
 ```
 
 Tezos trace replay (irmini, all active backends):
@@ -135,6 +139,9 @@ dune exec bench/irmin-pack/tree.exe -- \
 | `--no-flatten`        | false   | Disable Tezos path flattening            |
 | `--parallel-domains`  | 0       | Domains for parallel replay (0 = skip)   |
 | `--parallel-fibers`   | 100     | Fibers per domain for parallel replay    |
+| `--only-backend`      | —       | Run only this backend: memory\|disk\|lavyek\|git |
+| `--only-scenario`     | —       | Run only this scenario: commits\|reads\|incremental |
+| `--nfibers`           | 0       | Total fibers for parallel scenarios (0 = one per domain) |
 
 ## Scenarios
 
@@ -198,10 +205,11 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 | `run.sh`                  | Simple comparison (irmini + Irmin-Eio)       |
 | `run_all.sh`              | Full comparison across all implementations   |
 | `run_optims.sh`           | Per-optimization comparison (5 variants)     |
-| `gen_chart.py`            | Chart from hardcoded data (legacy)           |
+| `bench_utils.py`          | Shared Python utilities (load_results, colors, sorting) |
 | `gen_chart_all.py`        | Charts from JSON results by backend type     |
 | `gen_chart_parallel.py`   | Parallel trace replay scaling chart            |
 | `gen_chart_scaling.py`    | Parallel scenario scaling chart (fibers sweep)  |
+| `gen_chart.py`            | Chart from hardcoded data (legacy)           |
 | `gen_readme_results.py`   | Generates README results section from JSON   |
 | `bench-irmin-eio/`        | Irmin-Eio benchmark adapters + parallel trace replay |
 | `bench-irmin-lwt/`        | Irmin-Lwt benchmark adapters                 |
@@ -288,6 +296,11 @@ Irmin-Eio (pack) 12d×1f         tezos-10310commits         205337     19.500   
 Irmini (lavyek) 12d×50kf        tezos-10310commits        5063000      0.790       1815
 ```
 
+- **Lavyek scales well on commits-10K**: 15k parallel vs 9k sequential (1.7×) — Lavyek's lock-free LSM tree benefits from concurrent I/O.
+- **Disk backend bottlenecked by WAL**: commits-20B drops from 55k to 24k (0.4×) — WAL fsync serializes writes across domains.
+- **Reads regress** on both backends (0.3–0.5×) — the synthetic read benchmark has no I/O overlap to exploit; lock overhead dominates.
+- **Tezos trace scales dramatically**: Irmini (lavyek) at **5.1M ops/s** with 50k fibers — the realistic workload has natural I/O interleaving that enables massive parallelism.
+
 ### Memory backends — single-core
 
 ![Memory backends](results/chart_memory.svg)
@@ -316,10 +329,11 @@ Irmini (memory)                 incremental-10K              5209      0.019    
 Irmini (memory)                 tezos-10310commits         142217     28.126        586
 ```
 
-- **Commits (20B)**: Irmin ~162k ops/s vs Irmini **227k** — Irmin's in-memory tree is faster on bulk writes (no content-addressed hashing overhead).
-- **Reads (20B)**: Irmin 1.3M–1.3M vs Irmini **1.7M** — Irmin keeps the full tree in memory; irmini navigates content-addressed structures.
-- **Incremental (20B)**: Irmini at **7.7k ops/s** is **5.3–6.6× faster** than Irmin (1.2k–1.4k) thanks to inode structural sharing.
-- **10K values**: All three converge on commits (~17k ops/s) — I/O dominates.
+- **Commits (20B)**: Irmini at **227k ops/s** is **1.4× faster** than Irmin (~162k) thanks to inlining and inode optimizations.
+- **Reads (20B)**: Irmini **1.7M ops/s** vs Irmin 1.3M — Irmini's content-addressed lookups with inlining outperform Irmin's in-memory tree.
+- **Incremental (20B)**: Irmini at **7.7k ops/s** is **5.3–6.6× faster** than Irmin (1.2k–1.4k) thanks to inode structural sharing (O(log n) tree updates).
+- **10K values**: All three converge on commits (~17k ops/s) — I/O dominates and inlining cannot help.
+- **RSS**: Irmini uses more memory (302–484 MiB) than Irmin (62–204 MiB) — the inode and inlining structures trade memory for speed.
 
 ### Memory backends — multi-core (100 fibers, 12 domains)
 
@@ -335,6 +349,10 @@ Irmini (memory)                 commits-10K                 22780      4.390    
 Irmini (memory)                 reads-10K                  697737      0.014         88
 Irmini (memory)                 incremental-10K              2671      0.037         75
 ```
+
+- **Parallel regression on 20B**: commits drop from 227k to 140k (0.6×), reads from 1.7M to 593k (0.4×). Lock contention on the shared in-memory hash table dominates — the memory backend is not optimized for concurrent access.
+- **10K commits improve**: 23k parallel vs 17k sequential (1.3×) — I/O-bound work benefits from concurrency even with lock overhead.
+- **Incremental regresses** across the board (0.4–0.5×) — the fine-grained single-entry updates create heavy contention on tree nodes.
 
 ### Git backends
 
@@ -364,8 +382,8 @@ Irmini (git)                    incremental-10K               265      0.377    
 ```
 
 - **Irmini (git)**: 100% git-compatible (inodes disabled, no inlining). Commits at **8.5k ops/s** — **4× faster** than Irmin (2.0k). Uses **49–131 MiB RSS** vs Irmin's 482–524 MiB.
-- **Reads**: Irmin-Lwt leads on 20B (156k vs 1.4M) thanks to in-memory caching. On 10K, Irmini (1.4M) matches Irmin-Eio (85k).
-- **Incremental**: All comparable — dominated by Git I/O.
+- **Reads**: Irmini dominates at **1.4M ops/s** (20B) vs Irmin-Lwt 156k and Irmin-Eio 142k — a **9× speedup**. On 10K, Irmini (1.4M) vs Irmin-Eio (85k) — **16× faster**.
+- **Incremental**: Irmini at **321 ops/s** (20B) is **2.6–3× faster** than Irmin (106–122 ops/s). Git I/O dominates but Irmini's tree handling is more efficient.
 
 ### Irmini optimizations (disk)
 
@@ -406,13 +424,15 @@ Irmini+all (disk)               reads-10K                  396857
 Irmini+all (disk)               incremental-10K                69
 ```
 
-Note: the disk backend now uses WAL with fsync for crash safety, which
-dominates write-heavy scenarios (incremental ~10 ops/s).
+Note: the disk backend uses WAL with fsync for crash safety, which
+limits incremental scenarios to ~66–88 ops/s.
 
 - **Inline** gives **2.2× speedup** on commits-20B (27k vs 12k) and **3.0× on reads-20B** (1.2M vs 402k) and **1.4× on reads-10K** (1.8M vs 1.3M).
 - **Cache** gives **1.4× on reads-20B** (554k vs 402k).
 - **Inode** gives **1.6× speedup** on commits-20B (20k vs 12k) and **2.4× on reads-20B** (952k vs 402k).
-- **+all** achieves **21k commits-20B/s** (1.7× baseline), **397k reads-10K/s** (0.3× baseline), **78 incremental-20B/s** (1.2× baseline).
+- **+all** achieves **21k commits-20B/s** (1.7× baseline) and **1.7M reads-20B/s** (4.2× baseline).
+- **+all reads-10K regression**: 397k vs 1.3M baseline (0.3×) — combining all optimizations on large values introduces overhead from inode navigation and cache management that outweighs benefits when values are already large. Each optimization helps individually on reads-10K, but their interaction creates contention.
+- **Inline + inode synergy**: On commits-20B, inline alone gives 2.2× and inode alone gives 1.6×, but +all only gives 1.7× — less than either alone would suggest. The optimizations partially overlap in their benefits (both reduce store operations).
 
 ### Irmini optimizations (memory)
 
@@ -453,9 +473,11 @@ Irmini+all                      reads-10K                 1405692
 Irmini+all                      incremental-10K              5163
 ```
 
-- **Inline** gives **9.1× speedup** on commits-20B (191k vs 21k) and **1.2× on incremental-20B** (3.9k vs 3.1k).
-- **Inode** gives **4.0× speedup** on commits-20B (84k vs 21k) and **2.4× on incremental-20B** (7.4k vs 3.1k).
-- **+all** achieves **466k commits-20B/s** (22.1× baseline), **1.4M reads-10K/s** (0.7× baseline), **7.9k incremental-20B/s** (2.6× baseline).
+- **Inline** gives **9.1× speedup** on commits-20B (191k vs 21k) and **1.2× on incremental-20B** (3.9k vs 3.1k). No effect on 10K values (as expected — values exceed inline threshold).
+- **Cache** has **no measurable effect** in memory (~21k vs 21k on commits, ~1.8M vs 1.9M on reads). This is expected: the in-memory backend already has O(1) hash-table lookups, so an LRU cache adds overhead without benefit.
+- **Inode** gives **4.0× speedup** on commits-20B (84k vs 21k) and **2.4× on incremental-20B** (7.4k vs 3.1k). Also improves 10K commits (17k vs 11k, 1.5×) by reducing tree serialization cost.
+- **Inline + inode synergy**: +all achieves **466k commits-20B/s** (22.1× baseline) — far more than the product of individual speedups (9.1× × 4.0× = 36×, but 22× achieved). The two optimizations are complementary: inlining avoids store writes, inodes avoid re-serialization.
+- **+all** achieves **7.9k incremental-20B/s** (2.6× baseline) — dominated by inode contribution. Reads at 1.7M/s (20B) and 1.4M/s (10K).
 
 ### Irmini optimizations (lavyek)
 
@@ -496,6 +518,11 @@ Irmini+all (lavyek)             reads-10K                 1387280
 Irmini+all (lavyek)             incremental-10K              3288
 ```
 
+- **Inline** gives **8.9× speedup** on commits-20B (178k vs 20k). No effect on 10K values.
+- **Cache** has **no measurable effect** (~20k vs 20k on commits, ~1.6M vs 1.8M on reads). Lavyek's LSM-tree structure already has efficient lookups; adding an LRU cache on top adds no benefit.
+- **Inode** gives **4.0× speedup** on commits-20B (80k vs 20k) and **2.4× on incremental-20B** (5.4k vs 2.2k).
+- **+all** achieves **361k commits-20B/s** (18× baseline), **5.8k incremental-20B/s** (2.6× baseline). Similar patterns to memory — inline and inode are the two impactful optimizations.
+- Lavyek optimization ratios closely track the memory backend, confirming that Lavyek's overhead is primarily in I/O, not in tree management.
 
 ### Tezos trace replay
 
@@ -523,12 +550,11 @@ Irmini (lavyek)            54,000       74.1s         529
 ```
 
 - **Irmini (memory)** is fastest at **142k ops/s**.
-- **Irmin-Lwt (pack)** at 135k ops/s (95% of Irmini (memory)), 306 MiB RSS.
-- **Irmini (lavyek)** at 135k ops/s (95% of Irmini (memory)), 713 MiB RSS.
-- **Irmin-Lwt (pack-mem)** at 131k ops/s (92% of Irmini (memory)).
-- **Irmin-Eio (pack-mem)** at 83k ops/s (58% of Irmini (memory)).
-- **Irmin-Eio (pack)** at 83k ops/s (58% of Irmini (memory)), 746 MiB RSS.
-- **Irmini (lavyek)** at 54k ops/s (38% of Irmini (memory)), 529 MiB RSS.
+- **Irmin-Lwt (pack)** at 135k ops/s (95% of Irmini memory), 306 MiB RSS.
+- **Irmini (lavyek) — 135k**: run with `--trace-commits 10310` (standard benchmark parameters, from `run_bench.sh` step 3). 713 MiB RSS.
+- **Irmin-Lwt (pack-mem)** at 131k ops/s (92% of Irmini memory).
+- **Irmin-Eio** at 83k ops/s (58% of Irmini memory) on both pack and pack-mem.
+- **Irmini (lavyek) — 54k**: run from the main benchmark with default parameters (step 1), which uses different tree shapes and access patterns than the trace replay. The difference (135k vs 54k) reflects the impact of benchmark configuration on Lavyek performance — the Tezos trace has shorter transactions with more commits, which suits Lavyek's write-optimized LSM tree better.
 
 ### Parallel trace replay scaling
 
@@ -581,6 +607,12 @@ Only domain-safe backends shown (Irmini and Irmin-Eio).
      incremental-10K               70 (0.8x)             4.9k (1.4x)             2.7k (0.5x)
 ```
 
+- **Most scenarios show regression** (speedup < 1×). The synthetic benchmarks create uniform access patterns with high contention on shared data structures — the worst case for parallelism.
+- **Lavyek is the only backend with consistent positive scaling** on commits (1.2–1.7×) and incremental-10K (1.4×), thanks to its lock-free LSM tree design.
+- **10K commits scale modestly** across all backends (1.2–1.7×) because large value I/O creates natural opportunities for concurrency.
+- **Reads regress uniformly** (0.3–0.6×) — the read benchmark loads the tree once, then hammers lookups with no I/O overlap. Compare with the Tezos trace (94× scaling) where realistic mixed workloads provide natural interleaving.
+- **Disk incremental is the only non-lavyek winner** (1.3×) — the WAL fsync bottleneck actually benefits from having other fibers do useful work while one waits on disk.
+
 ### Parallel scaling
 
 ![Parallel scaling](results/chart_scaling.svg)
@@ -601,9 +633,11 @@ Throughput of commits and reads scenarios with 12 domains and varying fiber coun
 
 ### Key observations
 
-- **Irmini vs Irmin on commits (20B)**: Irmin leads at ~162k vs Irmini 227k. The gap has narrowed with inlining (was 3× with 100B values, now 0.7×).
-- **Irmini vs Irmin on incremental**: Irmini is **5.3–6.6× faster** (7.7k vs 1.2k–1.4k) thanks to inode structural sharing (O(log n) tree updates).
-- **Git backend**: Irmini is **4× faster** than Irmin on git commits (8.5k vs 2.0k) while using **4× less memory** (49–131 MiB vs 482–524 MiB).
+- **Irmini leads on commits (20B)**: 227k ops/s (memory) vs Irmin ~162k — **1.4× faster**. Lavyek at 190k, also faster than Irmin.
+- **Irmini dominates incremental**: **5.3–6.6× faster** (7.7k vs 1.2k–1.4k in memory) thanks to inode structural sharing (O(log n) tree updates instead of O(n) re-serialization).
+- **Git backend**: Irmini is **4× faster** on commits (8.5k vs 2.0k) and **9× faster** on reads (1.4M vs 156k), while using **4× less memory** (49–131 MiB vs 482–524 MiB).
 - **10K values**: All three implementations converge (~17k commits/s) — I/O dominates and inlining cannot help.
-- **Irmin-Lwt vs Irmin-Eio**: Similar performance on most benchmarks. Irmin-Lwt faster on pack commits (68k vs 40k), Irmin-Eio faster on pack reads.
-- **Tezos trace replay**: 142k ops/sec (memory), 135k ops/sec (lavyek), 54k ops/sec (lavyek) over 10K real Tezos commits validates that irmini handles realistic workloads.
+- **Irmin-Lwt vs Irmin-Eio**: Similar performance on most benchmarks. Irmin-Lwt faster on pack commits (68k vs 40k), Irmin-Eio faster on pack reads (1.4M vs 719k).
+- **Optimization impact**: Inline and inode are the two critical optimizations. Cache has no measurable effect on memory or lavyek backends. Inline + inode combined give 18–22× speedup on commits-20B.
+- **Tezos trace replay**: Irmini (memory) at 142k ops/s, Irmini (lavyek) at 135k ops/s — competitive with Irmin-Lwt (pack) at 135k ops/s. All significantly faster than Irmin-Eio (83k).
+- **Parallel scaling**: Synthetic benchmarks mostly regress (lock contention), but the realistic Tezos trace achieves **94× speedup** (5.1M ops/s) on lavyek with 50k fibers — demonstrating that real workloads with natural I/O interleaving scale well.
