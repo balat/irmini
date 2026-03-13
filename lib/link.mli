@@ -16,7 +16,13 @@
             else v s (Node { n with r = add s x n.r })
     ]}
 
-    Properties: [get (v s x) = x] and [equal (v s (get l)) l]. *)
+    Properties: [get (v s x) = x] and [equal (v s (get l)) l].
+
+    {b Thread-safety.} Link resolution ({!get}, {!address}) uses {!Atomic.t}
+    internally — concurrent reads from multiple domains are data-race-free.
+    Store operations ({!write}, {!close}) also use atomics for the [root] and
+    [open'] fields, but the check-then-act in {!write} is {e not} linearisable:
+    callers sharing a store across domains must synchronise externally. *)
 
 (** {1:types Types} *)
 

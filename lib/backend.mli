@@ -1,7 +1,24 @@
 (** Storage backends for Irmin.
 
     Backends are records of functions, NOT functors. This makes them composable
-    and easy to create without functor application. *)
+    and easy to create without functor application.
+
+    {b Thread-safety.} Backend values are typically shared across fibers and
+    potentially across domains.  The built-in backends have the following
+    concurrency guarantees:
+
+    - {!Memory}: {b not} thread-safe.  For multi-domain use, wrap with
+      {!thread_safe}: [thread_safe (Memory.create_sha1 ())].
+    - {!Disk}: internally protected by [Eio.Mutex] — safe for concurrent
+      access from multiple fibers {e and} domains within an Eio event loop.
+    - {!cached}: {b not} thread-safe.  Apply {e before} {!thread_safe} so
+      the outer mutex protects the cache:
+      [thread_safe (cached ~capacity:100_000 backend)].
+    - {!thread_safe}: wraps with [Stdlib.Mutex], safe for non-yielding
+      backends ({!Memory}).  Do {b not} use with backends that perform Eio I/O
+      ({!Disk}) — [Stdlib.Mutex.lock] blocks the OS thread, risking deadlock
+      if the backend yields.
+    - {!layered}, {!readonly}: inherit the thread-safety of their delegates. *)
 
 (** {1 Backend Interface} *)
 

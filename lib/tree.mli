@@ -2,7 +2,14 @@
 
     Trees are like Git's staging area: immutable, temporary, non-persistent
     areas held in memory. Reads are done lazily and writes are accumulated until
-    commit - if you modify a key twice, only the last change is written. *)
+    commit - if you modify a key twice, only the last change is written.
+
+    {b Thread-safety.} Concurrent reads ([find], [mem], [list], [navigate])
+    from multiple domains are safe: lazy state resolution and the read cache
+    use {!Atomic.t} internally.  Trees follow a single-writer pattern —
+    concurrent modifications ([add], [remove]) to the {e same} tree value
+    require external synchronisation.  In typical usage each fiber owns its
+    own tree, so no synchronisation is needed. *)
 
 (** {1 Tree Functor} *)
 
