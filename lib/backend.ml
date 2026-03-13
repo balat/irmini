@@ -13,6 +13,15 @@ type 'hash t = {
 
 type stats = { reads : int; writes : int; cache_hits : int; cache_misses : int }
 
+(** In-memory backend using immutable maps.
+
+    NOT thread-safe: concurrent access from multiple Eio domains will cause
+    data races on the mutable [objects] and [refs] fields. Safe for use
+    from multiple fibers on a single domain (Eio cooperative scheduling
+    prevents interleaving within non-yielding operations).
+
+    For multi-domain use, wrap with {!thread_safe}:
+    {[let b = thread_safe (Memory.create_sha1 ())]} *)
 module Memory = struct
   module String_map = Map.Make (String)
 
@@ -75,6 +84,12 @@ module Memory = struct
   let create_sha256 () = create_with_hash Hash.to_hex Hash.equal
 end
 
+(** Wrap a backend with an LRU cache for read operations.
+
+    The cache itself is NOT thread-safe. When using with multiple domains,
+    apply [cached] BEFORE [thread_safe] so the mutex protects the cache:
+    {[let b = thread_safe (cached ~capacity:100_000 backend)]}
+    Applying [cached] after [thread_safe] leaves the cache unprotected. *)
 let cached ?(capacity = 100_000) (type h) (backend : h t) : h t =
   let cache : (h, string) Lru.t = Lru.create capacity in
   {
@@ -137,6 +152,17 @@ let layered ~(upper : 'h t) ~(lower : 'h t) : 'h t =
         lower.close ());
   }
 
+(** Wrap a backend with a [Stdlib.Mutex] for cross-domain thread safety.
+
+    Each operation acquires the mutex, calls the underlying backend, then
+    releases it. This is safe for backends whose operations do not yield
+    to the Eio scheduler (e.g. {!Memory}).
+
+    WARNING: Do NOT use with backends that perform Eio I/O (e.g. {!Disk}),
+    as [Stdlib.Mutex.lock] blocks the OS thread. If fiber A holds the mutex
+    and yields (I/O), and fiber B on the same domain tries to lock it, the
+    domain deadlocks. The {!Disk} backend has its own [Eio.Mutex] for
+    fiber-safe synchronization within a single domain. *)
 let thread_safe (backend : 'h t) : 'h t =
   let m = Mutex.create () in
   let with_lock f =
