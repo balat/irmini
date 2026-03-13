@@ -299,7 +299,6 @@ impact differs dramatically between the two backends:
 |---|---|---|---|---|
 | commits-20B | 20,324 | 39,843 | **376** | 136,840 |
 | commits-10K | 5,445 | 6,322 | **83** | 8,137 |
-| reads-20B | 3,288,144 | 2,530,090 | 3,661,705 | 3,476,097 |
 | tezos-10310commits | 14,667 | 37,876 (2.6x) | — | 135,035 |
 
 **Why lavyek collapses with fsync**: The root cause is fsync granularity.

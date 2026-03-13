@@ -265,6 +265,52 @@ let () =
       Format.printf "%a@.@." Bench_common.pp_result r;
       results := [r] @ !results
     end;
+    if not !skip_disk then begin
+      Eio.Switch.run @@ fun sw ->
+      let root = Eio.Path.(cwd / "_build/_bench_disk_parallel") in
+      rm_rf root;
+      let backend = Irmin.Backend.Disk.create_sha1 ?cache ~sw root in
+      Fun.protect
+        ~finally:(fun () -> backend.Irmin.Backend.close ())
+        (fun () ->
+          let r =
+            Trace_replay_parallel.replay
+              ~trace_path:!trace_file
+              ~max_commits:!trace_max_commits
+              ~flatten_paths:(not !no_flatten)
+              ~empty_blobs:!trace_empty_blobs
+              ?inline_threshold ?inode
+              ~ndomains ~fibers_per_domain
+              ~backend
+              ~backend_name:"Irmini-parallel (disk)"
+              ~env ()
+          in
+          Format.printf "%a@.@." Bench_common.pp_result r;
+          results := [r] @ !results)
+    end;
+    if not !skip_disk then begin
+      Eio.Switch.run @@ fun sw ->
+      let root = Eio.Path.(cwd / "_build/_bench_disk_nofsync_parallel") in
+      rm_rf root;
+      let backend = Irmin.Backend.Disk.create_sha1 ?cache ~use_fsync:false ~sw root in
+      Fun.protect
+        ~finally:(fun () -> backend.Irmin.Backend.close ())
+        (fun () ->
+          let r =
+            Trace_replay_parallel.replay
+              ~trace_path:!trace_file
+              ~max_commits:!trace_max_commits
+              ~flatten_paths:(not !no_flatten)
+              ~empty_blobs:!trace_empty_blobs
+              ?inline_threshold ?inode
+              ~ndomains ~fibers_per_domain
+              ~backend
+              ~backend_name:"Irmini-parallel (disk, no fsync)"
+              ~env ()
+          in
+          Format.printf "%a@.@." Bench_common.pp_result r;
+          results := [r] @ !results)
+    end;
     if not !skip_lavyek then begin
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_lavyek_parallel") in
@@ -280,6 +326,26 @@ let () =
           ~ndomains ~fibers_per_domain
           ~backend
           ~backend_name:"Irmini-parallel (lavyek)"
+          ~env ()
+      in
+      Format.printf "%a@.@." Bench_common.pp_result r;
+      results := [r] @ !results
+    end;
+    if not !skip_lavyek then begin
+      Eio.Switch.run @@ fun sw ->
+      let root = Eio.Path.(cwd / "_build/_bench_lavyek_fsync_parallel") in
+      rm_rf root;
+      let backend = Irmin_lavyek.create ?cache ~use_fsync:true ~sw root in
+      let r =
+        Trace_replay_parallel.replay
+          ~trace_path:!trace_file
+          ~max_commits:!trace_max_commits
+          ~flatten_paths:(not !no_flatten)
+          ~empty_blobs:!trace_empty_blobs
+          ?inline_threshold ?inode
+          ~ndomains ~fibers_per_domain
+          ~backend
+          ~backend_name:"Irmini-parallel (lavyek, fsync)"
           ~env ()
       in
       Format.printf "%a@.@." Bench_common.pp_result r;
