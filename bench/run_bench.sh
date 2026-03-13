@@ -148,8 +148,10 @@ if [ "$SKIP_IRMINI" = false ]; then
   dune build irmini/bench/bench_irmin4_main.exe 2>&1 | tail -5
 
   # All backends in one run (value-size 20 to match README scenario names)
+  # --json-merge: only update entries matching the backends/scenarios we ran,
+  # keeping existing entries for backends we skipped.
   $BENCH --value-size 20 $BENCH_ARGS \
-    --json "$OUTPUT_DIR/irmini_inode.json"
+    --json "$OUTPUT_DIR/irmini_inode.json" --json-merge
 
   echo ""
 fi
@@ -233,7 +235,7 @@ if [ "$SKIP_TRACE" = false ] && [ -n "$TRACE_FILE" ]; then
   $BENCH --skip-git \
     --trace "$TRACE_FILE" --trace-commits "$TRACE_COMMITS" \
     --skip-disk \
-    --json "$OUTPUT_DIR/irmini_trace.json"
+    --json "$OUTPUT_DIR/irmini_trace.json" --json-merge
 
   echo ""
 fi

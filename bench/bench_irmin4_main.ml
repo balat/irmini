@@ -26,6 +26,7 @@ let () =
   let no_inode = ref false in
   let name = ref "" in
   let json_file = ref "" in
+  let json_merge = ref false in
   let trace_file = ref "" in
   let trace_max_commits = ref 0 in
   let trace_empty_blobs = ref false in
@@ -55,6 +56,8 @@ let () =
       ("--no-inode", Arg.Set no_inode, "Disable inode splitting");
       ("--name", Arg.Set_string name, "Override benchmark name");
       ("--json", Arg.Set_string json_file, "Write JSON results to FILE");
+      ("--json-merge", Arg.Set json_merge,
+       "Merge results into existing JSON file (update matching entries, keep others)");
       ("--trace", Arg.Set_string trace_file,
        "Run trace replay from .repr file");
       ("--trace-commits", Arg.Set_int trace_max_commits,
@@ -261,8 +264,12 @@ let () =
   Bench_common.pp_comparison Format.std_formatter all;
   (* JSON output *)
   if !json_file <> "" then begin
-    let oc = open_out !json_file in
-    Bench_common.write_json oc all;
-    close_out oc;
-    Format.printf "Results written to %s@." !json_file
+    if !json_merge then begin
+      Bench_common.write_json_merge !json_file all
+    end else begin
+      let oc = open_out !json_file in
+      Bench_common.write_json oc all;
+      close_out oc;
+      Format.printf "Results written to %s@." !json_file
+    end
   end

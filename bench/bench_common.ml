@@ -97,19 +97,19 @@ let fmt_size n =
   if n >= 1000 then Printf.sprintf "%dK" (n / 1000)
   else Printf.sprintf "%dB" n
 
+let escape_json s =
+  let buf = Buffer.create (String.length s) in
+  String.iter
+    (fun c ->
+      match c with
+      | '"' -> Buffer.add_string buf "\\\""
+      | '\\' -> Buffer.add_string buf "\\\\"
+      | '\n' -> Buffer.add_string buf "\\n"
+      | c -> Buffer.add_char buf c)
+    s;
+  Buffer.contents buf
+
 let write_json oc results =
-  let escape s =
-    let buf = Buffer.create (String.length s) in
-    String.iter
-      (fun c ->
-        match c with
-        | '"' -> Buffer.add_string buf "\\\""
-        | '\\' -> Buffer.add_string buf "\\\\"
-        | '\n' -> Buffer.add_string buf "\\n"
-        | c -> Buffer.add_char buf c)
-      s;
-    Buffer.contents buf
-  in
   Printf.fprintf oc "[\n";
   List.iteri
     (fun i r ->
@@ -117,10 +117,124 @@ let write_json oc results =
       Printf.fprintf oc
         "  {\"name\": \"%s\", \"scenario\": \"%s\", \"total_ops\": %d, \
          \"total_time\": %.6f, \"ops_per_sec\": %.1f, \"maxrss_kb\": %d}"
-        (escape r.name) (escape r.scenario) r.total_ops r.total_time
+        (escape_json r.name) (escape_json r.scenario) r.total_ops r.total_time
         r.ops_per_sec r.maxrss_kb)
     results;
   Printf.fprintf oc "\n]\n"
+
+(** Read results from a JSON file. Returns an empty list if the file
+    does not exist or cannot be parsed. *)
+let read_json path =
+  if not (Sys.file_exists path) then []
+  else
+    let ic = open_in path in
+    let n = in_channel_length ic in
+    let s = really_input_string ic n in
+    close_in ic;
+    (* Minimal JSON array-of-objects parser for our known format *)
+    let results = ref [] in
+    let i = ref 0 in
+    let len = String.length s in
+    let skip_ws () =
+      while !i < len && (s.[!i] = ' ' || s.[!i] = '\n' || s.[!i] = '\r'
+                          || s.[!i] = '\t' || s.[!i] = ',') do
+        incr i
+      done
+    in
+    let read_string () =
+      (* Expects i to point at opening '"' *)
+      assert (s.[!i] = '"');
+      incr i;
+      let buf = Buffer.create 64 in
+      while !i < len && s.[!i] <> '"' do
+        if s.[!i] = '\\' then begin incr i; Buffer.add_char buf s.[!i] end
+        else Buffer.add_char buf s.[!i];
+        incr i
+      done;
+      incr i; (* skip closing '"' *)
+      Buffer.contents buf
+    in
+    let read_number () =
+      let start = !i in
+      while !i < len && (s.[!i] >= '0' && s.[!i] <= '9'
+                          || s.[!i] = '.' || s.[!i] = '-' || s.[!i] = 'e'
+                          || s.[!i] = 'E' || s.[!i] = '+') do
+        incr i
+      done;
+      String.sub s start (!i - start)
+    in
+    let read_value () =
+      skip_ws ();
+      if !i < len && s.[!i] = '"' then `String (read_string ())
+      else `Number (read_number ())
+    in
+    (try
+       skip_ws ();
+       if !i < len && s.[!i] = '[' then incr i;
+       while !i < len do
+         skip_ws ();
+         if !i >= len || s.[!i] = ']' then raise Exit;
+         if s.[!i] <> '{' then raise Exit;
+         incr i;
+         let fields = Hashtbl.create 8 in
+         while !i < len && s.[!i] <> '}' do
+           skip_ws ();
+           if !i < len && s.[!i] = '"' then begin
+             let key = read_string () in
+             skip_ws ();
+             if !i < len && s.[!i] = ':' then incr i;
+             let v = read_value () in
+             Hashtbl.replace fields key v;
+             skip_ws ();
+             if !i < len && s.[!i] = ',' then incr i
+           end else
+             incr i
+         done;
+         if !i < len then incr i; (* skip '}' *)
+         let get_s k = match Hashtbl.find fields k with
+           | `String s -> s | `Number s -> s in
+         let get_f k = match Hashtbl.find fields k with
+           | `Number s -> float_of_string s | `String s -> float_of_string s in
+         let get_i k = match Hashtbl.find fields k with
+           | `Number s -> int_of_float (float_of_string s) | `String s -> int_of_string s in
+         (try
+            results := {
+              name = get_s "name";
+              scenario = get_s "scenario";
+              total_ops = get_i "total_ops";
+              total_time = get_f "total_time";
+              ops_per_sec = get_f "ops_per_sec";
+              details = [];
+              maxrss_kb = get_i "maxrss_kb";
+            } :: !results
+          with Not_found -> ());
+         skip_ws ()
+       done
+     with Exit -> ());
+    List.rev !results
+
+(** Merge new results into an existing JSON file.
+    Replaces entries with matching (name, scenario) keys, keeps the rest. *)
+let write_json_merge path new_results =
+  let existing = read_json path in
+  (* Build a set of (name, scenario) pairs from new results *)
+  let new_keys =
+    List.fold_left
+      (fun acc r -> (r.name, r.scenario) :: acc)
+      [] new_results
+  in
+  (* Keep existing entries whose key is NOT in new results *)
+  let kept =
+    List.filter
+      (fun r -> not (List.exists (fun (n, s) -> n = r.name && s = r.scenario) new_keys))
+      existing
+  in
+  let merged = kept @ new_results in
+  let oc = open_out path in
+  write_json oc merged;
+  close_out oc;
+  Format.printf "Merged %d new + %d kept = %d total results into %s@."
+    (List.length new_results) (List.length kept) (List.length merged) path
 
 let make_value ~size i =
   let base = Printf.sprintf "value-%d-" i in
