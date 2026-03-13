@@ -8,7 +8,14 @@ module Make (F : Codec.S) = struct
   type path = string list
   type concrete = [ `Contents of string | `Tree of (string * concrete) list ]
 
-  (* Internal tree representation with lazy loading *)
+  (* Internal tree representation with lazy loading.
+
+     Thread-safety: tree nodes use [Atomic.t] for lazy state resolution
+     and the resolved-children cache, making concurrent reads from multiple
+     domains safe (no data races).  Trees follow a single-writer pattern:
+     concurrent modifications (add/remove) to the SAME tree from multiple
+     fibers require external synchronisation.  In typical usage each fiber
+     owns its own tree, so no synchronisation is needed. *)
   type node_state =
     | Loaded of F.node
     | Inode of { backend : hash Backend.t; hash : hash }
@@ -21,30 +28,34 @@ module Make (F : Codec.S) = struct
     | Node of node_record
 
   and node_record = {
-    mutable state : node_state;
+    state : node_state Atomic.t;
     backend : hash Backend.t option;
-    mutable children : tree_node SMap.t; (* modifications *)
-    mutable removed : SSet.t;
-    resolved : (string, tree_node) Hashtbl.t; (* read cache *)
+    children : tree_node SMap.t; (* modifications — set at construction *)
+    removed : SSet.t;            (* set at construction *)
+    resolved : tree_node SMap.t Atomic.t; (* read cache, lock-free *)
   }
 
   type t = tree_node
 
   let empty () =
-    Node { state = Loaded F.empty_node; backend = None;
-           children = SMap.empty; removed = SSet.empty; resolved = Hashtbl.create 0 }
+    Node { state = Atomic.make (Loaded F.empty_node); backend = None;
+           children = SMap.empty; removed = SSet.empty;
+           resolved = Atomic.make SMap.empty }
 
   let of_hash ~backend hash =
-    Node { state = Lazy { backend; hash }; backend = Some backend;
-           children = SMap.empty; removed = SSet.empty; resolved = Hashtbl.create 0 }
+    Node { state = Atomic.make (Lazy { backend; hash }); backend = Some backend;
+           children = SMap.empty; removed = SSet.empty;
+           resolved = Atomic.make SMap.empty }
 
   let shallow hash =
-    Node { state = Shallow hash; backend = None;
-           children = SMap.empty; removed = SSet.empty; resolved = Hashtbl.create 0 }
+    Node { state = Atomic.make (Shallow hash); backend = None;
+           children = SMap.empty; removed = SSet.empty;
+           resolved = Atomic.make SMap.empty }
 
   let pruned hash =
-    Node { state = Pruned hash; backend = None;
-           children = SMap.empty; removed = SSet.empty; resolved = Hashtbl.create 0 }
+    Node { state = Atomic.make (Pruned hash); backend = None;
+           children = SMap.empty; removed = SSet.empty;
+           resolved = Atomic.make SMap.empty }
 
   let rec of_concrete : concrete -> t = function
     | `Contents s -> Contents s
@@ -53,28 +64,31 @@ module Make (F : Codec.S) = struct
           List.fold_left (fun m (name, c) -> SMap.add name (of_concrete c) m)
             SMap.empty entries
         in
-        Node { state = Loaded F.empty_node; backend = None;
-               children; removed = SSet.empty; resolved = Hashtbl.create 0 }
+        Node { state = Atomic.make (Loaded F.empty_node); backend = None;
+               children; removed = SSet.empty;
+               resolved = Atomic.make SMap.empty }
 
-  (* Resolve a lazy node: load from backend, detect inode format. *)
+  (* Resolve a lazy node: load from backend, detect inode format.
+     Uses [Atomic.get]/[Atomic.set] so concurrent resolves from different
+     domains are data-race-free (both resolve to the same value). *)
   let resolve_state node =
-    match node.state with
+    match Atomic.get node.state with
     | Loaded _ | Inode _ | Shallow _ | Pruned _ -> ()
     | Lazy { backend; hash } -> (
         match backend.read hash with
         | None -> ()
         | Some data ->
             if Inode.is_inode data then
-              node.state <- Inode { backend; hash }
+              Atomic.set node.state (Inode { backend; hash })
             else (
               match F.node_of_bytes data with
-              | Ok n -> node.state <- Loaded n
+              | Ok n -> Atomic.set node.state (Loaded n)
               | Error _ -> ()))
 
   (* Look up a single entry by name, handling both flat nodes and inodes. *)
   let resolve_entry node name =
     resolve_state node;
-    match node.state with
+    match Atomic.get node.state with
     | Loaded n -> F.find n name
     | Inode { backend; hash } -> Inode.find ~backend hash name
     | _ -> None
@@ -82,14 +96,16 @@ module Make (F : Codec.S) = struct
   (* List all entries, handling both flat nodes and inodes. *)
   let resolve_entries node =
     resolve_state node;
-    match node.state with
+    match Atomic.get node.state with
     | Loaded n -> Some (F.list n)
     | Inode { backend; hash } -> Some (Inode.list_all ~backend hash)
     | _ -> None
 
   (* Navigate to a path, returning the node and remaining path.
-     Resolved children are cached in [node.resolved] to avoid repeated
-     deserialization on subsequent reads. *)
+     Resolved children are cached in [node.resolved] (an atomic SMap)
+     to avoid repeated deserialization on subsequent reads.  The cache
+     is lock-free: concurrent reads may redundantly resolve the same
+     entry, but the persistent map ensures no data corruption. *)
   let rec navigate t path =
     match (t, path) with
     | _, [] -> Some (t, [])
@@ -102,10 +118,11 @@ module Make (F : Codec.S) = struct
             if SSet.mem name node.removed then None
             else
               (* Check read cache *)
-              match Hashtbl.find_opt node.resolved name with
+              let cache = Atomic.get node.resolved in
+              match SMap.find_opt name cache with
               | Some child -> navigate child rest
               | None ->
-                  let resolved =
+                  let entry =
                     match resolve_entry node name with
                     | None -> None
                     | Some (`Contents_inlined data) ->
@@ -122,10 +139,13 @@ module Make (F : Codec.S) = struct
                         | Some backend -> Some (of_hash ~backend hash)
                         | None -> None)
                   in
-                  match resolved with
+                  match entry with
                   | None -> None
                   | Some child ->
-                      Hashtbl.replace node.resolved name child;
+                      (* Lock-free cache update: last writer wins, lost
+                         updates are benign (just a cache miss next time). *)
+                      let cur = Atomic.get node.resolved in
+                      Atomic.set node.resolved (SMap.add name child cur);
                       navigate child rest))
 
   let find t path =
@@ -272,7 +292,7 @@ module Make (F : Codec.S) = struct
         (* Fast path: unmodified node with known hash — skip entirely *)
         let dominated = SMap.is_empty node.children && SSet.is_empty node.removed in
         if dominated then
-          match node.state with
+          match Atomic.get node.state with
           | Inode { hash; _ } | Lazy { hash; _ } -> hash
           | _ -> write_tree_slow node ~inline_threshold ~inode ~backend
         else
@@ -303,7 +323,7 @@ module Make (F : Codec.S) = struct
               entry :: acc)
             node.children []
         in
-        (match node.state with
+        (match Atomic.get node.state with
         | Inode { hash; backend = ib } when inode ->
             (* Incremental update: only modify affected inode buckets *)
             Inode.update ~backend hash ~additions:child_entries
@@ -331,7 +351,7 @@ module Make (F : Codec.S) = struct
         | _ ->
             (* Flat node: apply modifications, promote to inode if too large *)
             let base =
-              match node.state with
+              match Atomic.get node.state with
               | Loaded n -> n
               | _ -> F.empty_node
             in
@@ -374,14 +394,14 @@ module Make (F : Codec.S) = struct
           match force with
           | `True -> (
               resolve_state node;
-              match node.state with
+              match Atomic.get node.state with
               | Loaded _ | Inode _ ->
                   SMap.fold
                     (fun name child acc -> go (path @ [ name ]) child acc)
                     node.children acc
               | _ -> acc)
           | `False fn -> (
-              match node.state with
+              match Atomic.get node.state with
               | Lazy { hash; _ } -> fn hash
               | Shallow hash -> fn hash
               | Pruned hash -> fn hash
@@ -390,7 +410,7 @@ module Make (F : Codec.S) = struct
                     (fun name child acc -> go (path @ [ name ]) child acc)
                     node.children acc)
           | `Shallow fn -> (
-              match node.state with
+              match Atomic.get node.state with
               | Shallow hash -> fn hash
               | _ ->
                   SMap.fold
