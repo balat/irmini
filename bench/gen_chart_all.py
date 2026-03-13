@@ -40,6 +40,10 @@ def classify_backend(name, scenario=""):
     # Skip parallel scaling data (handled by gen_chart_parallel.py)
     if "tezos-parallel-" in s or s == "tezos-sequential":
         return "skip"
+    # Skip non-default concurrent scaling data (handled by gen_chart_concurrent.py)
+    # Only keep the default (100 fibers) for the comparison charts
+    if s.startswith("concurrent-") and s != "concurrent-100f/12d":
+        return "skip"
     # Optimization variants go to their own chart
     if "baseline" in n or "+inline" in n or "+cache" in n or "+inode" in n or "+all" in n:
         if "(disk)" in n:

@@ -82,6 +82,10 @@ def classify(name, scenario):
             return "optims_lavyek"
         return "optims_memory"
 
+    # Non-default concurrent scaling → skip (handled by concurrent section)
+    if s.startswith("concurrent-") and s != "concurrent-100f/12d":
+        return "skip"
+
     # Parallel tezos variants go to disk chart
     if "12d\u00d7" in name or "12d×" in name:
         return "disk"
@@ -742,6 +746,8 @@ def generate_results_section(all_results, run_date, machine_info):
 
     for r in all_results:
         cat = classify(r["name"], r["scenario"])
+        if cat == "skip":
+            continue
         groups[cat].append(r)
 
     lines = []

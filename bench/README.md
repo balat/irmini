@@ -256,13 +256,7 @@ Irmini (lavyek)                 incremental-20B              5762      0.017    
 Irmini (lavyek)                 commits-10K                  9544     10.478        389
 Irmini (lavyek)                 reads-10K                 1369300      0.007        263
 Irmini (lavyek)                 incremental-10K              3444      0.029        249
-Irmini (lavyek)                 concurrent-1000f/12d       219551      0.182        230
 Irmini (lavyek)                 concurrent-100f/12d        196138      0.102        230
-Irmini (lavyek)                 concurrent-10f/12d         370934      0.108        226
-Irmini (lavyek)                 concurrent-1f/12d          113010      0.354        206
-Irmini (lavyek)                 concurrent-5000f/12d       225201      0.178        230
-Irmini (lavyek)                 concurrent-500f/12d        204513      0.196        230
-Irmini (lavyek)                 concurrent-50f/12d         218810      0.183        230
 Irmini (lavyek)                 tezos-10310commits         135035     29.622        714
 Irmini (lavyek)                 tezos-sequential            54000     74.120        529
 Irmini (disk)                   commits-20B                 31605      3.164        125
@@ -308,13 +302,7 @@ Irmini (memory)                 incremental-20B              6956      0.014    
 Irmini (memory)                 commits-10K                 16607      6.021        154
 Irmini (memory)                 reads-10K                 1379161      0.007        130
 Irmini (memory)                 incremental-10K              5307      0.019        134
-Irmini (memory)                 concurrent-1000f/12d       188296      0.212         62
 Irmini (memory)                 concurrent-100f/12d        190717      0.210         62
-Irmini (memory)                 concurrent-10f/12d         380518      0.105         57
-Irmini (memory)                 concurrent-1f/12d          107456      0.372         37
-Irmini (memory)                 concurrent-5000f/12d       197554      0.202         63
-Irmini (memory)                 concurrent-500f/12d        181027      0.221         62
-Irmini (memory)                 concurrent-50f/12d         184705      0.217         62
 Irmini (memory)                 tezos-10310commits         142217     28.126        586
 ```
 
