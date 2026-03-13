@@ -581,30 +581,6 @@ Sequential            54,000         1x
 - Scaling is super-linear up to ~10k fibers (76x on 12 cores) thanks to I/O overlap: while one fiber waits on disk, others make progress.
 - Beyond 50k fibers, scheduling overhead dominates and throughput drops.
 
-### Parallel speedup
-
-![Parallel speedup](results/chart_speedup.svg)
-
-Speedup of parallel scenarios (100 fibers, 12 domains) vs sequential baseline.
-Only domain-safe backends shown (Irmini and Irmin-Eio).
-
-```
-            Scenario           Irmini (disk)         Irmini (lavyek)         Irmini (memory)
---------------------------------------------------------------------------------------------
-         commits-20B              24k (0.4x)             222k (1.2x)             140k (0.6x)
-           reads-20B             426k (0.3x)             774k (0.5x)             593k (0.4x)
-     incremental-20B               98 (1.3x)             4.6k (0.8x)             3.3k (0.4x)
-         commits-10K              14k (1.2x)              15k (1.7x)              23k (1.3x)
-           reads-10K             752k (0.6x)             612k (0.5x)             698k (0.5x)
-     incremental-10K               70 (0.8x)             4.9k (1.4x)             2.7k (0.5x)
-```
-
-- **Most scenarios show regression** (speedup < 1×). The synthetic benchmarks create uniform access patterns with high contention on shared data structures — the worst case for parallelism.
-- **Lavyek is the only backend with consistent positive scaling** on commits (1.2–1.7×) and incremental-10K (1.4×), thanks to its lock-free LSM tree design.
-- **10K commits scale modestly** across all backends (1.2–1.7×) because large value I/O creates natural opportunities for concurrency.
-- **Reads regress uniformly** (0.3–0.6×) — the read benchmark loads the tree once, then hammers lookups with no I/O overlap. Compare with the Tezos trace (94× scaling) where realistic mixed workloads provide natural interleaving.
-- **Disk incremental is the only non-lavyek winner** (1.3×) — the WAL fsync bottleneck actually benefits from having other fibers do useful work while one waits on disk.
-
 ### Parallel scenario scaling (fibers per domain)
 
 ![Parallel scaling](results/chart_scaling.svg)
