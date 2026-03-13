@@ -215,7 +215,7 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 
 ## Results
 
-Run on 2026-03-12, , 12-core, 100 commits x 1000 adds, depth 10, 10000 reads.
+Run on 2026-03-13, AMD 12-core, 100 commits × 1000 adds, depth 10, 10000 reads.
 Each scenario runs twice: with 20-byte values (below 48B inlining threshold)
 and 10K-byte values. All three implementations use the same parameters.
 
@@ -256,7 +256,13 @@ Irmini (lavyek)                 incremental-20B              5762      0.017    
 Irmini (lavyek)                 commits-10K                  9544     10.478        389
 Irmini (lavyek)                 reads-10K                 1369300      0.007        263
 Irmini (lavyek)                 incremental-10K              3444      0.029        249
+Irmini (lavyek)                 concurrent-1000f/12d       219551      0.182        230
 Irmini (lavyek)                 concurrent-100f/12d        196138      0.102        230
+Irmini (lavyek)                 concurrent-10f/12d         370934      0.108        226
+Irmini (lavyek)                 concurrent-1f/12d          113010      0.354        206
+Irmini (lavyek)                 concurrent-5000f/12d       225201      0.178        230
+Irmini (lavyek)                 concurrent-500f/12d        204513      0.196        230
+Irmini (lavyek)                 concurrent-50f/12d         218810      0.183        230
 Irmini (lavyek)                 tezos-10310commits         135035     29.622        714
 Irmini (disk)                   commits-20B                 31605      3.164        125
 Irmini (disk)                   reads-20B                 1678998      0.006        165
@@ -301,6 +307,13 @@ Irmini (memory)                 incremental-20B              6956      0.014    
 Irmini (memory)                 commits-10K                 16607      6.021        154
 Irmini (memory)                 reads-10K                 1379161      0.007        130
 Irmini (memory)                 incremental-10K              5307      0.019        134
+Irmini (memory)                 concurrent-1000f/12d       188296      0.212         62
+Irmini (memory)                 concurrent-100f/12d        190717      0.210         62
+Irmini (memory)                 concurrent-10f/12d         380518      0.105         57
+Irmini (memory)                 concurrent-1f/12d          107456      0.372         37
+Irmini (memory)                 concurrent-5000f/12d       197554      0.202         63
+Irmini (memory)                 concurrent-500f/12d        181027      0.221         62
+Irmini (memory)                 concurrent-50f/12d         184705      0.217         62
 Irmini (memory)                 tezos-10310commits         142217     28.126        586
 ```
 
@@ -510,6 +523,25 @@ Irmin-Eio (pack)           83,022       48.2s         746
 - **Irmin-Lwt (pack-mem)** at 131k ops/s (92% of Irmini (memory)).
 - **Irmin-Eio (pack-mem)** at 83k ops/s (58% of Irmini (memory)).
 - **Irmin-Eio (pack)** at 83k ops/s (58% of Irmini (memory)), 746 MiB RSS.
+
+### Concurrent scaling
+
+![Concurrent scaling](results/chart_concurrent_scaling.svg)
+
+Concurrent read/write operations with 12 OS domains and varying fiber count.
+Each fiber performs backend-level read and write operations in parallel.
+
+```
+  Fibers       Irmini (lavyek)       Irmini (memory)
+----------------------------------------------------
+       1                  113k                  107k
+      10                  371k                  381k
+      50                  219k                  185k
+     100                  211k                  191k
+     500                  205k                  181k
+    1000                  220k                  188k
+    5000                  225k                  198k
+```
 
 ### Key observations
 

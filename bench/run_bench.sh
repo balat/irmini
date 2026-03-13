@@ -6,9 +6,10 @@
 #   2. Irmini optimization comparison (baseline, +inline, +cache, +inode, +all)
 #   3. Tezos trace replay (sequential, all active backends)
 #   4. Parallel trace replay scaling sweep (multiple fiber counts)
-#   5. Irmin-Lwt and Irmin-Eio benchmarks (if IRMIN_DIR is set)
-#   6. Generate SVG charts
-#   7. Update bench/README.md with results
+#   5. Concurrent scaling sweep (varying fiber counts)
+#   6. Irmin-Lwt and Irmin-Eio benchmarks (if IRMIN_DIR is set)
+#   7. Generate SVG charts
+#   8. Update bench/README.md with results
 #
 # Usage:
 #   cd /path/to/monopampam
@@ -19,13 +20,15 @@
 #   --skip-optims       Skip optimization comparison
 #   --skip-trace        Skip trace replay
 #   --skip-parallel     Skip parallel scaling sweep
+#   --skip-concurrent   Skip concurrent scaling sweep
 #   --skip-irmin        Skip Irmin-Lwt/Eio benchmarks
 #   --skip-charts       Skip chart generation
 #   --skip-readme       Skip README update
 #   --trace FILE        Path to .repr trace file (default: auto-detect)
 #   --trace-commits N   Max commits to replay (default: 10310)
-#   --parallel-fibers   Comma-separated fiber counts (default: 1,10,100,1000,10000,50000,100000)
+#   --parallel-fibers   Comma-separated fiber counts (default: 1,10,100,...)
 #   --parallel-domains  Number of domains for parallel (default: 12)
+#   --concurrent-fibers Comma-separated fiber counts for concurrent sweep (default: 1,10,50,100,500,1000,5000)
 #   --ncommits N        Override commit count (passed to benchmarks)
 #   --tree-add N        Override tree-add (passed to benchmarks)
 #   --depth N           Override depth (passed to benchmarks)
@@ -46,6 +49,7 @@ SKIP_IRMINI=false
 SKIP_OPTIMS=false
 SKIP_TRACE=false
 SKIP_PARALLEL=false
+SKIP_CONCURRENT=false
 SKIP_IRMIN=false
 SKIP_CHARTS=false
 SKIP_README=false
@@ -53,6 +57,7 @@ TRACE_FILE=""
 TRACE_COMMITS=10310
 PARALLEL_FIBERS="1,10,100,1000,10000,20000,30000,40000,45000,50000,55000,60000,70000,100000"
 PARALLEL_DOMAINS=12
+CONCURRENT_FIBERS="1,10,50,100,500,1000,5000"
 BENCH_ARGS=""
 
 # --- Parse args ---
@@ -62,6 +67,7 @@ while [[ $# -gt 0 ]]; do
     --skip-optims)    SKIP_OPTIMS=true; shift ;;
     --skip-trace)     SKIP_TRACE=true; shift ;;
     --skip-parallel)  SKIP_PARALLEL=true; shift ;;
+    --skip-concurrent) SKIP_CONCURRENT=true; shift ;;
     --skip-irmin)     SKIP_IRMIN=true; shift ;;
     --skip-charts)    SKIP_CHARTS=true; shift ;;
     --skip-readme)    SKIP_README=true; shift ;;
@@ -69,6 +75,7 @@ while [[ $# -gt 0 ]]; do
     --trace-commits)  TRACE_COMMITS="$2"; shift 2 ;;
     --parallel-fibers)  PARALLEL_FIBERS="$2"; shift 2 ;;
     --parallel-domains) PARALLEL_DOMAINS="$2"; shift 2 ;;
+    --concurrent-fibers) CONCURRENT_FIBERS="$2"; shift 2 ;;
     --ncommits|--tree-add|--depth|--nreads|--value-size)
       BENCH_ARGS="$BENCH_ARGS $1 $2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -286,11 +293,63 @@ print(f'Merged {len(results)} parallel results')
 fi
 
 # ============================================================
-# 5. Irmin-Lwt and Irmin-Eio benchmarks (optional)
+# 5. Concurrent scaling sweep
+# ============================================================
+if [ "$SKIP_CONCURRENT" = false ]; then
+  echo "========================================="
+  echo "  5. Concurrent scaling sweep"
+  echo "========================================="
+  echo ""
+
+  TMPDIR_CONC="$(mktemp -d)"
+
+  IFS=',' read -ra CONC_FIBERS_ARRAY <<< "$CONCURRENT_FIBERS"
+
+  # Use small workload to keep sweep fast (we only care about concurrent)
+  CONC_PARAMS="--ncommits 10 --tree-add 100 --depth 5 --nreads 20000 --value-size 20"
+
+  # --- Irmini (lavyek) ---
+  for fibers in "${CONC_FIBERS_ARRAY[@]}"; do
+    echo "--- Irmini lavyek: ${fibers} fibers ---"
+    $BENCH --skip-memory --skip-disk --skip-git \
+      $CONC_PARAMS --concurrent-fibers "$fibers" \
+      --json "$TMPDIR_CONC/lavyek_${fibers}.json"
+    echo ""
+  done
+
+  # --- Irmini (memory) ---
+  for fibers in "${CONC_FIBERS_ARRAY[@]}"; do
+    echo "--- Irmini memory: ${fibers} fibers ---"
+    $BENCH --skip-lavyek --skip-disk --skip-git \
+      $CONC_PARAMS --concurrent-fibers "$fibers" \
+      --json "$TMPDIR_CONC/memory_${fibers}.json"
+    echo ""
+  done
+
+  # Merge concurrent results (keep only concurrent scenarios)
+  python3 -c "
+import json, glob, re
+results = []
+for f in sorted(glob.glob('$TMPDIR_CONC/*.json'), key=lambda p: (p.split('/')[-1].split('_')[0], int(p.split('_')[-1].split('.')[0]))):
+    with open(f) as fh:
+        for r in json.load(fh):
+            if 'concurrent' in r['scenario']:
+                results.append(r)
+with open('$OUTPUT_DIR/irmini_concurrent.json', 'w') as fh:
+    json.dump(results, fh, indent=2); fh.write('\n')
+print(f'Merged {len(results)} concurrent results')
+"
+
+  rm -rf "$TMPDIR_CONC"
+  echo ""
+fi
+
+# ============================================================
+# 6. Irmin-Lwt and Irmin-Eio benchmarks (optional)
 # ============================================================
 if [ "$SKIP_IRMIN" = false ] && [ -n "${IRMIN_DIR:-}" ] && [ -d "${IRMIN_DIR}" ]; then
   echo "========================================="
-  echo "  5. Irmin benchmarks"
+  echo "  6. Irmin benchmarks"
   echo "========================================="
   echo ""
 
@@ -488,11 +547,11 @@ if entries:
 fi
 
 # ============================================================
-# 6. Generate charts
+# 7. Generate charts
 # ============================================================
 if [ "$SKIP_CHARTS" = false ]; then
   echo "========================================="
-  echo "  6. Generating charts"
+  echo "  7. Generating charts"
   echo "========================================="
   echo ""
 
@@ -506,15 +565,20 @@ if [ "$SKIP_CHARTS" = false ]; then
     python3 "$SCRIPT_DIR/gen_chart_parallel.py" "$OUTPUT_DIR/chart_parallel_scaling.svg" --json "$OUTPUT_DIR"
   fi
 
+  # Concurrent scaling chart
+  if [ -f "$SCRIPT_DIR/gen_chart_concurrent.py" ]; then
+    python3 "$SCRIPT_DIR/gen_chart_concurrent.py" "$OUTPUT_DIR/chart_concurrent_scaling.svg" --json "$OUTPUT_DIR"
+  fi
+
   echo ""
 fi
 
 # ============================================================
-# 7. Update README
+# 8. Update README
 # ============================================================
 if [ "$SKIP_README" = false ]; then
   echo "========================================="
-  echo "  7. Updating README"
+  echo "  8. Updating README"
   echo "========================================="
   echo ""
 

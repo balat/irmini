@@ -13,6 +13,7 @@ import glob
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 from datetime import date
@@ -958,6 +959,65 @@ def generate_results_section(all_results, run_date, machine_info):
             lines.append(f"- {bullet}")
         lines.append("")
 
+    # --- Concurrent scaling ---
+    concurrent_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "irmini_concurrent.json")
+    if os.path.exists(concurrent_file):
+        try:
+            with open(concurrent_file) as f:
+                conc_data = json.load(f)
+            if conc_data:
+                lines.append("### Concurrent scaling")
+                lines.append("")
+                lines.append("![Concurrent scaling](results/chart_concurrent_scaling.svg)")
+                lines.append("")
+                lines.append("Concurrent read/write operations with 12 OS domains and varying fiber count.")
+                lines.append("Each fiber performs backend-level read and write operations in parallel.")
+                lines.append("")
+
+                # Group by backend
+                conc_backends = {}
+                for r in conc_data:
+                    name = r["name"]
+                    if name not in conc_backends:
+                        conc_backends[name] = []
+                    conc_backends[name].append(r)
+
+                # Table
+                lines.append("```")
+                header = f"{'Fibers':>8s}"
+                backend_names = sorted(conc_backends.keys())
+                for bname in backend_names:
+                    header += f"  {bname:>20s}"
+                lines.append(header)
+                lines.append("-" * len(header))
+
+                # Collect all fiber counts
+                all_fibers = sorted(set(
+                    int(re.search(r'(\d+)f/', r["scenario"]).group(1))
+                    for r in conc_data if re.search(r'(\d+)f/', r["scenario"])
+                ))
+                for fib in all_fibers:
+                    row = f"{fib:>8d}"
+                    for bname in backend_names:
+                        val = ""
+                        for r in conc_backends[bname]:
+                            m = re.search(r'(\d+)f/', r["scenario"])
+                            if m and int(m.group(1)) == fib:
+                                ops = r["ops_per_sec"]
+                                if ops >= 1_000_000:
+                                    val = f"{ops/1_000_000:.1f}M"
+                                elif ops >= 1_000:
+                                    val = f"{ops/1_000:.0f}k"
+                                else:
+                                    val = str(int(ops))
+                                break
+                        row += f"  {val:>20s}"
+                    lines.append(row)
+                lines.append("```")
+                lines.append("")
+        except (json.JSONDecodeError, IOError):
+            pass
+
     # --- Key observations ---
     obs = generate_key_observations(groups)
     if obs:
@@ -1004,6 +1064,13 @@ def update_charts(results_dir):
         print("Generating parallel scaling chart...")
         dst = os.path.join(results_dir, "chart_parallel_scaling.svg")
         subprocess.run([sys.executable, chart_parallel, dst], check=True)
+
+    # gen_chart_concurrent.py
+    chart_concurrent = os.path.join(bench_dir, "gen_chart_concurrent.py")
+    if os.path.exists(chart_concurrent):
+        print("Generating concurrent scaling chart...")
+        dst = os.path.join(results_dir, "chart_concurrent_scaling.svg")
+        subprocess.run([sys.executable, chart_concurrent, dst, "--json", results_dir], check=True)
 
 
 def main():

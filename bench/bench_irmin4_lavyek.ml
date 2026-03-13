@@ -3,7 +3,7 @@
     Each scenario gets a fresh Lavyek store in a separate subdirectory
     to avoid WAL replay issues between runs. *)
 
-let run_all ?inline_threshold ?inode ?(cache = 100_000) ?name:custom_name ~sw ~env root (conf : Bench_common.config) =
+let run_all ?inline_threshold ?inode ?(cache = 100_000) ?nfibers ?name:custom_name ~sw ~env root (conf : Bench_common.config) =
   let name = match custom_name with
     | Some n -> n
     | None -> "Irmini (lavyek)" in
@@ -30,5 +30,5 @@ let run_all ?inline_threshold ?inode ?(cache = 100_000) ?name:custom_name ~sw ~e
     run_one (fun ~backend ->
         Bench_irmin4.scenario_incremental ?inline_threshold ?inode ~name ~backend large);
     run_one (fun ~backend ->
-        Bench_irmin4.scenario_concurrent ~name ~backend ~env conf);
+        Bench_irmin4.scenario_concurrent ?nfibers ~name ~backend ~env conf);
   ]
