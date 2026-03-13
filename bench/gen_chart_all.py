@@ -36,6 +36,10 @@ def load_results(results_dir):
 def classify_backend(name, scenario=""):
     """Classify a result name into memory/disk/git/optims category."""
     n = name.lower()
+    s = scenario.lower()
+    # Skip parallel scaling data (handled by gen_chart_parallel.py)
+    if "tezos-parallel-" in s or s == "tezos-sequential":
+        return "skip"
     # Optimization variants go to their own chart
     if "baseline" in n or "+inline" in n or "+cache" in n or "+inode" in n or "+all" in n:
         if "(disk)" in n:

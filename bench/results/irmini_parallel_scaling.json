@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-sequential",
+    "total_ops": 4002740,
+    "total_time": 74.12,
+    "ops_per_sec": 54000,
+    "maxrss_kb": 541696
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d71f",
+    "total_ops": 4002740,
+    "total_time": 47.65,
+    "ops_per_sec": 84000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d710f",
+    "total_ops": 4002740,
+    "total_time": 16.96,
+    "ops_per_sec": 236000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d7100f",
+    "total_ops": 4002740,
+    "total_time": 6.19,
+    "ops_per_sec": 647000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d71000f",
+    "total_ops": 4002740,
+    "total_time": 3.08,
+    "ops_per_sec": 1300000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d710000f",
+    "total_ops": 4002740,
+    "total_time": 0.97,
+    "ops_per_sec": 4119000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d720000f",
+    "total_ops": 4002740,
+    "total_time": 1.0,
+    "ops_per_sec": 3992000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d730000f",
+    "total_ops": 4002740,
+    "total_time": 0.84,
+    "ops_per_sec": 4759000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d740000f",
+    "total_ops": 4002740,
+    "total_time": 0.89,
+    "ops_per_sec": 4512000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d745000f",
+    "total_ops": 4002740,
+    "total_time": 0.8,
+    "ops_per_sec": 4989000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d750000f",
+    "total_ops": 4002740,
+    "total_time": 0.79,
+    "ops_per_sec": 5063000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d755000f",
+    "total_ops": 4002740,
+    "total_time": 0.82,
+    "ops_per_sec": 4901000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d760000f",
+    "total_ops": 4002740,
+    "total_time": 0.92,
+    "ops_per_sec": 4360000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d770000f",
+    "total_ops": 4002740,
+    "total_time": 0.84,
+    "ops_per_sec": 4751000,
+    "maxrss_kb": 0
+  },
+  {
+    "name": "Irmini (lavyek)",
+    "scenario": "tezos-parallel-12d\u00d7100000f",
+    "total_ops": 4002740,
+    "total_time": 1.35,
+    "ops_per_sec": 2961000,
+    "maxrss_kb": 0
+  }
+]
