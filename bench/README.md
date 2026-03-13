@@ -605,23 +605,52 @@ Only domain-safe backends shown (Irmini and Irmin-Eio).
 - **Reads regress uniformly** (0.3–0.6×) — the read benchmark loads the tree once, then hammers lookups with no I/O overlap. Compare with the Tezos trace (94× scaling) where realistic mixed workloads provide natural interleaving.
 - **Disk incremental is the only non-lavyek winner** (1.3×) — the WAL fsync bottleneck actually benefits from having other fibers do useful work while one waits on disk.
 
-### Parallel scaling
+### Parallel scenario scaling (fibers per domain)
 
-![Parallel scaling](results/chart_scaling.svg)
+Throughput of parallel scenarios on lavyek with 12 domains and varying fiber
+count per domain. Each domain spawns fibers with `Eio.Fiber.all` for true
+cooperative concurrency.
 
-Throughput of commits and reads scenarios with 12 domains and varying fiber count.
+**Reads** (1M reads, 1000 entries, depth 10):
 
-**Irmini (lavyek) — commits-10K** (peak: 21k at 10 fibers)
+```
+Fibers/domain        20B (M ops/s)    10K (M ops/s)
+           1               9.0              7.0
+          10               9.2              6.9
+          25              10.1              8.1
+          50              12.3             11.8
+         100              13.1             10.7
+         200               9.7              9.1
+         500               5.7              3.9
+        1000               5.3              4.1
+```
 
-**Irmini (lavyek) — commits-20B** (peak: 461k at 10 fibers)
+Sequential reference: 3.4M (20B), 3.1M (10K). Peak speedup: **3.8×** at 100 f/d.
 
-**Irmini (lavyek) — incremental-10K** (peak: 6.4k at 10 fibers)
+**Commits** (24 commits × 100 adds):
 
-**Irmini (lavyek) — incremental-20B** (peak: 6.5k at 10 fibers)
+```
+Fibers/domain        20B (k ops/s)    10K (k ops/s)    10K RSS
+           1              138              21          275 MiB
+          10              195              21          412 MiB
+         100              282              18            2 GiB
+        1000              275               7         11.5 GiB
+```
 
-**Irmini (lavyek) — reads-10K** (peak: 625k at 10 fibers)
+**Incremental** (24 updates on 100-entry tree):
 
-**Irmini (lavyek) — reads-20B** (peak: 641k at 50 fibers)
+```
+Fibers/domain        20B (k ops/s)    10K (k ops/s)
+           1              2.5              1.3
+          10              3.9              3.4
+         100              5.0              4.1
+        1000              6.1              3.4
+```
+
+**Optimal: 50–100 fibers per domain.** Below 50, insufficient concurrency to
+hide latency. Above 200, Eio fiber scheduling overhead dominates. For large
+values (10K), memory pressure from per-fiber tree copies causes OOM at 1000+
+fibers. The default `--parallel-fibers 100` is a good compromise.
 
 ### Key observations
 
@@ -632,4 +661,4 @@ Throughput of commits and reads scenarios with 12 domains and varying fiber coun
 - **Irmin-Lwt vs Irmin-Eio**: Similar performance on most benchmarks. Irmin-Lwt faster on pack commits (68k vs 40k), Irmin-Eio faster on pack reads (1.4M vs 719k).
 - **Optimization impact**: Inline and inode are the two critical optimizations. Cache has no measurable effect on memory or lavyek backends. Inline + inode combined give 18–22× speedup on commits-20B.
 - **Tezos trace replay**: Irmini (memory) at 142k ops/s, Irmini (lavyek) at 135k ops/s — competitive with Irmin-Lwt (pack) at 135k ops/s. All significantly faster than Irmin-Eio (83k).
-- **Parallel scaling**: Synthetic benchmarks mostly regress (lock contention), but the realistic Tezos trace achieves **94× speedup** (5.1M ops/s) on lavyek with 50k fibers — demonstrating that real workloads with natural I/O interleaving scale well.
+- **Parallel reads scaling**: Peak at 50–100 fibers/domain with **3.8× speedup** (13.1M vs 3.4M ops/s) on lavyek reads. Tezos trace replay achieves **94× speedup** (5.1M ops/s) with 50k fibers — real workloads with mixed I/O patterns scale better than synthetic benchmarks.
