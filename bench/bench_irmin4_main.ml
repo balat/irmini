@@ -221,6 +221,15 @@ let () =
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () -> run_trace ~backend_name:"Irmini (disk)" ~backend)
     end;
+    if not !skip_disk then begin
+      Eio.Switch.run @@ fun sw ->
+      let root = Eio.Path.(cwd / "_build/_bench_disk_nofsync_trace") in
+      rm_rf root;
+      let backend = Irmin.Backend.Disk.create_sha1 ?cache ~use_fsync:false ~sw root in
+      Fun.protect
+        ~finally:(fun () -> backend.Irmin.Backend.close ())
+        (fun () -> run_trace ~backend_name:"Irmini (disk, no fsync)" ~backend)
+    end;
     if not !skip_lavyek then begin
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_lavyek_trace") in
