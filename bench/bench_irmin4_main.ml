@@ -60,9 +60,9 @@ let () =
       ("--no-flatten", Arg.Set no_flatten,
        "Disable Tezos path flattening during trace replay");
       ("--parallel-domains", Arg.Set_int parallel_domains,
-       "Number of domains for parallel trace replay (0 = skip, default: 0)");
+       "Number of domains for parallel scenarios and trace replay (0 = skip, default: 0)");
       ("--parallel-fibers", Arg.Set_int parallel_fibers,
-       "Number of fibers per domain for parallel replay (default: 100)");
+       "Number of fibers per domain for parallel scenarios and trace replay (default: 100)");
     ]
     (fun _ -> ())
     "bench_irmin4 - Irmini performance benchmarks";
@@ -114,12 +114,12 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_disk") in
     rm_rf root;
     let disk_name = match name with Some n -> n | None -> "Irmini (disk)" in
-    run disk_name (Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache:cache_int ?name ~sw ~env root conf)
+    run disk_name (Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache:cache_int ?name ~ndomains:!parallel_domains ~fibers_per_domain:!parallel_fibers ~sw ~env root conf)
   end;
   (* 2. Irmini memory *)
   if not !skip_memory then begin
     let mem_name = match name with Some n -> n | None -> "Irmini (memory)" in
-    run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache:cache_int ?name conf)
+    run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache:cache_int ?name ~ndomains:!parallel_domains ~fibers_per_domain:!parallel_fibers ~env conf)
   end;
   (* 3. Irmini git *)
   if not !skip_git then begin
@@ -135,7 +135,7 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in
     rm_rf root;
     run "Irmini (lavyek)"
-      (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache:cache_int ?name ~sw ~env root conf)
+      (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache:cache_int ?name ~ndomains:!parallel_domains ~fibers_per_domain:!parallel_fibers ~sw ~env root conf)
   end;
   (* 5. Trace replay — runs on each active backend *)
   if !trace_file <> "" then begin

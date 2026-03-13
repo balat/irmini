@@ -1,136 +1,33 @@
 #!/usr/bin/env python3
 """Generate SVG bar charts from JSON benchmark results.
 
-Produces three charts grouped by backend type:
-  - Disk backends: irmin-lwt-{fs,pack}, irmin-eio-{fs,pack}, irmini-{disk,lavyek}
-  - Memory backends: irmin-lwt-memory, irmin-eio-memory, irmini-memory
-  - Git backends: irmin-lwt-git, irmin-eio-git, irmini-git
+Produces charts grouped by backend type:
+  - Disk/Memory/Git backends (single-core and multi-core)
+  - Optimization comparisons (disk, memory, lavyek)
+  - Parallel speedup ratios
 
-Usage: gen_chart_all.py <results_dir> [timestamp]
-
-Reads all *.json files in <results_dir> and merges them.
+Usage: gen_chart_all.py <results_dir>
 """
 
-import glob
-import json
-import math
 import os
 import re
 import sys
-import time
+
+sys.path.insert(0, os.path.dirname(__file__))
+from bench_utils import (
+    load_results, classify_backend,
+    family_sort_key, scenario_sort_key, ordered_backends,
+    is_parallel_variant, is_tezos_parallel,
+    get_color, fmt_ops_chart as fmt_ops,
+    remap_parallel_scenarios,
+)
 
 
-def load_results(results_dir):
-    """Load and merge all JSON result files."""
-    all_results = []
-    for path in sorted(glob.glob(os.path.join(results_dir, "*.json"))):
-        try:
-            with open(path) as f:
-                data = json.load(f)
-            all_results.extend(data)
-            print(f"  Loaded {len(data)} results from {os.path.basename(path)}")
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"  Warning: skipping {path}: {e}")
-    return all_results
+def generate_chart(title, results, backends, compact=False):
+    """Generate an SVG bar chart for a set of backends.
 
-
-def classify_backend(name, scenario=""):
-    """Classify a result name into memory/disk/git/optims category."""
-    n = name.lower()
-    # Optimization variants go to their own chart
-    if "baseline" in n or "+inline" in n or "+cache" in n or "+inode" in n or "+all" in n:
-        if "(disk)" in n:
-            return "optims_disk"
-        return "optims_memory"
-    elif "memory" in n or "mem" in n:
-        return "memory"
-    elif "git" in n:
-        return "git"
-    else:
-        # fs, disk, pack, lavyek are all "disk" category
-        return "disk"
-
-
-# --- Colors for each backend name ---
-COLORS = {
-    "Irmin-Lwt (memory)": "#f28e2b",
-    "Irmin-Lwt (pack)":   "#f5a623",
-    "Irmin-Lwt (fs)":     "#f7c96e",
-    "Irmin-Lwt (git)":    "#f9dda0",
-    "Irmin-Eio (memory)": "#e15759",
-    "Irmin-Eio (pack)":   "#e87c7e",
-    "Irmin-Eio (fs)":     "#f0a1a2",
-    "Irmin-Eio (git)":    "#f5c0c1",
-    "Irmini (memory)":    "#4e79a7",
-    "Irmini (disk)":      "#6d9dc5",
-    "Irmini (lavyek)":    "#59a14f",
-    "Irmini (git)":       "#8bc584",
-    # Tezos trace replay
-    "Irmin-Lwt (pack-mem)": "#f28e2b",
-    "Irmin-Eio (pack-mem)": "#e15759",
-    # Parallel variants (same color as base, rendered with hatching)
-    "Irmini (lavyek) 12d×50kf": "#59a14f",
-    "Irmin-Eio (pack) 12d×1f":  "#e87c7e",
-    # Optimization variants (memory and disk share same colors)
-    "Irmini baseline":    "#bbb",
-    "Irmini+inline":      "#9c755f",
-    "Irmini+cache":       "#76b7b2",
-    "Irmini+inode":       "#b07aa1",
-    "Irmini+all":         "#4e79a7",
-    "Irmini baseline (disk)": "#bbb",
-    "Irmini+inline (disk)":   "#9c755f",
-    "Irmini+cache (disk)":    "#76b7b2",
-    "Irmini+inode (disk)":    "#b07aa1",
-    "Irmini+all (disk)":      "#4e79a7",
-}
-
-
-# Parallel variants: rendered with diagonal hatching over the base color
-PARALLEL_VARIANTS = {
-    "Irmini (lavyek) 12d×50kf",
-    "Irmin-Eio (pack) 12d×1f",
-}
-
-OPTIM_ORDER_MEM = ["Irmini baseline", "Irmini+inline", "Irmini+cache", "Irmini+inode", "Irmini+all"]
-OPTIM_ORDER_DISK = ["Irmini baseline (disk)", "Irmini+inline (disk)", "Irmini+cache (disk)",
-                    "Irmini+inode (disk)", "Irmini+all (disk)"]
-
-
-def family_sort_key(name):
-    """Sort backends: Irmin-Lwt first, then Irmin-Eio, then Irmini."""
-    n = name.lower()
-    if name in OPTIM_ORDER_MEM:
-        return (0, OPTIM_ORDER_MEM.index(name))
-    elif name in OPTIM_ORDER_DISK:
-        return (0, OPTIM_ORDER_DISK.index(name))
-    elif "irmin-lwt" in n:
-        return (0, name)
-    elif "irmin-eio" in n or "irmin-pack" in n or "irmin-fs" in n or "irmin-git" in n:
-        return (1, name)
-    elif "irmini" in n:
-        return (2, name)
-    return (3, name)
-
-
-def get_color(name):
-    """Get a color for a given backend name."""
-    if name in COLORS:
-        return COLORS[name]
-    # Fallback: hash-based color
-    h = hash(name) % 360
-    return f"hsl({h}, 60%, 55%)"
-
-
-def fmt_ops(v):
-    if v >= 1_000_000:
-        return f"{v/1_000_000:.1f}M"
-    if v >= 1_000:
-        return f"{v/1_000:.0f}k"
-    return str(int(v))
-
-
-def generate_chart(title, results, backends):
-    """Generate an SVG chart for a set of backends."""
+    When compact=True, use smaller fonts (for charts with many backends).
+    """
     if not results:
         return None
 
@@ -139,31 +36,44 @@ def generate_chart(title, results, backends):
     for r in results:
         lookup[(r["name"], r["scenario"])] = r["ops_per_sec"]
 
-    scenarios = []
-    seen = set()
-    for r in results:
-        if r["scenario"] not in seen:
-            scenarios.append(r["scenario"])
-            seen.add(r["scenario"])
+    scenarios = sorted(
+        {r["scenario"] for r in results},
+        key=scenario_sort_key
+    )
+
+    # Auto-enable compact mode when many backends
+    if len(backends) > 8:
+        compact = True
+
+    # Font sizes
+    title_font = 16 if compact else 20
+    label_font = 10 if compact else 13
+    value_font = 7 if compact else 9
+    legend_font = 10 if compact else 13
+    axis_font = 11 if compact else 14
+    tick_font = 8 if compact else 10
 
     # Layout
-    margin_left = 120
-    margin_right = 40
-    margin_top = 60
-    group_gap = 50
-    bar_width = max(10, min(22, 250 // max(1, len(backends))))
-    bar_gap = 2
-
+    margin_left = 100
+    margin_right = 30
+    margin_top = 50
     n_backends = len(backends)
-    group_width = n_backends * (bar_width + bar_gap) - bar_gap
-    chart_width = len(scenarios) * (group_width + group_gap) - group_gap
-    chart_height = 400
+    n_scenarios = len(scenarios)
+    max_chart_width = 1100
 
-    # Legend layout
-    legend_col_width = 180
+    bar_width = max(8, min(22, max_chart_width // max(1, n_scenarios * n_backends)))
+    bar_gap = 2
+    group_gap = max(20, min(50, max_chart_width // max(1, n_scenarios * 3)))
+
+    group_width = n_backends * (bar_width + bar_gap) - bar_gap
+    chart_width = n_scenarios * (group_width + group_gap) - group_gap
+    chart_height = 350
+
+    legend_col_width = 180 if compact else 200
+    legend_row_height = 18 if compact else 24
     legend_cols = max(1, min(4, (margin_left + chart_width + margin_right) // legend_col_width))
     legend_rows = (n_backends + legend_cols - 1) // legend_cols
-    margin_bottom = 50 + legend_rows * 20
+    margin_bottom = 55 + legend_rows * legend_row_height
 
     svg_w = max(margin_left + chart_width + margin_right, legend_cols * legend_col_width + margin_left)
     svg_h = margin_top + chart_height + margin_bottom
@@ -183,33 +93,44 @@ def generate_chart(title, results, backends):
 
     lines = []
     lines.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{svg_w}" height="{svg_h}" '
-                 f'font-family="system-ui, sans-serif" font-size="11">')
+                 f'font-family="system-ui, sans-serif" font-size="{axis_font}">')
     lines.append(f'<rect width="{svg_w}" height="{svg_h}" fill="white"/>')
 
     # Define hatching patterns for parallel variants
+    # Standard parallel (100f): 45° diagonal lines
+    # Tezos parallel (other fiber counts): cross-hatch (45° + 135°)
     lines.append('<defs>')
     for backend in backends:
-        if backend in PARALLEL_VARIANTS:
+        if is_parallel_variant(backend):
             pid = f"hatch-{abs(hash(backend)) % 10000}"
             color = get_color(backend)
-            lines.append(
-                f'<pattern id="{pid}" width="6" height="6" '
-                f'patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
-                f'<rect width="6" height="6" fill="{color}"/>'
-                f'<line x1="0" y1="0" x2="0" y2="6" stroke="white" stroke-width="2"/>'
-                f'</pattern>')
+            if is_tezos_parallel(backend):
+                lines.append(
+                    f'<pattern id="{pid}" width="8" height="8" '
+                    f'patternUnits="userSpaceOnUse">'
+                    f'<rect width="8" height="8" fill="{color}"/>'
+                    f'<line x1="0" y1="0" x2="8" y2="8" stroke="white" stroke-width="1.5"/>'
+                    f'<line x1="8" y1="0" x2="0" y2="8" stroke="white" stroke-width="1.5"/>'
+                    f'</pattern>')
+            else:
+                lines.append(
+                    f'<pattern id="{pid}" width="6" height="6" '
+                    f'patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
+                    f'<rect width="6" height="6" fill="{color}"/>'
+                    f'<line x1="0" y1="0" x2="0" y2="6" stroke="white" stroke-width="2"/>'
+                    f'</pattern>')
     lines.append('</defs>')
 
     # Title
-    lines.append(f'<text x="{svg_w/2}" y="28" text-anchor="middle" font-size="16" '
+    lines.append(f'<text x="{svg_w/2}" y="32" text-anchor="middle" font-size="{title_font}" '
                  f'font-weight="bold">{title}</text>')
 
     ox, oy = margin_left, margin_top
     lines.append(f'<g transform="translate({ox},{oy})">')
 
     # Y axis label
-    lines.append(f'<text x="-85" y="{chart_height/2}" text-anchor="middle" '
-                 f'font-size="12" fill="#333" transform="rotate(-90,-85,{chart_height/2})">'
+    lines.append(f'<text x="-75" y="{chart_height/2}" text-anchor="middle" '
+                 f'font-size="{axis_font}" fill="#333" transform="rotate(-90,-75,{chart_height/2})">'
                  f'ops/s</text>')
 
     # Bars per scenario
@@ -227,7 +148,7 @@ def generate_chart(title, results, backends):
                          f'stroke="#e0e0e0" stroke-width="0.5"/>')
             if i == 4:
                 lines.append(f'<text x="{gx - 4:.1f}" y="{yy + 4:.1f}" '
-                             f'text-anchor="end" font-size="8" fill="#999">'
+                             f'text-anchor="end" font-size="{tick_font}" fill="#999">'
                              f'{fmt_ops(int(tick_val))}</text>')
 
         for bi, backend in enumerate(backends):
@@ -238,7 +159,7 @@ def generate_chart(title, results, backends):
             by = y_of(val, scenario)
             bh = chart_height - by
             color = get_color(backend)
-            if backend in PARALLEL_VARIANTS:
+            if is_parallel_variant(backend):
                 pid = f"hatch-{abs(hash(backend)) % 10000}"
                 fill = f'url(#{pid})'
             else:
@@ -246,13 +167,13 @@ def generate_chart(title, results, backends):
             lines.append(f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_width}" '
                          f'height="{bh:.1f}" fill="{fill}" rx="1"/>')
             lines.append(f'<text x="{bx + bar_width/2:.1f}" y="{by - 3:.1f}" '
-                         f'text-anchor="middle" font-size="7" fill="#333">'
+                         f'text-anchor="middle" font-size="{value_font}" fill="#333">'
                          f'{fmt_ops(val)}</text>')
 
         # Scenario label
         cx = gx + group_width / 2
-        lines.append(f'<text x="{cx:.1f}" y="{chart_height + 16}" text-anchor="middle" '
-                     f'font-size="11" font-weight="bold" fill="#333">{scenario}</text>')
+        lines.append(f'<text x="{cx:.1f}" y="{chart_height + 18}" text-anchor="middle" '
+                     f'font-size="{label_font}" font-weight="bold" fill="#333">{scenario}</text>')
 
     # Bottom axis
     lines.append(f'<line x1="0" y1="{chart_height}" x2="{chart_width}" '
@@ -269,16 +190,141 @@ def generate_chart(title, results, backends):
         col = i % legend_cols
         row = i // legend_cols
         x = col * legend_col_width
-        y = row * 20
+        y = row * legend_row_height
         color = get_color(backend)
-        if backend in PARALLEL_VARIANTS:
+        if is_parallel_variant(backend):
             pid = f"hatch-{abs(hash(backend)) % 10000}"
             fill = f'url(#{pid})'
         else:
             fill = color
-        lines.append(f'<rect x="{x}" y="{y}" width="12" height="12" fill="{fill}" rx="2"/>')
-        lines.append(f'<text x="{x+16}" y="{y+10}" font-size="10" fill="#333">{backend}</text>')
+        lines.append(f'<rect x="{x}" y="{y}" width="14" height="14" fill="{fill}" rx="2"/>')
+        lines.append(f'<text x="{x+18}" y="{y+12}" font-size="{legend_font}" fill="#333">{backend}</text>')
 
+    lines.append('</g>')
+    lines.append('</svg>')
+
+    return "\n".join(lines)
+
+
+def generate_speedup_chart(title, parallel_results, sequential_results):
+    """Generate a speedup chart: ratio of parallel/sequential ops/s."""
+    # Build sequential lookup
+    seq_lookup = {}
+    for r in sequential_results:
+        seq_lookup[(r["name"], r["scenario"])] = r["ops_per_sec"]
+
+    # Build speedup data
+    speedup_data = []
+    for r in parallel_results:
+        m = re.match(r'^(.+)-\d+f/\d+d$', r["scenario"])
+        if not m:
+            continue
+        base_scenario = m.group(1)
+        seq_val = seq_lookup.get((r["name"], base_scenario))
+        if seq_val and seq_val > 0:
+            speedup = r["ops_per_sec"] / seq_val
+            speedup_data.append((base_scenario, r["name"], speedup))
+
+    if not speedup_data:
+        return None
+
+    scenarios = sorted({s for s, _, _ in speedup_data}, key=scenario_sort_key)
+    backends = sorted({n for _, n, _ in speedup_data}, key=family_sort_key)
+    lookup = {(s, n): sp for s, n, sp in speedup_data}
+
+    # Layout
+    margin_left = 100
+    margin_right = 30
+    margin_top = 50
+    n_backends = len(backends)
+    n_scenarios = len(scenarios)
+    bar_width = max(8, min(22, 1100 // max(1, n_scenarios * n_backends)))
+    bar_gap = 2
+    group_gap = max(20, min(50, 1100 // max(1, n_scenarios * 3)))
+    group_width = n_backends * (bar_width + bar_gap) - bar_gap
+    chart_width = n_scenarios * (group_width + group_gap) - group_gap
+    chart_height = 350
+
+    legend_col_width = 200
+    legend_cols = max(1, min(4, (margin_left + chart_width + margin_right) // legend_col_width))
+    legend_rows = (n_backends + legend_cols - 1) // legend_cols
+    margin_bottom = 55 + legend_rows * 24
+
+    svg_w = max(margin_left + chart_width + margin_right, legend_cols * legend_col_width + margin_left)
+    svg_h = margin_top + chart_height + margin_bottom
+
+    max_speedup = max((sp for _, _, sp in speedup_data), default=1) * 1.15
+
+    def y_of(val):
+        if val <= 0:
+            return chart_height
+        return chart_height * (1 - val / max_speedup)
+
+    lines = []
+    lines.append(f'<svg xmlns="http://www.w3.org/2000/svg" width="{svg_w}" height="{svg_h}" '
+                 f'font-family="system-ui, sans-serif" font-size="14">')
+    lines.append(f'<rect width="{svg_w}" height="{svg_h}" fill="white"/>')
+    lines.append(f'<text x="{svg_w/2}" y="32" text-anchor="middle" font-size="20" '
+                 f'font-weight="bold">{title}</text>')
+
+    ox, oy = margin_left, margin_top
+    lines.append(f'<g transform="translate({ox},{oy})">')
+
+    lines.append(f'<text x="-75" y="{chart_height/2}" text-anchor="middle" '
+                 f'font-size="14" fill="#333" transform="rotate(-90,-75,{chart_height/2})">'
+                 f'speedup (×)</text>')
+
+    # Horizontal reference line at 1×
+    y1 = y_of(1.0)
+    lines.append(f'<line x1="0" y1="{y1:.1f}" x2="{chart_width}" y2="{y1:.1f}" '
+                 f'stroke="#999" stroke-width="1" stroke-dasharray="4,4"/>')
+    lines.append(f'<text x="-4" y="{y1+4:.1f}" text-anchor="end" font-size="10" fill="#999">1×</text>')
+
+    # Grid lines
+    for tick in range(2, int(max_speedup) + 1, max(1, int(max_speedup) // 5)):
+        yy = y_of(tick)
+        if yy > 0:
+            lines.append(f'<line x1="0" y1="{yy:.1f}" x2="{chart_width}" y2="{yy:.1f}" '
+                         f'stroke="#e0e0e0" stroke-width="0.5"/>')
+            lines.append(f'<text x="-4" y="{yy+4:.1f}" text-anchor="end" font-size="10" '
+                         f'fill="#999">{tick}×</text>')
+
+    for si, scenario in enumerate(scenarios):
+        gx = si * (group_width + group_gap)
+        for bi, backend in enumerate(backends):
+            val = lookup.get((scenario, backend))
+            if val is None:
+                continue
+            bx = gx + bi * (bar_width + bar_gap)
+            by = y_of(val)
+            bh = chart_height - by
+            color = get_color(backend)
+            lines.append(f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bar_width}" '
+                         f'height="{bh:.1f}" fill="{color}" rx="1"/>')
+            lines.append(f'<text x="{bx + bar_width/2:.1f}" y="{by - 3:.1f}" '
+                         f'text-anchor="middle" font-size="9" fill="#333">'
+                         f'{val:.1f}×</text>')
+
+        cx = gx + group_width / 2
+        lines.append(f'<text x="{cx:.1f}" y="{chart_height + 18}" text-anchor="middle" '
+                     f'font-size="13" font-weight="bold" fill="#333">{scenario}</text>')
+
+    lines.append(f'<line x1="0" y1="{chart_height}" x2="{chart_width}" '
+                 f'y2="{chart_height}" stroke="#333" stroke-width="1"/>')
+    lines.append('</g>')
+
+    # Legend
+    lx = ox
+    ly = oy + chart_height + 40
+    lines.append(f'<g transform="translate({lx},{ly})">')
+    for i, backend in enumerate(backends):
+        col = i % legend_cols
+        row = i // legend_cols
+        x = col * legend_col_width
+        y = row * 24
+        color = get_color(backend)
+        lines.append(f'<rect x="{x}" y="{y}" width="14" height="14" fill="{color}" rx="2"/>')
+        lines.append(f'<text x="{x+18}" y="{y+12}" font-size="13" fill="#333">{backend}</text>')
     lines.append('</g>')
     lines.append('</svg>')
 
@@ -287,11 +333,10 @@ def generate_chart(title, results, backends):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: gen_chart_all.py <results_dir> [timestamp]")
+        print("Usage: gen_chart_all.py <results_dir>")
         sys.exit(1)
 
     results_dir = sys.argv[1]
-    timestamp = sys.argv[2] if len(sys.argv) > 2 else str(int(time.time()))
 
     print(f"Loading results from {results_dir}...")
     all_results = load_results(results_dir)
@@ -303,35 +348,29 @@ def main():
     print(f"Total: {len(all_results)} results")
 
     # Group by backend type
-    groups = {"memory": [], "disk": [], "git": [], "optims_disk": [], "optims_memory": []}
+    groups = {"memory": [], "disk": [], "git": [], "optims_disk": [],
+              "optims_memory": [], "optims_lavyek": [],
+              "disk_parallel": [], "memory_parallel": []}
     for r in all_results:
         cat = classify_backend(r["name"], r.get("scenario", ""))
         groups.setdefault(cat, []).append(r)
 
-    def ordered_backends(results):
-        """Get unique backend names, sorted by family then name."""
-        seen = set()
-        names = []
-        for r in results:
-            if r["name"] not in seen:
-                names.append(r["name"])
-                seen.add(r["name"])
-        return sorted(names, key=family_sort_key)
-
     chart_dir = results_dir
 
-    # Charts in order: disk, memory, git, optims_disk, optims_memory
+    # Sequential charts
     chart_specs = [
-        ("disk", "Disk backends (fs, pack, lavyek) — ops/s comparison",
-         f"chart_disk_{timestamp}.svg"),
-        ("memory", "Memory backends — ops/s comparison",
-         f"chart_memory_{timestamp}.svg"),
-        ("git", "Git backends — ops/s comparison",
-         f"chart_git_{timestamp}.svg"),
-        ("optims_disk", "Irmini optimizations (disk) — ops/s comparison",
-         f"chart_optims_disk_{timestamp}.svg"),
-        ("optims_memory", "Irmini optimizations (memory) — ops/s comparison",
-         f"chart_optims_memory_{timestamp}.svg"),
+        ("disk", "Disk backends — single-core",
+         "chart_disk.svg"),
+        ("memory", "Memory backends — single-core",
+         "chart_memory.svg"),
+        ("git", "Git backends — single-core",
+         "chart_git.svg"),
+        ("optims_disk", "Irmini optimizations (disk)",
+         "chart_optims_disk.svg"),
+        ("optims_memory", "Irmini optimizations (memory)",
+         "chart_optims_memory.svg"),
+        ("optims_lavyek", "Irmini optimizations (lavyek)",
+         "chart_optims_lavyek.svg"),
     ]
 
     for cat, title, filename in chart_specs:
@@ -346,6 +385,61 @@ def main():
             with open(path, "w") as f:
                 f.write(svg)
             print(f"  Written {path} ({len(backends)} backends, {len(results)} results)")
+
+    # Parallel charts: remap scenario names, include sequential reference
+    parallel_specs = [
+        ("disk_parallel", "disk", "Disk backends — multi-core (100 fibers, 12 domains)",
+         "chart_disk_parallel.svg"),
+        ("memory_parallel", "memory", "Memory backends — multi-core (100 fibers, 12 domains)",
+         "chart_memory_parallel.svg"),
+    ]
+
+    for cat, seq_cat, title, filename in parallel_specs:
+        raw = groups.get(cat, [])
+        if not raw:
+            print(f"  No results for {cat}, skipping")
+            continue
+        # Only keep the main parallel config (100f/12d) and tezos parallel entries
+        main_par = [r for r in raw
+                    if re.search(r'-100f/\d+d$', r["scenario"])
+                    or not re.search(r'-\d+f/\d+d$', r["scenario"])]
+        remapped = remap_parallel_scenarios(main_par, rename_backends=True)
+        # Include tezos parallel data as-is (already has parallel config in name)
+        tezos_par = [r for r in main_par if not re.search(r'-\d+f/\d+d$', r["scenario"])]
+        remapped.extend(tezos_par)
+        # Build set of (base_backend, scenario) pairs that have parallel data
+        par_pairs = set()
+        for r in remapped:
+            base = re.sub(r'\s+\d+d[×x]\d+\w*f?$', '', r["name"])
+            par_pairs.add((base, r["scenario"]))
+        # Add sequential reference for comparison (only where parallel exists)
+        seq_seen = set()
+        seq_ref = []
+        for r in groups.get(seq_cat, []):
+            key = (r["name"], r["scenario"])
+            if key in par_pairs and key not in seq_seen:
+                seq_seen.add(key)
+                seq_ref.append({**r, "name": r["name"] + " (seq)"})
+        all_par = remapped + seq_ref
+        backends = ordered_backends(all_par)
+        svg = generate_chart(title, all_par, backends)
+        if svg:
+            path = os.path.join(chart_dir, filename)
+            with open(path, "w") as f:
+                f.write(svg)
+            print(f"  Written {path} ({len(backends)} backends, {len(all_par)} results)")
+
+    # Speedup chart: parallel vs sequential
+    par_results = groups.get("disk_parallel", []) + groups.get("memory_parallel", [])
+    seq_results = groups["disk"] + groups["memory"]
+    if par_results:
+        svg = generate_speedup_chart(
+            "Parallel speedup (vs sequential)", par_results, seq_results)
+        if svg:
+            path = os.path.join(chart_dir, "chart_speedup.svg")
+            with open(path, "w") as f:
+                f.write(svg)
+            print(f"  Written {path} ({len(par_results)} parallel results)")
 
 
 if __name__ == "__main__":

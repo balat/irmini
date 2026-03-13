@@ -6,9 +6,10 @@
 #   2. Irmini optimization comparison (baseline, +inline, +cache, +inode, +all)
 #   3. Tezos trace replay (sequential, all active backends)
 #   4. Parallel trace replay scaling sweep (multiple fiber counts)
-#   5. Irmin-Lwt and Irmin-Eio benchmarks (if IRMIN_DIR is set)
-#   6. Generate SVG charts
-#   7. Update bench/README.md with results
+#   5. Parallel scenario scaling sweep (varying fiber counts)
+#   6. Irmin-Lwt and Irmin-Eio benchmarks (if IRMIN_DIR is set)
+#   7. Generate SVG charts
+#   8. Update bench/README.md with results
 #
 # Usage:
 #   cd /path/to/monopampam
@@ -19,13 +20,16 @@
 #   --skip-optims       Skip optimization comparison
 #   --skip-trace        Skip trace replay
 #   --skip-parallel     Skip parallel scaling sweep
+#   --skip-scaling      Skip parallel scaling sweep
 #   --skip-irmin        Skip Irmin-Lwt/Eio benchmarks
 #   --skip-charts       Skip chart generation
 #   --skip-readme       Skip README update
+#   --regen             Skip all benchmarks, only regenerate charts + README
 #   --trace FILE        Path to .repr trace file (default: auto-detect)
 #   --trace-commits N   Max commits to replay (default: 10310)
-#   --parallel-fibers   Comma-separated fiber counts (default: 1,10,100,1000,10000,50000,100000)
+#   --parallel-fibers   Comma-separated fiber counts (default: 1,10,100,...)
 #   --parallel-domains  Number of domains for parallel (default: 12)
+#   --scaling-fibers    Comma-separated fiber counts for scaling sweep (default: 1,10,...,100000)
 #   --ncommits N        Override commit count (passed to benchmarks)
 #   --tree-add N        Override tree-add (passed to benchmarks)
 #   --depth N           Override depth (passed to benchmarks)
@@ -46,13 +50,16 @@ SKIP_IRMINI=false
 SKIP_OPTIMS=false
 SKIP_TRACE=false
 SKIP_PARALLEL=false
+SKIP_SCALING=false
 SKIP_IRMIN=false
 SKIP_CHARTS=false
 SKIP_README=false
+REGEN=false
 TRACE_FILE=""
 TRACE_COMMITS=10310
 PARALLEL_FIBERS="1,10,100,1000,10000,20000,30000,40000,45000,50000,55000,60000,70000,100000"
 PARALLEL_DOMAINS=12
+SCALING_FIBERS="1,10,50,100,500,1000,5000,10000,50000,100000"
 BENCH_ARGS=""
 
 # --- Parse args ---
@@ -62,13 +69,16 @@ while [[ $# -gt 0 ]]; do
     --skip-optims)    SKIP_OPTIMS=true; shift ;;
     --skip-trace)     SKIP_TRACE=true; shift ;;
     --skip-parallel)  SKIP_PARALLEL=true; shift ;;
+    --skip-scaling)   SKIP_SCALING=true; shift ;;
     --skip-irmin)     SKIP_IRMIN=true; shift ;;
     --skip-charts)    SKIP_CHARTS=true; shift ;;
     --skip-readme)    SKIP_README=true; shift ;;
+    --regen)          REGEN=true; shift ;;
     --trace)          TRACE_FILE="$2"; shift 2 ;;
     --trace-commits)  TRACE_COMMITS="$2"; shift 2 ;;
     --parallel-fibers)  PARALLEL_FIBERS="$2"; shift 2 ;;
     --parallel-domains) PARALLEL_DOMAINS="$2"; shift 2 ;;
+    --scaling-fibers)    SCALING_FIBERS="$2"; shift 2 ;;
     --ncommits|--tree-add|--depth|--nreads|--value-size)
       BENCH_ARGS="$BENCH_ARGS $1 $2"; shift 2 ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -117,6 +127,16 @@ echo ""
 
 cd "$MONOREPO_DIR"
 
+# --regen: skip all benchmark steps
+if [ "$REGEN" = true ]; then
+  SKIP_IRMINI=true
+  SKIP_OPTIMS=true
+  SKIP_TRACE=true
+  SKIP_PARALLEL=true
+  SKIP_SCALING=true
+  SKIP_IRMIN=true
+fi
+
 # ============================================================
 # 1. Irmini standard benchmarks
 # ============================================================
@@ -127,8 +147,8 @@ if [ "$SKIP_IRMINI" = false ]; then
   echo ""
   dune build irmini/bench/bench_irmin4_main.exe 2>&1 | tail -5
 
-  # All backends in one run
-  $BENCH $BENCH_ARGS \
+  # All backends in one run (value-size 20 to match README scenario names)
+  $BENCH --value-size 20 $BENCH_ARGS \
     --json "$OUTPUT_DIR/irmini_inode.json"
 
   echo ""
@@ -144,59 +164,58 @@ if [ "$SKIP_OPTIMS" = false ]; then
   echo ""
 
   OPTIM_PARAMS="--ncommits 50 --tree-add 500 --depth 10 --nreads 5000 --value-size 20"
-  SKIP_OTHER="--skip-lavyek --skip-git"
   TMPDIR_OPTIMS="$(mktemp -d)"
   trap 'rm -rf "$TMPDIR_OPTIMS"' EXIT
 
-  # --- Disk ---
-  DISK="$OPTIM_PARAMS $SKIP_OTHER --skip-memory"
+  # Optimization variants: name suffix, extra flags
+  # Each backend runs these 5 variants.
+  run_optim_variants() {
+    local backend="$1"      # disk|memory|lavyek
+    local backend_flag="$2" # --only-backend value
+    local name_suffix="$3"  # " (disk)" or "" or " (lavyek)"
+    local extra_base="$4"   # extra flags for baseline (e.g. --cache 0 for lavyek)
 
-  echo "--- Baseline (disk) ---"
-  $BENCH $DISK --inline-threshold 0 --no-inode --name "Irmini baseline (disk)" --json "$TMPDIR_OPTIMS/disk_baseline.json"
-  echo "--- +inline (disk) ---"
-  $BENCH $DISK --no-inode --name "Irmini+inline (disk)" --json "$TMPDIR_OPTIMS/disk_inline.json"
-  echo "--- +cache (disk) ---"
-  $BENCH $DISK --inline-threshold 0 --no-inode --cache 100000 --name "Irmini+cache (disk)" --json "$TMPDIR_OPTIMS/disk_cache.json"
-  echo "--- +inode (disk) ---"
-  $BENCH $DISK --inline-threshold 0 --name "Irmini+inode (disk)" --json "$TMPDIR_OPTIMS/disk_inode.json"
-  echo "--- +all (disk) ---"
-  $BENCH $DISK --cache 100000 --name "Irmini+all (disk)" --json "$TMPDIR_OPTIMS/disk_all.json"
+    local COMMON="$OPTIM_PARAMS --only-backend $backend_flag"
 
-  # Merge disk optims
-  python3 -c "
-import json, sys, glob
+    echo "--- Baseline ($backend) ---"
+    $BENCH $COMMON $extra_base --inline-threshold 0 --no-inode \
+      --name "Irmini baseline$name_suffix" --json "$TMPDIR_OPTIMS/${backend}_baseline.json"
+    echo "--- +inline ($backend) ---"
+    $BENCH $COMMON $extra_base --no-inode \
+      --name "Irmini+inline$name_suffix" --json "$TMPDIR_OPTIMS/${backend}_inline.json"
+    echo "--- +cache ($backend) ---"
+    $BENCH $COMMON $extra_base --inline-threshold 0 --no-inode --cache 100000 \
+      --name "Irmini+cache$name_suffix" --json "$TMPDIR_OPTIMS/${backend}_cache.json"
+    echo "--- +inode ($backend) ---"
+    $BENCH $COMMON $extra_base --inline-threshold 0 \
+      --name "Irmini+inode$name_suffix" --json "$TMPDIR_OPTIMS/${backend}_inode.json"
+    echo "--- +all ($backend) ---"
+    $BENCH $COMMON --cache 100000 \
+      --name "Irmini+all$name_suffix" --json "$TMPDIR_OPTIMS/${backend}_all.json"
+  }
+
+  merge_optim_results() {
+    local backend="$1"
+    local out_name="$2"
+    python3 -c "
+import json, glob
 results = []
-for f in sorted(glob.glob('$TMPDIR_OPTIMS/disk_*.json')):
+for f in sorted(glob.glob('$TMPDIR_OPTIMS/${backend}_*.json')):
     with open(f) as fh: results.extend(json.load(fh))
-with open('$OUTPUT_DIR/irmini_optims_disk.json', 'w') as fh:
+with open('$OUTPUT_DIR/${out_name}.json', 'w') as fh:
     json.dump(results, fh, indent=2); fh.write('\n')
-print(f'Merged {len(results)} disk optim results')
+print(f'Merged {len(results)} $backend optim results')
 "
+  }
 
-  # --- Memory ---
-  MEM="$OPTIM_PARAMS $SKIP_OTHER --skip-disk"
+  run_optim_variants "disk"   "disk"   " (disk)"   ""
+  merge_optim_results "disk" "irmini_optims_disk"
 
-  echo "--- Baseline (memory) ---"
-  $BENCH $MEM --inline-threshold 0 --no-inode --name "Irmini baseline" --json "$TMPDIR_OPTIMS/mem_baseline.json"
-  echo "--- +inline (memory) ---"
-  $BENCH $MEM --no-inode --name "Irmini+inline" --json "$TMPDIR_OPTIMS/mem_inline.json"
-  echo "--- +cache (memory) ---"
-  $BENCH $MEM --inline-threshold 0 --no-inode --cache 100000 --name "Irmini+cache" --json "$TMPDIR_OPTIMS/mem_cache.json"
-  echo "--- +inode (memory) ---"
-  $BENCH $MEM --inline-threshold 0 --name "Irmini+inode" --json "$TMPDIR_OPTIMS/mem_inode.json"
-  echo "--- +all (memory) ---"
-  $BENCH $MEM --cache 100000 --name "Irmini+all" --json "$TMPDIR_OPTIMS/mem_all.json"
+  run_optim_variants "memory" "memory" ""           ""
+  merge_optim_results "memory" "irmini_optims_memory"
 
-  # Merge memory optims
-  python3 -c "
-import json, sys, glob
-results = []
-for f in sorted(glob.glob('$TMPDIR_OPTIMS/mem_*.json')):
-    with open(f) as fh: results.extend(json.load(fh))
-with open('$OUTPUT_DIR/irmini_optims_memory.json', 'w') as fh:
-    json.dump(results, fh, indent=2); fh.write('\n')
-print(f'Merged {len(results)} memory optim results')
-"
+  run_optim_variants "lavyek" "lavyek" " (lavyek)"  "--cache 0"
+  merge_optim_results "lavyek" "irmini_optims_lavyek"
 
   rm -rf "$TMPDIR_OPTIMS"
   echo ""
@@ -235,6 +254,7 @@ if [ "$SKIP_PARALLEL" = false ] && [ -n "$TRACE_FILE" ]; then
     echo "--- ${PARALLEL_DOMAINS}d × ${fibers}f ---"
     $BENCH --skip-memory --skip-disk --skip-git \
       --trace "$TRACE_FILE" --trace-commits "$TRACE_COMMITS" \
+      --cache 100000 \
       --parallel-domains "$PARALLEL_DOMAINS" \
       --parallel-fibers "$fibers" \
       --json "$TMPDIR_PAR/parallel_${fibers}.json"
@@ -260,11 +280,54 @@ print(f'Merged {len(results)} parallel results')
 fi
 
 # ============================================================
-# 5. Irmin-Lwt and Irmin-Eio benchmarks (optional)
+# 5. Parallel scenario scaling sweep
+# ============================================================
+if [ "$SKIP_SCALING" = false ]; then
+  echo "========================================="
+  echo "  5. Parallel scaling sweep (commits & reads)"
+  echo "========================================="
+  echo ""
+
+  TMPDIR_SCALE="$(mktemp -d)"
+
+  IFS=',' read -ra SCALE_FIBERS_ARRAY <<< "$SCALING_FIBERS"
+
+  # Use same workload as standard benchmarks
+  SCALE_PARAMS="--value-size 20"
+
+  # --- Irmini (lavyek) ---
+  for fibers in "${SCALE_FIBERS_ARRAY[@]}"; do
+    echo "--- Irmini lavyek: ${fibers} fibers ---"
+    $BENCH --skip-memory --skip-disk --skip-git \
+      $SCALE_PARAMS --nfibers "$fibers" $BENCH_ARGS \
+      --json "$TMPDIR_SCALE/lavyek_${fibers}.json"
+    echo ""
+  done
+
+  # Merge scaling results (keep only parallel scenarios: those with f/d suffix)
+  python3 -c "
+import json, glob, re
+results = []
+for f in sorted(glob.glob('$TMPDIR_SCALE/*.json'), key=lambda p: int(re.search(r'_(\d+)\.json', p).group(1))):
+    with open(f) as fh:
+        for r in json.load(fh):
+            if re.search(r'\d+f/\d+d$', r['scenario']):
+                results.append(r)
+with open('$OUTPUT_DIR/irmini_scaling.json', 'w') as fh:
+    json.dump(results, fh, indent=2); fh.write('\n')
+print(f'Merged {len(results)} scaling results')
+"
+
+  rm -rf "$TMPDIR_SCALE"
+  echo ""
+fi
+
+# ============================================================
+# 6. Irmin-Lwt and Irmin-Eio benchmarks (optional)
 # ============================================================
 if [ "$SKIP_IRMIN" = false ] && [ -n "${IRMIN_DIR:-}" ] && [ -d "${IRMIN_DIR}" ]; then
   echo "========================================="
-  echo "  5. Irmin benchmarks"
+  echo "  6. Irmin benchmarks"
   echo "========================================="
   echo ""
 
@@ -401,13 +464,60 @@ else:
         "$OUTPUT_DIR/irmin_eio_parallel.json" \
         "--skip-pack --skip-fs --skip-git --trace $TRACE_FILE --trace-commits $TRACE_COMMITS --trace-empty-blobs --parallel-domains $PARALLEL_DOMAINS --parallel-fibers 1"
 
-      # Also run with higher fiber counts for scaling comparison
-      for fibers in 10 100 1000; do
-        echo "  --- Irmin-Eio parallel $fibers fibers/domain ---"
-        run_irmin_bench "cuihtlauac-inline-small-objects-v2" "bench-irmin-eio" "bench-irmin-eio" \
-          "$OUTPUT_DIR/irmin_eio_parallel_${fibers}f.json" \
-          "--skip-pack --skip-fs --skip-git --trace $TRACE_FILE --trace-commits $TRACE_COMMITS --trace-empty-blobs --parallel-domains $PARALLEL_DOMAINS --parallel-fibers $fibers"
-      done
+      # Generate tezos_parallel.json combining peak irmini + irmin-eio parallel results
+      python3 -c "
+import json, re, os, glob
+
+results_dir = '$OUTPUT_DIR'
+entries = []
+
+# Peak irmini parallel result
+par_file = os.path.join(results_dir, 'irmini_parallel.json')
+if os.path.exists(par_file):
+    with open(par_file) as f:
+        par_data = json.load(f)
+    if par_data:
+        peak = max(par_data, key=lambda r: r['ops_per_sec'])
+        m = re.search(r'(\d+)d.*?(\d+)f', peak['scenario'])
+        if m:
+            domains, fibers = m.group(1), m.group(2)
+            fib_str = f'{int(fibers)//1000}k' if int(fibers) >= 1000 else fibers
+            entries.append({
+                'name': f'Irmini (lavyek) {domains}d\u00d7{fib_str}f',
+                'scenario': 'tezos-${TRACE_COMMITS}commits',
+                'total_ops': peak['total_ops'],
+                'total_time': peak['total_time'],
+                'ops_per_sec': peak['ops_per_sec'],
+                'maxrss_kb': peak.get('maxrss_kb', 0),
+            })
+
+# Irmin-Eio parallel result
+eio_file = os.path.join(results_dir, 'irmin_eio_parallel.json')
+if os.path.exists(eio_file):
+    with open(eio_file) as f:
+        eio_data = json.load(f)
+    for r in eio_data:
+        if 'parallel' in r.get('scenario', ''):
+            m = re.search(r'(\d+)d.*?(\d+)f', r['scenario'])
+            if m:
+                domains, fibers = m.group(1), m.group(2)
+                entries.append({
+                    'name': f'Irmin-Eio (pack) {domains}d\u00d7{fibers}f',
+                    'scenario': 'tezos-${TRACE_COMMITS}commits',
+                    'total_ops': r['total_ops'],
+                    'total_time': r['total_time'],
+                    'ops_per_sec': r['ops_per_sec'],
+                    'maxrss_kb': r.get('maxrss_kb', 0),
+                })
+            break
+
+if entries:
+    out = os.path.join(results_dir, 'tezos_parallel.json')
+    with open(out, 'w') as f:
+        json.dump(entries, f, indent=2)
+        f.write('\n')
+    print(f'Generated {out} with {len(entries)} entries')
+"
     fi
   fi
 
@@ -415,25 +525,17 @@ else:
 fi
 
 # ============================================================
-# 6. Generate charts
+# 7. Generate charts
 # ============================================================
 if [ "$SKIP_CHARTS" = false ]; then
   echo "========================================="
-  echo "  6. Generating charts"
+  echo "  7. Generating charts"
   echo "========================================="
   echo ""
 
   # Backend comparison charts
   if [ -f "$SCRIPT_DIR/gen_chart_all.py" ]; then
-    python3 "$SCRIPT_DIR/gen_chart_all.py" "$OUTPUT_DIR" ""
-    # Rename to stable names (remove empty timestamp)
-    for cat in disk memory git optims_disk optims_memory; do
-      src="$OUTPUT_DIR/chart_${cat}_.svg"
-      dst="$OUTPUT_DIR/chart_${cat}.svg"
-      if [ -f "$src" ]; then
-        mv "$src" "$dst"
-      fi
-    done
+    python3 "$SCRIPT_DIR/gen_chart_all.py" "$OUTPUT_DIR"
   fi
 
   # Parallel scaling chart (reads data from JSON if available)
@@ -441,15 +543,20 @@ if [ "$SKIP_CHARTS" = false ]; then
     python3 "$SCRIPT_DIR/gen_chart_parallel.py" "$OUTPUT_DIR/chart_parallel_scaling.svg" --json "$OUTPUT_DIR"
   fi
 
+  # Parallel scaling chart
+  if [ -f "$SCRIPT_DIR/gen_chart_scaling.py" ]; then
+    python3 "$SCRIPT_DIR/gen_chart_scaling.py" "$OUTPUT_DIR/chart_scaling.svg" --json "$OUTPUT_DIR"
+  fi
+
   echo ""
 fi
 
 # ============================================================
-# 7. Update README
+# 8. Update README
 # ============================================================
 if [ "$SKIP_README" = false ]; then
   echo "========================================="
-  echo "  7. Updating README"
+  echo "  8. Updating README"
   echo "========================================="
   echo ""
 

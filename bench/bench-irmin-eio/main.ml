@@ -24,6 +24,7 @@ let () =
   let trace_file = ref "" in
   let trace_commits = ref 0 in
   let trace_empty_blobs = ref false in
+  let nfibers = ref 0 in
   let parallel_domains = ref 0 in
   let parallel_fibers = ref 100 in
   Arg.parse
@@ -46,6 +47,8 @@ let () =
        "Max commits to replay (0 = all)");
       ("--trace-empty-blobs", Arg.Set trace_empty_blobs,
        "Replace blobs with empty strings");
+      ("--nfibers", Arg.Set_int nfibers,
+       "Total number of fibers for parallel scenarios (0 = one per domain)");
       ("--parallel-domains", Arg.Set_int parallel_domains,
        "Domains for parallel replay (0 = skip)");
       ("--parallel-fibers", Arg.Set_int parallel_fibers,
@@ -94,6 +97,15 @@ let () =
     let root = "_build/_bench_pack" in
     rm_rf Eio.Path.(fs / root);
     run "Irmin-Eio (pack)" (Bench_irmin_pack.run_all ~sw ~fs conf root)
+  end;
+  (* 2b. Irmin-pack parallel scenarios *)
+  if not !skip_pack then begin
+    Eio.Switch.run @@ fun sw ->
+    let root = "_build/_bench_pack_parallel" in
+    rm_rf Eio.Path.(fs / root);
+    let nfibers = if !nfibers > 0 then Some !nfibers else None in
+    run "Irmin-Eio (pack) parallel"
+      (Bench_irmin_pack.run_all_parallel ?nfibers ~env conf sw fs root)
   end;
   (* 3. Irmin-fs *)
   if not !skip_fs then begin
