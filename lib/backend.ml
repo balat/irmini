@@ -375,7 +375,8 @@ module Disk = struct
         (index, bloom, data_offset)
         records
 
-  let create_with_hash (type h) ~sw (root : Eio.Fs.dir_ty Eio.Path.t)
+  let create_with_hash (type h) ?(use_fsync = true) ~sw
+      (root : Eio.Fs.dir_ty Eio.Path.t)
       (to_hex : h -> string) (of_hex : string -> (h, [ `Msg of string ]) result)
       (equal : h -> h -> bool) : h t =
     (* Create root directory if needed *)
@@ -435,7 +436,7 @@ module Disk = struct
                 | Some wal, Some file ->
                     (* Write to WAL first for crash safety *)
                     Wal.append wal (encode_wal_record key data);
-                    Wal.sync wal;
+                    if use_fsync then Wal.sync wal;
                     (* Then write to data file *)
                     let len = String.length data in
                     let offset = state.data_offset in
@@ -498,7 +499,7 @@ module Disk = struct
                       if not (String_map.mem key state.index) then
                         Wal.append wal (encode_wal_record key data))
                     objects;
-                  Wal.sync wal;
+                  if use_fsync then Wal.sync wal;
                   (* Then write to data file *)
                   List.iter
                     (fun (h, data) ->
@@ -548,11 +549,11 @@ module Disk = struct
               state.data_file <- None));
     }
 
-  let create_sha1 ?cache ~sw root =
-    let b = create_with_hash ~sw root Hash.to_hex Hash.sha1_of_hex Hash.equal in
+  let create_sha1 ?cache ?(use_fsync = true) ~sw root =
+    let b = create_with_hash ~use_fsync ~sw root Hash.to_hex Hash.sha1_of_hex Hash.equal in
     match cache with Some capacity -> cached ~capacity b | None -> b
 
-  let create_sha256 ?cache ~sw root =
-    let b = create_with_hash ~sw root Hash.to_hex Hash.sha256_of_hex Hash.equal in
+  let create_sha256 ?cache ?(use_fsync = true) ~sw root =
+    let b = create_with_hash ~use_fsync ~sw root Hash.to_hex Hash.sha256_of_hex Hash.equal in
     match cache with Some capacity -> cached ~capacity b | None -> b
 end

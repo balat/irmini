@@ -7,14 +7,16 @@ open Irmin
 
 let ref_prefix = "ref:"
 
-let create_with_hash ~sw root to_hex of_hex equal : _ Backend.t =
+let create_with_hash ?(use_fsync = true) ~sw root to_hex of_hex equal
+    : _ Backend.t =
   let db = Lavyek.create ~sw root in
   (* Mutex to protect test_and_set_ref atomicity: the read-then-write
      sequence must not be interleaved with concurrent ref modifications. *)
   let ref_mutex = Eio.Mutex.create () in
+  let sync = use_fsync in
   {
     read = (fun h -> Lavyek.find db ~key:(to_hex h));
-    write = (fun h data -> Lavyek.put db (to_hex h) data);
+    write = (fun h data -> Lavyek.put ~sync db (to_hex h) data);
     exists = (fun h -> Option.is_some (Lavyek.find db ~key:(to_hex h)));
     get_ref =
       (fun name ->
@@ -25,7 +27,7 @@ let create_with_hash ~sw root to_hex of_hex equal : _ Backend.t =
     set_ref =
       (fun name hash ->
         Eio.Mutex.use_rw ~protect:true ref_mutex (fun () ->
-            Lavyek.put db (ref_prefix ^ name) (to_hex hash)));
+            Lavyek.put ~sync db (ref_prefix ^ name) (to_hex hash)));
     test_and_set_ref =
       (fun name ~test ~set ->
         Eio.Mutex.use_rw ~protect:true ref_mutex (fun () ->
@@ -43,8 +45,8 @@ let create_with_hash ~sw root to_hex of_hex equal : _ Backend.t =
             in
             if matches then (
               (match set with
-              | None -> Lavyek.remove db (ref_prefix ^ name)
-              | Some h -> Lavyek.put db (ref_prefix ^ name) (to_hex h));
+              | None -> Lavyek.remove ~sync db (ref_prefix ^ name)
+              | Some h -> Lavyek.put ~sync db (ref_prefix ^ name) (to_hex h));
               true)
             else false));
     list_refs =
@@ -57,19 +59,19 @@ let create_with_hash ~sw root to_hex of_hex equal : _ Backend.t =
                else None));
     write_batch =
       (fun objects ->
-        List.iter (fun (h, data) -> Lavyek.put db (to_hex h) data) objects);
+        List.iter (fun (h, data) -> Lavyek.put ~sync db (to_hex h) data) objects);
     flush = (fun () -> ());
     close = (fun () -> Lavyek.close db);
   }
 
-let create_sha1 ?cache ~sw root =
-  let b = create_with_hash ~sw root Hash.to_hex Hash.sha1_of_hex Hash.equal in
+let create_sha1 ?cache ?(use_fsync = true) ~sw root =
+  let b = create_with_hash ~use_fsync ~sw root Hash.to_hex Hash.sha1_of_hex Hash.equal in
   match cache with
   | Some capacity -> Backend.cached ~capacity b
   | None -> b
 
-let create_sha256 ?cache ~sw root =
-  let b = create_with_hash ~sw root Hash.to_hex Hash.sha256_of_hex Hash.equal in
+let create_sha256 ?cache ?(use_fsync = true) ~sw root =
+  let b = create_with_hash ~use_fsync ~sw root Hash.to_hex Hash.sha256_of_hex Hash.equal in
   match cache with
   | Some capacity -> Backend.cached ~capacity b
   | None -> b

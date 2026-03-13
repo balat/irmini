@@ -89,15 +89,16 @@ val layered : upper:'h t -> lower:'h t -> 'h t
 
 module Disk : sig
   val create_with_hash :
+    ?use_fsync:bool ->
     sw:Eio.Switch.t ->
     Eio.Fs.dir_ty Eio.Path.t ->
     ('h -> string) ->
     (string -> ('h, [ `Msg of string ]) result) ->
     ('h -> 'h -> bool) ->
     'h t
-  (** [create_with_hash ~sw root to_hex of_hex equal] creates a disk-based
-      backend at [root]. Uses append-only storage for objects with an index file
-      for lookups.
+  (** [create_with_hash ~use_fsync ~sw root to_hex of_hex equal] creates a
+      disk-based backend at [root]. When [use_fsync] is [false], WAL writes are
+      not fsynced (faster but less crash-safe). Default: [true].
 
       Storage layout:
       - objects.data: append-only file containing all objects
@@ -105,14 +106,18 @@ module Disk : sig
       - refs/: directory with one file per ref *)
 
   val create_sha1 :
-    ?cache:int -> sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Hash.sha1 t
+    ?cache:int -> ?use_fsync:bool ->
+    sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Hash.sha1 t
   (** Create a disk-based SHA-1 backend. If [cache] is given, wraps with an
-      LRU cache of that capacity. *)
+      LRU cache of that capacity. When [use_fsync] is [false], WAL writes are
+      not fsynced (faster but less crash-safe). Default: [true]. *)
 
   val create_sha256 :
-    ?cache:int -> sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Hash.sha256 t
+    ?cache:int -> ?use_fsync:bool ->
+    sw:Eio.Switch.t -> Eio.Fs.dir_ty Eio.Path.t -> Hash.sha256 t
   (** Create a disk-based SHA-256 backend. If [cache] is given, wraps with an
-      LRU cache of that capacity. *)
+      LRU cache of that capacity. When [use_fsync] is [false], WAL writes are
+      not fsynced (faster but less crash-safe). Default: [true]. *)
 end
 
 (** {1 Statistics} *)
