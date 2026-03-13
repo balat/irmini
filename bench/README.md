@@ -79,6 +79,15 @@ Full comparison across all implementations:
 IRMIN_DIR=/path/to/irmin ./bench/run_all.sh
 ```
 
+Run a single backend or scenario:
+
+```
+cd /path/to/monopampam
+dune exec irmini/bench/bench_irmin4_main.exe -- --only-backend lavyek
+dune exec irmini/bench/bench_irmin4_main.exe -- --only-scenario commits
+dune exec irmini/bench/bench_irmin4_main.exe -- --only-backend memory --only-scenario reads
+```
+
 Tezos trace replay (irmini, all active backends):
 
 ```
@@ -123,6 +132,8 @@ dune exec bench/irmin-pack/tree.exe -- \
 | `--no-flatten`        | false   | Disable Tezos path flattening            |
 | `--parallel-domains`  | 0       | Domains for parallel scenarios and trace replay (0 = skip) |
 | `--parallel-fibers`   | 100     | Fibers per domain for parallel scenarios and trace replay |
+| `--only-backend`      | —       | Run only this backend: memory\|disk\|lavyek\|git |
+| `--only-scenario`     | —       | Run only this scenario: commits\|reads\|incremental |
 
 ## Scenarios
 

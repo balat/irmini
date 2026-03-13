@@ -392,10 +392,73 @@ let scenario_parallel_incremental ?inline_threshold ?inode ~ndomains ~fibers_per
     maxrss_kb = Bench_common.get_maxrss_kb ();
   }
 
+(** {1 Scenario matrix and generic runner} *)
+
+type scenario_id = Commits | Reads | Incremental
+
+let all_scenario_ids = [ Commits; Reads; Incremental ]
+
+let scenario_name = function
+  | Commits -> "commits"
+  | Reads -> "reads"
+  | Incremental -> "incremental"
+
+(** Run all scenarios for a backend.
+
+    [mk_backend ()] creates a fresh sequential backend.
+    [mk_backend_ts] (optional) creates a fresh thread-safe backend for parallel
+    scenarios.  If [None], parallel scenarios are skipped (e.g. git).
+    [~env] is required when [mk_backend_ts] is provided (for Eio domain manager).
+    [?close] is called after each scenario to clean up the backend (e.g. disk).
+    [?scenarios] filters by scenario id (default: all three).
+    Each scenario is run on both the base [conf] and a large-value variant. *)
+let run_scenarios ?inline_threshold ?inode
+    ~mk_backend ?mk_backend_ts ?close
+    ?(ndomains = 0) ?(fibers_per_domain = 1)
+    ?(scenarios = all_scenario_ids) ~name ?env
+    (conf : Bench_common.config) =
+  let confs = [ conf; { conf with value_size = 10_000 } ] in
+  let with_close backend f =
+    match close with
+    | None -> f ~backend
+    | Some finally ->
+      Fun.protect ~finally:(fun () -> finally backend) (fun () -> f ~backend)
+  in
+  let run_seq scenario c =
+    let backend = mk_backend () in
+    with_close backend (fun ~backend ->
+      match scenario with
+      | Commits -> scenario_commits ?inline_threshold ?inode ~name ~backend c
+      | Reads -> scenario_reads ?inline_threshold ?inode ~name ~backend c
+      | Incremental -> scenario_incremental ?inline_threshold ?inode ~name ~backend c)
+  in
+  let run_par scenario c =
+    match mk_backend_ts, env with
+    | Some mk_ts, Some env when ndomains > 0 ->
+      let backend = mk_ts () in
+      [ with_close backend (fun ~backend ->
+          match scenario with
+          | Commits ->
+            scenario_parallel_commits ?inline_threshold ?inode
+              ~ndomains ~fibers_per_domain ~name ~backend ~env c
+          | Reads ->
+            scenario_parallel_reads ?inline_threshold ?inode
+              ~ndomains ~fibers_per_domain ~name ~backend ~env c
+          | Incremental ->
+            scenario_parallel_incremental ?inline_threshold ?inode
+              ~ndomains ~fibers_per_domain ~name ~backend ~env c) ]
+    | _ -> []
+  in
+  List.concat_map (fun c ->
+      List.concat_map (fun s ->
+          run_seq s c :: run_par s c)
+        scenarios)
+    confs
+
 (** {1 Backend runners} *)
 
-let run_all_memory ?inline_threshold ?inode ?(cache = 0) ?name:custom_name
-    ?(ndomains = 0) ?(fibers_per_domain = 1) ?env
+let run_all_memory ?inline_threshold ?inode ?(cache = 0)
+    ?ndomains ?fibers_per_domain ?scenarios ?name:custom_name ~env
     (conf : Bench_common.config) =
   let name = match custom_name with
     | Some n -> n
@@ -404,50 +467,25 @@ let run_all_memory ?inline_threshold ?inode ?(cache = 0) ?name:custom_name
       "Irmini" ^ suffix ^ " (memory)"
   in
   let cache = if cache > 0 then Some cache else None in
-  let mk () = Backend.Memory.create_sha1 ?cache () in
-  let large = { conf with value_size = 10_000 } in
-  let seq = [
-    scenario_commits ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
-    scenario_reads ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
-    scenario_incremental ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
-    scenario_commits ?inline_threshold ?inode ~name ~backend:(mk ()) large;
-    scenario_reads ?inline_threshold ?inode ~name ~backend:(mk ()) large;
-    scenario_incremental ?inline_threshold ?inode ~name ~backend:(mk ()) large;
-  ] in
-  let par =
-    match env with
-    | Some env when ndomains > 0 ->
-      let backend = Backend.thread_safe (mk ()) in
-      [
-        scenario_parallel_reads ?inline_threshold ?inode ~ndomains ~fibers_per_domain ~name ~backend ~env conf;
-        scenario_parallel_commits ?inline_threshold ?inode ~ndomains ~fibers_per_domain ~name ~backend ~env conf;
-        scenario_parallel_incremental ?inline_threshold ?inode ~ndomains ~fibers_per_domain ~name ~backend ~env conf;
-      ]
-    | _ -> []
-  in
-  seq @ par
+  let mk_backend () = Backend.Memory.create_sha1 ?cache () in
+  let mk_backend_ts () = Backend.thread_safe (mk_backend ()) in
+  run_scenarios ?inline_threshold ?inode ?ndomains ?fibers_per_domain ?scenarios
+    ~mk_backend ~mk_backend_ts ~name ~env conf
 
-let run_all_git ?(cache = 0) ~sw ~fs root (conf : Bench_common.config) =
+let run_all_git ?(cache = 0) ?scenarios ~sw ~fs root
+    (conf : Bench_common.config) =
   let suffix = if cache > 0 then "+cache" else "" in
   let name = "Irmini" ^ suffix ^ " (git)" in
   let path = Fpath.v (snd root) in
   let store = Git_interop.init_git ~sw ~fs ~path in
-  let mk () = Store.Git.backend store in
-  (* Git backend: disable inlining and inodes for 100% git compatibility *)
+  let mk_backend () = Store.Git.backend store in
   let inline_threshold = Some 0 in
   let inode = Some false in
-  let large = { conf with value_size = 10_000 } in
-  [
-    scenario_commits ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
-    scenario_reads ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
-    scenario_incremental ?inline_threshold ?inode ~name ~backend:(mk ()) conf;
-    scenario_commits ?inline_threshold ?inode ~name ~backend:(mk ()) large;
-    scenario_reads ?inline_threshold ?inode ~name ~backend:(mk ()) large;
-    scenario_incremental ?inline_threshold ?inode ~name ~backend:(mk ()) large;
-  ]
+  run_scenarios ?inline_threshold ?inode ?scenarios
+    ~mk_backend ~name conf
 
-let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?name:custom_name
-    ?(ndomains = 0) ?(fibers_per_domain = 1)
+let run_all_disk ?inline_threshold ?inode ?(cache = 0)
+    ?ndomains ?fibers_per_domain ?scenarios ?name:custom_name
     ~sw ~env root (conf : Bench_common.config) =
   let name = match custom_name with
     | Some n -> n
@@ -456,25 +494,8 @@ let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?name:custom_name
       "Irmini" ^ suffix ^ " (disk)"
   in
   let cache = if cache > 0 then Some cache else None in
-  let mk () = Backend.Disk.create_sha1 ?cache ~sw root in
-  let run_one f =
-    let backend = mk () in
-    Fun.protect ~finally:(fun () -> backend.close ()) (fun () -> f ~backend)
-  in
-  let large = { conf with value_size = 10_000 } in
-  let seq = [
-    run_one (fun ~backend -> scenario_commits ?inline_threshold ?inode ~name ~backend conf);
-    run_one (fun ~backend -> scenario_reads ?inline_threshold ?inode ~name ~backend conf);
-    run_one (fun ~backend -> scenario_incremental ?inline_threshold ?inode ~name ~backend conf);
-    run_one (fun ~backend -> scenario_commits ?inline_threshold ?inode ~name ~backend large);
-    run_one (fun ~backend -> scenario_reads ?inline_threshold ?inode ~name ~backend large);
-    run_one (fun ~backend -> scenario_incremental ?inline_threshold ?inode ~name ~backend large);
-  ] in
-  let par =
-    if ndomains > 0 then [
-      run_one (fun ~backend -> scenario_parallel_reads ?inline_threshold ?inode ~ndomains ~fibers_per_domain ~name ~backend ~env conf);
-      run_one (fun ~backend -> scenario_parallel_commits ?inline_threshold ?inode ~ndomains ~fibers_per_domain ~name ~backend ~env conf);
-      run_one (fun ~backend -> scenario_parallel_incremental ?inline_threshold ?inode ~ndomains ~fibers_per_domain ~name ~backend ~env conf);
-    ] else []
-  in
-  seq @ par
+  let mk_backend () = Backend.Disk.create_sha1 ?cache ~sw root in
+  let mk_backend_ts () = mk_backend () in
+  let close (backend : Hash.sha1 Backend.t) = backend.close () in
+  run_scenarios ?inline_threshold ?inode ?ndomains ?fibers_per_domain ?scenarios
+    ~mk_backend ~mk_backend_ts ~close ~name ~env conf
