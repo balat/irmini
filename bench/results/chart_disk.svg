@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1645" height="503" font-family="system-ui, sans-serif" font-size="14">
 <rect width="1645" height="503" fill="white"/>
 <defs>
-<pattern id="hatch-4415" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#e87c7e"/><line x1="0" y1="0" x2="0" y2="6" stroke="white" stroke-width="2"/></pattern>
-<pattern id="hatch-1436" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#59a14f"/><line x1="0" y1="0" x2="0" y2="6" stroke="white" stroke-width="2"/></pattern>
+<pattern id="hatch-2800" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#e87c7e"/><line x1="0" y1="0" x2="0" y2="6" stroke="white" stroke-width="2"/></pattern>
+<pattern id="hatch-3278" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#59a14f"/><line x1="0" y1="0" x2="0" y2="6" stroke="white" stroke-width="2"/></pattern>
 </defs>
 <text x="822.5" y="32" text-anchor="middle" font-size="20" font-weight="bold">Disk backends (fs, pack, lavyek) — ops/s comparison</text>
 <g transform="translate(100,50)">
@@ -134,11 +134,11 @@
 <text x="1392.5" y="338.9" text-anchor="middle" font-size="9" fill="#333">135k</text>
 <rect x="1422.0" y="345.0" width="17" height="5.0" fill="#e87c7e" rx="1"/>
 <text x="1430.5" y="342.0" text-anchor="middle" font-size="9" fill="#333">83k</text>
-<rect x="1441.0" y="337.7" width="17" height="12.3" fill="url(#hatch-4415)" rx="1"/>
+<rect x="1441.0" y="337.7" width="17" height="12.3" fill="url(#hatch-2800)" rx="1"/>
 <text x="1449.5" y="334.7" text-anchor="middle" font-size="9" fill="#333">205k</text>
 <rect x="1479.0" y="341.9" width="17" height="8.1" fill="#59a14f" rx="1"/>
 <text x="1487.5" y="338.9" text-anchor="middle" font-size="9" fill="#333">135k</text>
-<rect x="1498.0" y="45.7" width="17" height="304.3" fill="url(#hatch-1436)" rx="1"/>
+<rect x="1498.0" y="45.7" width="17" height="304.3" fill="url(#hatch-3278)" rx="1"/>
 <text x="1506.5" y="42.7" text-anchor="middle" font-size="9" fill="#333">5.1M</text>
 <text x="1440.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">tezos-10310commits</text>
 <line x1="0" y1="350" x2="1515" y2="350" stroke="#333" stroke-width="1"/>
@@ -152,13 +152,13 @@
 <text x="418" y="12" font-size="13" fill="#333">Irmin-Eio (fs)</text>
 <rect x="600" y="0" width="14" height="14" fill="#e87c7e" rx="2"/>
 <text x="618" y="12" font-size="13" fill="#333">Irmin-Eio (pack)</text>
-<rect x="0" y="24" width="14" height="14" fill="url(#hatch-4415)" rx="2"/>
+<rect x="0" y="24" width="14" height="14" fill="url(#hatch-2800)" rx="2"/>
 <text x="18" y="36" font-size="13" fill="#333">Irmin-Eio (pack) 12d×1f</text>
 <rect x="200" y="24" width="14" height="14" fill="#6d9dc5" rx="2"/>
 <text x="218" y="36" font-size="13" fill="#333">Irmini (disk)</text>
 <rect x="400" y="24" width="14" height="14" fill="#59a14f" rx="2"/>
 <text x="418" y="36" font-size="13" fill="#333">Irmini (lavyek)</text>
-<rect x="600" y="24" width="14" height="14" fill="url(#hatch-1436)" rx="2"/>
+<rect x="600" y="24" width="14" height="14" fill="url(#hatch-3278)" rx="2"/>
 <text x="618" y="36" font-size="13" fill="#333">Irmini (lavyek) 12d×50kf</text>
 </g>
 </svg>
