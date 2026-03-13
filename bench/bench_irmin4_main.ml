@@ -179,8 +179,9 @@ let () =
         (fun () -> run_trace ~backend_name:"Irmini (lavyek)" ~backend)
     end
   end;
-  (* 6. Parallel trace replay *)
+  (* 6. Parallel trace replay — GC before to reclaim memory from steps 1-5 *)
   if !trace_file <> "" && !parallel_domains > 0 then begin
+    Gc.full_major ();
     let ndomains = !parallel_domains in
     let fibers_per_domain = !parallel_fibers in
     Format.printf "@.--- Parallel Trace Replay (%d domains × %d fibers) ---@.@."
