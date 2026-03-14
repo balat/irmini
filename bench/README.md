@@ -12,6 +12,89 @@ Performance comparison across all Irmin implementations and backends.
 
 Each implementation is benchmarked with multiple backends: memory, fs, git, pack/lavyek.
 
+## Backend architecture
+
+Irmini supports three storage backends with different performance/durability trade-offs:
+
+### Memory
+
+Pure in-memory storage using immutable OCaml maps (`Map.Make(String)`).
+No persistence — all data is lost on process exit.
+Zero-overhead single-core; for multi-domain use, wrapped with a read-write lock
+(`thread_safe_rw`) that allows concurrent readers with exclusive writers.
+
+### Disk
+
+Append-only data file + WAL (Write-Ahead Log) for crash safety.
+
+- **Data file** (`objects.data`): single append-only file, all objects concatenated.
+  Writes use `pwrite` at atomically-reserved offsets (`Atomic.fetch_and_add`).
+  Reads use `pread` at known (offset, length) — no lock needed.
+- **Index** (`objects.idx`): in-memory `Atomic.t` map (hash → offset+length),
+  updated via CAS (compare-and-set). Persisted on flush.
+- **Bloom filter** (`objects.bloom`): fast negative lookup, avoids disk reads
+  for missing keys.
+- **Per-domain WAL** (`wal-{N}.log`): each OS domain has its own WAL file with
+  its own mutex. Writes append to the domain-local WAL then fsync (if enabled).
+  On recovery, all WAL files are replayed. Content-addressed storage makes
+  cross-domain duplicates harmless.
+- **Crash recovery**: on startup, replay all WAL entries not yet in the index,
+  then delete WAL files.
+
+Multi-core: fully lock-free reads (`Atomic.get` + `pread`), lock-free offset
+reservation (`Atomic.fetch_and_add`), CAS index updates, per-domain WAL
+eliminates write contention between domains.
+
+### Lavyek
+
+LSM-tree (Log-Structured Merge-tree) key-value store — a separate library.
+
+- **Write path**: append to in-memory memtable (lock-free atomic buckets) +
+  WAL log file. When the memtable is full (~2 MB), it is flushed to an
+  immutable SSTable (Sorted String Table) on disk.
+- **Read path**: search memtable first (newest), then SSTables from newest
+  to oldest. Each SSTable has a bloom filter and a FANout index for fast lookup.
+- **Compaction**: background merging of SSTables across levels (L0 → L1 → L2).
+- **Crash recovery**: replay WAL, restore SSTables from control file.
+
+Multi-core: lock-free memtable, parallel compaction. The main write bottleneck
+is that `Lavyek.put ~sync:true` fsyncs per key — a `put_batch` API would
+amortize the cost.
+
+## Optimizations since `main`
+
+### All backends — single-core
+
+| Optimization | Commit | Impact |
+|---|---|---|
+| **Value inlining** — small values (< 48 bytes) stored directly in tree nodes, avoiding content-addressable store lookups | `f4907ab` | commits-20B: **9×** (memory), **2.2×** (disk); reads-20B: **3×** (disk) |
+| **Inode structural sharing** — HAMT trie for large tree nodes, O(log n) updates instead of O(n) re-serialization | `9ae61ec`, `7d9997b` | incremental: **2.4×** (all); commits-20B: **4×** (memory) |
+| **LRU cache** — O(1) doubly-linked-list cache at backend level, avoids repeated deserialization | `b6e855f`, `1421b0a`, `17622d1` | reads-20B: **1.4×** (disk) |
+| **Resolved-child cache** — Hashtbl cache in tree navigation, avoids re-traversing already-resolved subtrees | `cf1fda2`, `1a09cb4` | reads: measurable improvement on deep trees |
+| **Write batching** — `Store.commit` accumulates all objects in a pending list, writes them in a single `write_batch` call | `b1b2e73` | disk: **1 fsync per commit** instead of per object |
+| **Dirty check** — skip unmodified subtrees in `write_tree` | `30eeaae` | incremental: avoids re-serializing unchanged nodes |
+| **Map/Set children** — replace list-based tree children with `Map`/`Set` for O(log n) lookups | `59de7b3` | tree operations faster on wide nodes |
+
+### Disk backend — single-core
+
+| Optimization | Commit | Impact |
+|---|---|---|
+| **Lock-free reads** — `Atomic.get` on index + positional `pread`, zero locks | `35fbbf5` | reads: **5–10×** faster in parallel, zero overhead single-core |
+| **Lock-free writes** — `Atomic.fetch_and_add` for offset reservation, parallel `pwrite`, CAS index updates | `35fbbf5` | enables true multi-core write parallelism |
+| **Per-domain WAL** — each domain gets its own WAL file, eliminating the single `wal_mutex` bottleneck | `9789a4f` | parallel fsync no longer serialized across domains |
+| **O_APPEND fix** — remove `O_APPEND` flag that caused `pwrite` to ignore offsets on Linux | `2e6d020` | fixed data corruption in no-fsync mode |
+| **Configurable fsync** — `?use_fsync` parameter to disable WAL fsync for benchmarking | `fd4f2e3` | no-fsync: commits-20B **2.5×** faster |
+
+### Multi-core safety (all backends)
+
+| Fix | Commit | Scope |
+|---|---|---|
+| **Tree `node_record` domain-safe** — `Atomic.t` for mutable tree node fields | `3ef3eb1` | All backends |
+| **Link domain-safe** — `Atomic.t` for link resolution cache | `308110b` | All backends |
+| **Memory read-write lock** — concurrent readers, exclusive writers (replaces global mutex) | `6e1738c` | Memory |
+| **Lavyek ref mutex** — protect `test_and_set_ref` against TOCTOU race | `6d4a0bc` | Lavyek |
+| **save_ref mkdirs** — `mkdirs ~exists_ok:true` to handle concurrent `mkdir` | `e0e16bb` | Disk |
+
 ## Prerequisites
 
 To reproduce all benchmarks, you need:
