@@ -7,8 +7,8 @@
     potentially across domains.  The built-in backends have the following
     concurrency guarantees:
 
-    - {!Memory}: {b not} thread-safe.  For multi-domain use, wrap with
-      {!thread_safe}: [thread_safe (Memory.create_sha1 ())].
+    - {!Memory}: lock-free and domain-safe (uses [Atomic.t] with CAS on
+      persistent maps).  No wrapping needed for multi-domain use.
     - {!Disk}: internally protected by [Eio.Mutex] — safe for concurrent
       access from multiple fibers {e and} domains within an Eio event loop.
     - {!cached}: {b not} thread-safe.  Apply {e before} {!thread_safe} so

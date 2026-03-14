@@ -468,7 +468,7 @@ let run_all_memory ?inline_threshold ?inode ?(cache = 0)
   in
   let cache = if cache > 0 then Some cache else None in
   let mk_backend () = Backend.Memory.create_sha1 ?cache () in
-  let mk_backend_ts () = Backend.thread_safe (mk_backend ()) in
+  let mk_backend_ts () = mk_backend () in
   run_scenarios ?inline_threshold ?inode ?ndomains ?fibers_per_domain ?scenarios
     ~mk_backend ~mk_backend_ts ~name ~env conf
 

@@ -167,7 +167,8 @@ BACKEND_ORDER_DISK = [
 ]
 
 BACKEND_ORDER_MEMORY = [
-    "Irmin-Lwt (memory)", "Irmin-Eio (memory)", "Irmini (memory)",
+    "Irmin-Lwt (memory)", "Irmin-Eio (memory)",
+    "Irmini (memory, mutex)", "Irmini (memory)",
 ]
 
 BACKEND_ORDER_GIT = [
@@ -247,6 +248,7 @@ COLORS = {
     "Irmin-Eio (fs)":     "#f0a1a2",
     "Irmin-Eio (git)":    "#f5c0c1",
     "Irmini (memory)":    "#4e79a7",
+    "Irmini (memory, mutex)": "#a0c4e8",
     "Irmini (disk)":      "#466680",
     "Irmini (disk, no fsync)": "#6d9dc5",
     "Irmini (lavyek)":    "#2d6e2e",

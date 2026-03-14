@@ -248,8 +248,7 @@ let () =
     Format.printf "@.--- Parallel Trace Replay (%d domains × %d fibers) ---@.@."
       ndomains fibers_per_domain;
     if not !skip_memory then begin
-      let b = Irmin.Backend.Memory.create_sha1 ?cache () in
-      let backend = Irmin.Backend.thread_safe b in
+      let backend = Irmin.Backend.Memory.create_sha1 ?cache () in
       let r =
         Trace_replay_parallel.replay
           ~trace_path:!trace_file
