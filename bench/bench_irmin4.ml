@@ -449,11 +449,17 @@ let run_scenarios ?inline_threshold ?inode
               ~ndomains ~fibers_per_domain ~name ~backend ~env c) ]
     | _ -> []
   in
-  List.concat_map (fun c ->
-      List.concat_map (fun s ->
-          run_seq s c :: run_par s c)
-        scenarios)
-    confs
+  let sequential =
+    List.concat_map (fun c ->
+        List.map (fun s -> run_seq s c) scenarios)
+      confs
+  in
+  let parallel =
+    List.concat_map (fun c ->
+        List.concat_map (fun s -> run_par s c) scenarios)
+      confs
+  in
+  { Bench_common.sequential; parallel }
 
 (** {1 Backend runners} *)
 

@@ -15,7 +15,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from bench_utils import (
-    load_results, classify_backend,
+    load_files, classify_backend, CHART_SOURCES,
     family_sort_key, scenario_sort_key, ordered_backends,
     is_parallel_variant, is_tezos_parallel,
     get_color, fmt_ops_chart as fmt_ops,
@@ -336,25 +336,27 @@ def main():
         sys.exit(1)
 
     results_dir = sys.argv[1]
+    chart_dir = results_dir
 
-    print(f"Loading results from {results_dir}...")
-    all_results = load_results(results_dir)
+    # Load results per chart from manifest, then classify to filter
+    def load_chart(chart_name):
+        """Load and filter results for a chart using its manifest sources."""
+        source_files = CHART_SOURCES.get(chart_name, [])
+        return load_files(results_dir, source_files)
 
-    if not all_results:
-        print("No results found!")
-        sys.exit(1)
+    # Group all loaded data by classify_backend — same logic as before
+    # but loading from manifests instead of all *.json files
+    all_chart_files = set()
+    for files in CHART_SOURCES.values():
+        all_chart_files.update(files)
+    all_results = load_files(results_dir, sorted(all_chart_files))
 
-    print(f"Total: {len(all_results)} results")
-
-    # Group by backend type
     groups = {"memory": [], "disk": [], "git": [], "optims_disk": [],
               "optims_memory": [], "optims_lavyek": [],
               "disk_parallel": [], "memory_parallel": []}
     for r in all_results:
         cat = classify_backend(r["name"], r.get("scenario", ""))
         groups.setdefault(cat, []).append(r)
-
-    chart_dir = results_dir
 
     # Sequential charts
     chart_specs = [

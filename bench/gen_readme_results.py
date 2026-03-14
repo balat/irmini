@@ -18,7 +18,8 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(__file__))
 from bench_utils import (
-    load_results, classify_for_readme as classify,
+    load_results, load_files, classify_for_readme as classify,
+    README_SECTIONS,
     SCENARIO_ORDER, BACKEND_ORDER_DISK, BACKEND_ORDER_MEMORY, BACKEND_ORDER_GIT,
     BACKEND_ORDER_OPTIMS_MEMORY, BACKEND_ORDER_OPTIMS_DISK, BACKEND_ORDER_OPTIMS_LAVYEK,
     scenario_sort_key, backend_sort_key, build_lookup, get_sorted_scenarios,
@@ -573,21 +574,34 @@ def generate_key_observations(groups):
     return bullets
 
 
-def generate_results_section(all_results, run_date, machine_info):
-    """Generate the complete ## Results section."""
-    # Classify all results
-    groups = {
-        "disk": [], "memory": [], "git": [],
-        "disk_parallel": [], "memory_parallel": [],
-        "optims_disk": [], "optims_memory": [], "optims_lavyek": [],
-        "trace": [], "parallel": [],
-    }
+def generate_results_section(all_results, run_date, machine_info,
+                              results_dir=None):
+    """Generate the complete ## Results section.
 
-    for r in all_results:
-        cat = classify(r["name"], r["scenario"])
-        if cat == "skip":
-            continue
-        groups[cat].append(r)
+    If results_dir is provided, loads data per-section from the manifest
+    (README_SECTIONS). Otherwise falls back to classify-all heuristics.
+    """
+    if results_dir:
+        # Manifest-based: each section loads only the files it needs.
+        # Still apply classify filter to handle legacy files that mix categories.
+        groups = {}
+        for section, files in README_SECTIONS.items():
+            raw = load_files(results_dir, files)
+            groups[section] = [r for r in raw
+                               if classify(r["name"], r["scenario"]) == section]
+    else:
+        # Legacy fallback: classify all results
+        groups = {
+            "disk": [], "memory": [], "git": [],
+            "disk_parallel": [], "memory_parallel": [],
+            "optims_disk": [], "optims_memory": [], "optims_lavyek": [],
+            "trace": [], "parallel": [],
+        }
+        for r in all_results:
+            cat = classify(r["name"], r["scenario"])
+            if cat == "skip":
+                continue
+            groups[cat].append(r)
 
     lines = []
     lines.append("## Results")
@@ -1062,8 +1076,9 @@ def main():
         sys.exit(1)
     print(f"Loaded {len(all_results)} results")
 
-    # Generate the results section
-    results_section = generate_results_section(all_results, run_date, args.machine)
+    # Generate the results section (manifest-based loading per section)
+    results_section = generate_results_section(
+        all_results, run_date, args.machine, results_dir=results_dir)
 
     # Update README
     if os.path.exists(readme_path):

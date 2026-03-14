@@ -32,6 +32,118 @@ def load_results(results_dir):
     return all_results
 
 
+def load_files(results_dir, filenames):
+    """Load results from specific JSON files (not all files in directory).
+
+    This is the preferred loading method: each chart/section declares which
+    files it needs, avoiding fragile classify-all-results heuristics.
+    Missing files are silently skipped.
+    """
+    results = []
+    for name in filenames:
+        path = os.path.join(results_dir, name)
+        if os.path.exists(path):
+            try:
+                with open(path) as f:
+                    data = json.load(f)
+                results.extend(data)
+            except (json.JSONDecodeError, IOError):
+                pass
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Source file manifests — each chart/section declares its inputs
+# ---------------------------------------------------------------------------
+
+CHART_SOURCES = {
+    "chart_disk.svg": [
+        "seq_disk.json", "seq_lavyek.json",
+        "trace_disk.json", "trace_lavyek.json",
+        "irmin_lwt.json", "irmin_eio.json",
+        # Legacy
+        "irmini_inode.json", "irmini_disk.json", "irmini_lavyek.json",
+        "irmini_trace.json", "irmini_parallel_scaling.json",
+    ],
+    "chart_memory.svg": [
+        "seq_memory.json",
+        "irmin_lwt.json", "irmin_eio.json",
+        # Legacy
+        "irmini_inode.json",
+    ],
+    "chart_git.svg": [
+        "seq_git.json",
+        "irmin_lwt.json", "irmin_eio.json",
+        # Legacy
+        "irmini_inode.json",
+    ],
+    "chart_disk_parallel.svg": [
+        "par_disk.json", "par_lavyek.json",
+        "trace_par_disk.json", "trace_par_lavyek.json",
+        "tezos_parallel.json",
+        # Legacy
+        "irmini_parallel.json",
+    ],
+    "chart_memory_parallel.svg": [
+        "par_memory.json",
+        # Legacy
+        "irmini_parallel.json",
+    ],
+    "chart_optims_disk.svg": ["optims_disk.json", "irmini_optims_disk.json"],
+    "chart_optims_memory.svg": ["optims_memory.json", "irmini_optims_memory.json"],
+    "chart_optims_lavyek.svg": ["optims_lavyek.json", "irmini_optims_lavyek.json"],
+}
+
+README_SECTIONS = {
+    "disk": [
+        "seq_disk.json", "seq_lavyek.json",
+        "trace_disk.json", "trace_lavyek.json",
+        "irmin_lwt.json", "irmin_eio.json",
+        # Legacy
+        "irmini_inode.json", "irmini_disk.json", "irmini_lavyek.json",
+        "irmini_trace.json", "irmini_parallel_scaling.json",
+    ],
+    "disk_parallel": [
+        "par_disk.json", "par_lavyek.json",
+        "trace_par_disk.json", "trace_par_lavyek.json",
+        "tezos_parallel.json",
+        # Legacy
+        "irmini_parallel.json",
+    ],
+    "memory": [
+        "seq_memory.json",
+        "irmin_lwt.json", "irmin_eio.json",
+        # Legacy
+        "irmini_inode.json",
+    ],
+    "memory_parallel": [
+        "par_memory.json",
+        # Legacy
+        "irmini_parallel.json",
+    ],
+    "git": [
+        "seq_git.json",
+        "irmin_lwt.json", "irmin_eio.json",
+        # Legacy
+        "irmini_inode.json",
+    ],
+    "trace": [
+        "trace_disk.json", "trace_memory.json", "trace_lavyek.json",
+        "irmin_lwt.json", "irmin_eio.json",
+        # Legacy
+        "irmini_trace.json", "irmini_parallel_scaling.json",
+    ],
+    "optims_disk": ["optims_disk.json", "irmini_optims_disk.json"],
+    "optims_memory": ["optims_memory.json", "irmini_optims_memory.json"],
+    "optims_lavyek": ["optims_lavyek.json", "irmini_optims_lavyek.json"],
+    "parallel": [
+        "scaling_tezos.json",
+        # Legacy
+        "irmini_parallel_scaling.json",
+    ],
+}
+
+
 # ---------------------------------------------------------------------------
 # Classification
 # ---------------------------------------------------------------------------

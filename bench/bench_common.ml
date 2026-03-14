@@ -12,6 +12,14 @@ type result = {
   maxrss_kb : int;
 }
 
+(** Results split by sequential vs parallel, for --output-dir routing. *)
+type run_results = {
+  sequential : result list;
+  parallel : result list;
+}
+
+let all_results r = r.sequential @ r.parallel
+
 let time f =
   let t0 = Unix.gettimeofday () in
   let r = f () in

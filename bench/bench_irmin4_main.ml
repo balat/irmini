@@ -9,7 +9,7 @@
                              [--only-backend memory|disk|lavyek|git]
                              [--only-scenario commits|reads|incremental]
                              [--skip-lavyek] [--skip-disk]
-                             [--cache N] *)
+                             [--cache N] [--output-dir DIR] *)
 
 let () =
   let ncommits = ref 100 in
@@ -27,6 +27,7 @@ let () =
   let name = ref "" in
   let json_file = ref "" in
   let json_merge = ref false in
+  let output_dir = ref "" in
   let trace_file = ref "" in
   let trace_max_commits = ref 0 in
   let trace_empty_blobs = ref false in
@@ -56,9 +57,11 @@ let () =
        "Inline threshold in bytes (default: codec default, -1 = use default)");
       ("--no-inode", Arg.Set no_inode, "Disable inode splitting");
       ("--name", Arg.Set_string name, "Override benchmark name");
-      ("--json", Arg.Set_string json_file, "Write JSON results to FILE");
+      ("--json", Arg.Set_string json_file, "Write ALL results to FILE");
       ("--json-merge", Arg.Set json_merge,
        "Merge results into existing JSON file (update matching entries, keep others)");
+      ("--output-dir", Arg.Set_string output_dir,
+       "Write results to per-backend files in DIR (seq_disk.json, par_disk.json, etc.)");
       ("--trace", Arg.Set_string trace_file,
        "Run trace replay from .repr file");
       ("--trace-commits", Arg.Set_int trace_max_commits,
@@ -121,6 +124,7 @@ let () =
   in
   let ndomains = !parallel_domains in
   let fibers_per_domain = !parallel_fibers in
+  let odir = !output_dir in
   Format.printf
     "Configuration: %d commits, %d adds/commit, depth %d, %d reads, \
      %d-byte values%s%s@.@."
@@ -142,10 +146,22 @@ let () =
     in
     (try rm path with _ -> ())
   in
-  let run name rs =
-    Format.printf "--- %s ---@.@." name;
-    List.iter (fun r -> Format.printf "%a@.@." Bench_common.pp_result r) rs;
-    results := rs @ !results
+  (* Helper: write results to --output-dir if set *)
+  let write_to filename rs =
+    if odir <> "" && rs <> [] then
+      Bench_common.write_json_merge (Filename.concat odir filename) rs
+  in
+  (* Helper: print and accumulate run_results *)
+  let run_rr label (rr : Bench_common.run_results) =
+    let all = Bench_common.all_results rr in
+    Format.printf "--- %s ---@.@." label;
+    List.iter (fun r -> Format.printf "%a@.@." Bench_common.pp_result r) all;
+    results := all @ !results
+  in
+  (* Helper: print and accumulate a single trace result *)
+  let run_trace_result r =
+    Format.printf "%a@.@." Bench_common.pp_result r;
+    results := [r] @ !results
   in
   (* 1. Irmini disk *)
   if not !skip_disk && not !fsync_variants then begin
@@ -153,21 +169,30 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_disk") in
     rm_rf root;
     let disk_name = match name with Some n -> n | None -> "Irmini (disk)" in
-    run disk_name (Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf)
+    let rr = Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf in
+    run_rr disk_name rr;
+    write_to "seq_disk.json" rr.sequential;
+    write_to "par_disk.json" rr.parallel
   end;
   (* 1b. Irmini disk without fsync *)
   if !fsync_variants && not !skip_disk then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_disk_nofsync") in
     rm_rf root;
-    run "Irmini (disk, no fsync)" (Bench_irmin4.run_all_disk ?inline_threshold ?inode ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (disk, no fsync)" ~sw ~env root conf)
+    let rr = Bench_irmin4.run_all_disk ?inline_threshold ?inode ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (disk, no fsync)" ~sw ~env root conf in
+    run_rr "Irmini (disk, no fsync)" rr;
+    write_to "seq_disk.json" rr.sequential;
+    write_to "par_disk.json" rr.parallel
   end;
   (* 2. Irmini memory *)
   if not !skip_memory && not !fsync_variants then begin
     let mem_name = match name with Some n -> n | None -> "Irmini (memory)" in
     (* Memory backend: use 1 fiber/domain — fibers never yield on pure
        CPU ops (String_map), so extra fibers only add scheduling overhead. *)
-    run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain:1 ?scenarios ?name ~env conf)
+    let rr = Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain:1 ?scenarios ?name ~env conf in
+    run_rr mem_name rr;
+    write_to "seq_memory.json" rr.sequential;
+    write_to "par_memory.json" rr.parallel
   end;
   (* 3. Irmini git *)
   if not !skip_git && not !fsync_variants then begin
@@ -175,27 +200,34 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_git") in
     rm_rf root;
     Eio.Path.mkdirs ~exists_ok:true ~perm:0o755 root;
-    run "Irmini (git)" (Bench_irmin4.run_all_git ~cache:cache_int ?scenarios ~sw ~fs:cwd root conf)
+    let rr = Bench_irmin4.run_all_git ~cache:cache_int ?scenarios ~sw ~fs:cwd root conf in
+    run_rr "Irmini (git)" rr;
+    write_to "seq_git.json" rr.sequential;
+    write_to "par_git.json" rr.parallel
   end;
   (* 4. Irmini + Lavyek *)
   if not !skip_lavyek && not !fsync_variants then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in
     rm_rf root;
-    run "Irmini (lavyek)"
-      (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf)
+    let rr = Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf in
+    run_rr "Irmini (lavyek)" rr;
+    write_to "seq_lavyek.json" rr.sequential;
+    write_to "par_lavyek.json" rr.parallel
   end;
   (* 4b. Irmini + Lavyek without fsync *)
   if !fsync_variants && not !skip_lavyek then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_lavyek_nofsync") in
     rm_rf root;
-    run "Irmini (lavyek, no fsync)"
-      (Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (lavyek, no fsync)" ~sw ~env root conf)
+    let rr = Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (lavyek, no fsync)" ~sw ~env root conf in
+    run_rr "Irmini (lavyek, no fsync)" rr;
+    write_to "seq_lavyek.json" rr.sequential;
+    write_to "par_lavyek.json" rr.parallel
   end;
   (* 5. Trace replay — runs on each active backend *)
   if !trace_file <> "" then begin
-    let run_trace ~backend_name ~backend =
+    let run_trace ~backend_name ~backend ~trace_file_name =
       Format.printf "--- Trace Replay (%s) ---@.@." backend_name;
       let r =
         Trace_replay.replay
@@ -207,12 +239,13 @@ let () =
           ~backend ()
       in
       let r = { r with Bench_common.name = backend_name } in
-      Format.printf "%a@.@." Bench_common.pp_result r;
-      results := [r] @ !results
+      run_trace_result r;
+      write_to trace_file_name [r]
     in
     if not !skip_memory then begin
       let backend = Irmin.Backend.Memory.create_sha1 ?cache () in
       run_trace ~backend_name:"Irmini (memory)" ~backend
+        ~trace_file_name:"trace_memory.json"
     end;
     if not !skip_disk then begin
       Eio.Switch.run @@ fun sw ->
@@ -221,7 +254,8 @@ let () =
       let backend = Irmin.Backend.Disk.create_sha1 ?cache ~sw root in
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
-        (fun () -> run_trace ~backend_name:"Irmini (disk)" ~backend)
+        (fun () -> run_trace ~backend_name:"Irmini (disk)" ~backend
+            ~trace_file_name:"trace_disk.json")
     end;
     if not !skip_disk then begin
       Eio.Switch.run @@ fun sw ->
@@ -230,7 +264,8 @@ let () =
       let backend = Irmin.Backend.Disk.create_sha1 ?cache ~use_fsync:false ~sw root in
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
-        (fun () -> run_trace ~backend_name:"Irmini (disk, no fsync)" ~backend)
+        (fun () -> run_trace ~backend_name:"Irmini (disk, no fsync)" ~backend
+            ~trace_file_name:"trace_disk.json")
     end;
     if not !skip_lavyek then begin
       Eio.Switch.run @@ fun sw ->
@@ -239,7 +274,8 @@ let () =
       let backend = Irmin_lavyek.create ?cache ~sw root in
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
-        (fun () -> run_trace ~backend_name:"Irmini (lavyek)" ~backend)
+        (fun () -> run_trace ~backend_name:"Irmini (lavyek)" ~backend
+            ~trace_file_name:"trace_lavyek.json")
     end
   end;
   (* 6. Parallel trace replay — GC before to reclaim memory from steps 1-5 *)
@@ -249,10 +285,7 @@ let () =
     let fibers_per_domain = !parallel_fibers in
     Format.printf "@.--- Parallel Trace Replay (%d domains × %d fibers) ---@.@."
       ndomains fibers_per_domain;
-    if not !skip_memory then begin
-      let backend =
-        Irmin.Backend.thread_safe_rw (Irmin.Backend.Memory.create_sha1 ?cache ())
-      in
+    let run_par_trace ~backend ~backend_name ~trace_file_name ~env =
       let r =
         Trace_replay_parallel.replay
           ~trace_path:!trace_file
@@ -260,13 +293,18 @@ let () =
           ~flatten_paths:(not !no_flatten)
           ~empty_blobs:!trace_empty_blobs
           ?inline_threshold ?inode
-          ~ndomains ~fibers_per_domain:1
-          ~backend
-          ~backend_name:"Irmini-parallel (memory)"
-          ~env ()
+          ~ndomains ~fibers_per_domain
+          ~backend ~backend_name ~env ()
       in
-      Format.printf "%a@.@." Bench_common.pp_result r;
-      results := [r] @ !results
+      run_trace_result r;
+      write_to trace_file_name [r]
+    in
+    if not !skip_memory then begin
+      let backend =
+        Irmin.Backend.thread_safe_rw (Irmin.Backend.Memory.create_sha1 ?cache ())
+      in
+      run_par_trace ~backend ~backend_name:"Irmini-parallel (memory)"
+        ~trace_file_name:"trace_par_memory.json" ~env
     end;
     if not !skip_disk then begin
       Eio.Switch.run @@ fun sw ->
@@ -276,20 +314,8 @@ let () =
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () ->
-          let r =
-            Trace_replay_parallel.replay
-              ~trace_path:!trace_file
-              ~max_commits:!trace_max_commits
-              ~flatten_paths:(not !no_flatten)
-              ~empty_blobs:!trace_empty_blobs
-              ?inline_threshold ?inode
-              ~ndomains ~fibers_per_domain
-              ~backend
-              ~backend_name:"Irmini-parallel (disk)"
-              ~env ()
-          in
-          Format.printf "%a@.@." Bench_common.pp_result r;
-          results := [r] @ !results)
+          run_par_trace ~backend ~backend_name:"Irmini-parallel (disk)"
+            ~trace_file_name:"trace_par_disk.json" ~env)
     end;
     if not !skip_disk then begin
       Eio.Switch.run @@ fun sw ->
@@ -299,66 +325,30 @@ let () =
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () ->
-          let r =
-            Trace_replay_parallel.replay
-              ~trace_path:!trace_file
-              ~max_commits:!trace_max_commits
-              ~flatten_paths:(not !no_flatten)
-              ~empty_blobs:!trace_empty_blobs
-              ?inline_threshold ?inode
-              ~ndomains ~fibers_per_domain
-              ~backend
-              ~backend_name:"Irmini-parallel (disk, no fsync)"
-              ~env ()
-          in
-          Format.printf "%a@.@." Bench_common.pp_result r;
-          results := [r] @ !results)
+          run_par_trace ~backend ~backend_name:"Irmini-parallel (disk, no fsync)"
+            ~trace_file_name:"trace_par_disk.json" ~env)
     end;
     if not !skip_lavyek then begin
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_lavyek_parallel") in
       rm_rf root;
       let backend = Irmin_lavyek.create ?cache ~sw root in
-      let r =
-        Trace_replay_parallel.replay
-          ~trace_path:!trace_file
-          ~max_commits:!trace_max_commits
-          ~flatten_paths:(not !no_flatten)
-          ~empty_blobs:!trace_empty_blobs
-          ?inline_threshold ?inode
-          ~ndomains ~fibers_per_domain
-          ~backend
-          ~backend_name:"Irmini-parallel (lavyek)"
-          ~env ()
-      in
-      Format.printf "%a@.@." Bench_common.pp_result r;
-      results := [r] @ !results
+      run_par_trace ~backend ~backend_name:"Irmini-parallel (lavyek)"
+        ~trace_file_name:"trace_par_lavyek.json" ~env
     end;
     if not !skip_lavyek then begin
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_lavyek_fsync_parallel") in
       rm_rf root;
       let backend = Irmin_lavyek.create ?cache ~use_fsync:true ~sw root in
-      let r =
-        Trace_replay_parallel.replay
-          ~trace_path:!trace_file
-          ~max_commits:!trace_max_commits
-          ~flatten_paths:(not !no_flatten)
-          ~empty_blobs:!trace_empty_blobs
-          ?inline_threshold ?inode
-          ~ndomains ~fibers_per_domain
-          ~backend
-          ~backend_name:"Irmini-parallel (lavyek, fsync)"
-          ~env ()
-      in
-      Format.printf "%a@.@." Bench_common.pp_result r;
-      results := [r] @ !results
+      run_par_trace ~backend ~backend_name:"Irmini-parallel (lavyek, fsync)"
+        ~trace_file_name:"trace_par_lavyek.json" ~env
     end
   end;
   (* Summary *)
   let all = List.rev !results in
   Bench_common.pp_comparison Format.std_formatter all;
-  (* JSON output *)
+  (* JSON output (legacy: dump everything to one file) *)
   if !json_file <> "" then begin
     if !json_merge then begin
       Bench_common.write_json_merge !json_file all

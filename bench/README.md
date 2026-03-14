@@ -276,7 +276,7 @@ Irmini (lavyek, no fsync)       tezos-10310commits         135035     29.622    
 - **Irmini (disk)**: WAL+bloom backend with crash safety. Reads at 3.2M (20B), 3.1M (10K). Writes bottlenecked by WAL fsync: commits at 25k. Trade-off: durability over raw speed.
 - **irmin-pack**: Reads at 719k–1.4M ops/s, commits at 40k–68k ops/s. Irmin-Lwt faster on commits (68k vs 40k).
 - **irmin-fs**: Slower across the board. Reads 106k–166k, commits 376–190k.
-- **trace-replay**: Irmini (lavyek) replays 10,310 real Tezos commits (4M operations) at **54k ops/sec**. Irmini (memory) at 142k ops/sec.
+- **trace-replay**: Irmini (lavyek) replays 10,310 real Tezos commits (4M operations) at **135k ops/sec**. Irmini (memory) at 142k ops/sec.
 
 **Why lavyek collapses with fsync**: The root cause is fsync granularity.
 The disk backend uses `write_batch`: it accumulates all objects in the WAL
@@ -611,26 +611,26 @@ is partitioned across all workers; each fiber processes a contiguous chunk.
 ```
 Config                 ops/s    Speedup   RSS (MiB)
 -------------------------------------------------
-Sequential            54,000         1x            
-12d ×      1f         84,000       1.6x           —
-12d ×     10f        236,000       4.4x           —
-12d ×    100f        647,000        12x           —
-12d ×  1,000f      1,300,000        24x           —
-12d × 10,000f      4,119,000        76x           —
-12d × 20,000f      3,992,000        74x           —
-12d × 30,000f      4,759,000        88x           —
-12d × 40,000f      4,512,000        84x           —
-12d × 45,000f      4,989,000        92x           —
-12d × 50,000f      5,063,000        94x           —
-12d × 55,000f      4,901,000        91x           —
-12d × 60,000f      4,360,000        81x           —
-12d × 70,000f      4,751,000        88x           —
-12d × 100,000f     2,961,000        55x           —
+Sequential           135,034         1x            
+12d ×      1f         84,000       0.6x           —
+12d ×     10f        236,000       1.7x           —
+12d ×    100f        647,000       4.8x           —
+12d ×  1,000f      1,300,000       9.6x           —
+12d × 10,000f      4,119,000        31x           —
+12d × 20,000f      3,992,000        30x           —
+12d × 30,000f      4,759,000        35x           —
+12d × 40,000f      4,512,000        33x           —
+12d × 45,000f      4,989,000        37x           —
+12d × 50,000f      5,063,000        37x           —
+12d × 55,000f      4,901,000        36x           —
+12d × 60,000f      4,360,000        32x           —
+12d × 70,000f      4,751,000        35x           —
+12d × 100,000f     2,961,000        22x           —
 ```
 
-- Peak throughput at **50k fibers/domain**: **5.1M ops/s** (94x speedup).
+- Peak throughput at **50k fibers/domain**: **5.1M ops/s** (37x speedup).
 - Lavyek is natively thread-safe (lock-free LSM tree). Each write is an Eio I/O operation that yields to other fibers, enabling massive cooperative concurrency within each domain.
-- Scaling is super-linear up to ~10k fibers (76x on 12 cores) thanks to I/O overlap: while one fiber waits on disk, others make progress.
+- Scaling is super-linear up to ~10k fibers (31x on 12 cores) thanks to I/O overlap: while one fiber waits on disk, others make progress.
 - Beyond 50k fibers, scheduling overhead dominates and throughput drops.
 
 ### Parallel scaling per scenario
