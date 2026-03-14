@@ -109,7 +109,7 @@ def classify_for_readme(name, scenario):
 
     # Optimization variants first (before parallel check)
     if any(x in n for x in ["baseline", "+inline", "+cache", "+inode", "+all"]):
-        if re.search(r'-\d+f/\d+d$', s):
+        if re.search(r'-\d+f/\d+d$', s) or re.search(r'-\d+d[×x]\d+f$', s):
             return "skip"
         if "(disk)" in n:
             return "optims_disk"

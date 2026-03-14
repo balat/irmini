@@ -400,7 +400,7 @@ Irmini (git)                    incremental-10K               265      0.377    
 ```
 
 - **Irmini (git)**: 100% git-compatible (inodes disabled, no inlining). Commits at **8.5k ops/s** — **4× faster** than Irmin (2.0k). Uses **49–131 MiB RSS** vs Irmin's 482–524 MiB.
-- **Reads**: Irmin-Lwt leads on 20B (156k vs 1.4M) thanks to in-memory caching. On 10K, Irmini (1.4M) matches Irmin-Eio (85k).
+- **Reads**: Irmini dominates at **1.4M ops/s** (20B and 10K) — **9× faster** than Irmin-Lwt (156k) and **16× faster** than Irmin-Eio (85k on 10K). Content-addressed lookups bypass Git's tree traversal.
 - **Incremental**: All comparable — dominated by Git I/O.
 
 ### Irmini optimizations (disk)
@@ -603,11 +603,11 @@ Sequential            54,000         1x
 - Scaling is super-linear up to ~10k fibers (76x on 12 cores) thanks to I/O overlap: while one fiber waits on disk, others make progress.
 - Beyond 50k fibers, scheduling overhead dominates and throughput drops.
 
-### Parallel scaling
+### Parallel scaling per scenario
 
-![Parallel scaling](results/chart_scaling.svg)
+![Parallel scaling per scenario](results/chart_scaling.svg)
 
-Throughput of commits and reads scenarios with 12 domains and varying fiber count.
+Throughput of commits, reads, and incremental scenarios with 12 domains and varying fiber count.
 
 **Irmini (lavyek, no fsync) — commits-10K** (peak: 20k at 120 fibers)
 

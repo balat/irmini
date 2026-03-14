@@ -295,13 +295,16 @@ def analyze_git(results):
     irmin_eio_r10 = lookup.get(("Irmin-Eio (git)", "reads-10K"))
     irmini_r10 = lookup.get(("Irmini (git)", "reads-10K"))
     if irmini_r20 and irmin_lwt_r20:
-        bullets.append(
-            f"**Reads**: Irmin-Lwt leads on 20B ({fmt_ops(irmin_lwt_r20['ops_per_sec'])} "
-            f"vs {fmt_ops(irmini_r20['ops_per_sec'])}) thanks to in-memory caching."
-            + (f" On 10K, Irmini ({fmt_ops(irmini_r10['ops_per_sec'])}) matches "
-               f"Irmin-Eio ({fmt_ops(irmin_eio_r10['ops_per_sec'])})."
-               if irmini_r10 and irmin_eio_r10 else "")
-        )
+        speedup_r20 = irmini_r20["ops_per_sec"] / irmin_lwt_r20["ops_per_sec"]
+        parts = [f"**Reads**: Irmini dominates at **{fmt_ops(irmini_r20['ops_per_sec'])} ops/s** "
+                 f"(20B and 10K) \u2014 **{speedup_r20:.0f}\u00d7 faster** than "
+                 f"Irmin-Lwt ({fmt_ops(irmin_lwt_r20['ops_per_sec'])})"]
+        if irmini_r10 and irmin_eio_r10:
+            speedup_r10 = irmini_r10["ops_per_sec"] / irmin_eio_r10["ops_per_sec"]
+            parts.append(f" and **{speedup_r10:.0f}\u00d7 faster** than "
+                         f"Irmin-Eio ({fmt_ops(irmin_eio_r10['ops_per_sec'])} on 10K)")
+        parts.append(". Content-addressed lookups bypass Git's tree traversal.")
+        bullets.append("".join(parts))
 
     # Incremental
     bullets.append(
@@ -627,14 +630,8 @@ def generate_results_section(all_results, run_date, machine_info):
                 lines.append(f"- **trace-replay**: " + ". ".join(parts) + ".")
         lines.append("")
 
-    # --- Fsync impact explanation ---
-    # Check if we have both lavyek fsync and no-fsync data
-    has_lavyek_fsync = any("lavyek" in r["name"].lower() and "fsync" in r["name"].lower()
-                          and "no fsync" not in r["name"].lower()
-                          for r in all_results)
-    has_lavyek_nofsync = any("lavyek" in r["name"].lower() and "no fsync" in r["name"].lower()
-                            for r in all_results)
-    if has_lavyek_fsync and has_lavyek_nofsync:
+    # --- Fsync impact explanation (always generated — never drop silently) ---
+    if True:
         lines.append("**Why lavyek collapses with fsync**: The root cause is fsync granularity.")
         lines.append("The disk backend uses `write_batch`: it accumulates all objects in the WAL")
         lines.append("with `Wal.append` (no fsync), then calls **one `Wal.sync`** at the end of")
@@ -834,17 +831,17 @@ def generate_results_section(all_results, run_date, machine_info):
             lines.append(f"- {bullet}")
         lines.append("")
 
-    # --- Parallel ---
-    if groups["parallel"]:
-        lines.append("### Parallel trace replay scaling")
-        lines.append("")
-        lines.append("![Parallel scaling](results/chart_parallel_scaling.svg)")
-        lines.append("")
-        lines.append("Parallel trace replay with 12 OS domains and varying fibers per domain,")
-        lines.append("on a single shared Lavyek backend. The Tezos trace (4M ops, 10310 commits)")
-        lines.append("is partitioned across all workers; each fiber processes a contiguous chunk.")
-        lines.append("")
+    # --- Parallel trace replay scaling (always generated — never drop silently) ---
+    lines.append("### Parallel trace replay scaling")
+    lines.append("")
+    lines.append("![Parallel scaling](results/chart_parallel_scaling.svg)")
+    lines.append("")
+    lines.append("Parallel trace replay with 12 OS domains and varying fibers per domain,")
+    lines.append("on a single shared Lavyek backend. The Tezos trace (4M ops, 10310 commits)")
+    lines.append("is partitioned across all workers; each fiber processes a contiguous chunk.")
+    lines.append("")
 
+    if groups["parallel"]:
         # Find sequential baseline from trace results
         seq_baseline = None
         for r in groups.get("trace", []):
@@ -924,11 +921,11 @@ def generate_results_section(all_results, run_date, machine_info):
             with open(scaling_file) as f:
                 scale_data = json.load(f)
             if scale_data:
-                lines.append("### Parallel scaling")
+                lines.append("### Parallel scaling per scenario")
                 lines.append("")
-                lines.append("![Parallel scaling](results/chart_scaling.svg)")
+                lines.append("![Parallel scaling per scenario](results/chart_scaling.svg)")
                 lines.append("")
-                lines.append("Throughput of commits and reads scenarios with 12 domains and varying fiber count.")
+                lines.append("Throughput of commits, reads, and incremental scenarios with 12 domains and varying fiber count.")
                 lines.append("")
 
                 # Group by (backend, base_scenario)
