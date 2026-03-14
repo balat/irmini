@@ -713,15 +713,18 @@ def generate_results_section(all_results, run_date, machine_info):
         lines.append("")
 
     # --- RWLock vs mutex explanation (always generated) ---
-    lines.append("**RWLock vs mutex**: The memory backend was changed from a global")
-    lines.append("`Stdlib.Mutex` (shown as \"mutex\" above) to a read-write lock that allows")
-    lines.append("concurrent readers with exclusive writers. Impact:")
+    lines.append("**RWLock vs mutex**: The Memory backend is plain `mutable` fields (zero")
+    lines.append("overhead single-core). For multi-domain use, it is wrapped with")
+    lines.append("`thread_safe_rw` \u2014 a read-write lock allowing concurrent readers with")
+    lines.append("exclusive writers. Compared to the old global `Stdlib.Mutex` (shown as")
+    lines.append("\"mutex\" above):")
     lines.append("")
     lines.append("- **Reads: 1.3\u20131.5\u00d7 faster** (10.7M vs 6.9\u20138.2M) \u2014 multiple readers")
     lines.append("  proceed in parallel without blocking each other.")
     lines.append("- **Commits: 1.1\u00d7 faster** (155k vs 144k on 20B) \u2014 writes are serialized")
     lines.append("  like the mutex, but readers no longer block behind writers.")
     lines.append("- **Incremental: 1.1\u20131.3\u00d7 faster** (3.2\u20133.9k vs 2.8\u20133.0k) \u2014 same benefit.")
+    lines.append("- **Single-core: zero overhead** \u2014 no lock on the base backend.")
     lines.append("")
 
     # --- Git ---

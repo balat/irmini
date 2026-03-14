@@ -349,18 +349,18 @@ Irmini (memory, mutex)          incremental-20B              7696      0.013    
 Irmini (memory, mutex)          commits-10K                 16950      5.900        302
 Irmini (memory, mutex)          reads-10K                 1447160      0.007        329
 Irmini (memory, mutex)          incremental-10K              5209      0.019        484
-Irmini (memory)                 commits-20B                145432      0.688        279
-Irmini (memory)                 reads-20B                 3301549      0.303        280
-Irmini (memory)                 incremental-20B              4277      0.023        284
-Irmini (memory)                 commits-10K                 14892      6.715        492
-Irmini (memory)                 reads-10K                 3201896      0.312        493
-Irmini (memory)                 incremental-10K              3331      0.030        404
+Irmini (memory)                 commits-20B                152669      0.655         44
+Irmini (memory)                 reads-20B                 3490707      0.286         44
+Irmini (memory)                 incremental-20B              4333      0.023         46
+Irmini (memory)                 commits-10K                 16736      5.975         87
+Irmini (memory)                 reads-10K                 3354287      0.298         85
+Irmini (memory)                 incremental-10K              3638      0.027         85
 Irmini (memory)                 tezos-10310commits         142217     28.126        586
 ```
 
-- **Commits (20B)**: Irmin ~162k ops/s vs Irmini **145k** — Irmin's in-memory tree is faster on bulk writes (no content-addressed hashing overhead).
-- **Reads (20B)**: Irmin 1.3M–1.3M vs Irmini **3.3M** — Irmin keeps the full tree in memory; irmini navigates content-addressed structures.
-- **Incremental (20B)**: Irmini at **4.3k ops/s** is **3.0–3.6× faster** than Irmin (1.2k–1.4k) thanks to inode structural sharing.
+- **Commits (20B)**: Irmin ~162k ops/s vs Irmini **153k** — Irmin's in-memory tree is faster on bulk writes (no content-addressed hashing overhead).
+- **Reads (20B)**: Irmin 1.3M–1.3M vs Irmini **3.5M** — Irmin keeps the full tree in memory; irmini navigates content-addressed structures.
+- **Incremental (20B)**: Irmini at **4.3k ops/s** is **3.0–3.7× faster** than Irmin (1.2k–1.4k) thanks to inode structural sharing.
 - **10K values**: All three converge on commits (~16k ops/s) — I/O dominates.
 
 ### Memory backends — multi-core (100 fibers, 12 domains)
@@ -384,15 +384,18 @@ Irmini (memory)                 reads-10K                10673203      0.094    
 Irmini (memory)                 incremental-10K              3162      0.380        415
 ```
 
-**RWLock vs mutex**: The memory backend was changed from a global
-`Stdlib.Mutex` (shown as "mutex" above) to a read-write lock that allows
-concurrent readers with exclusive writers. Impact:
+**RWLock vs mutex**: The Memory backend is plain `mutable` fields (zero
+overhead single-core). For multi-domain use, it is wrapped with
+`thread_safe_rw` — a read-write lock allowing concurrent readers with
+exclusive writers. Compared to the old global `Stdlib.Mutex` (shown as
+"mutex" above):
 
 - **Reads: 1.3–1.5× faster** (10.7M vs 6.9–8.2M) — multiple readers
   proceed in parallel without blocking each other.
 - **Commits: 1.1× faster** (155k vs 144k on 20B) — writes are serialized
   like the mutex, but readers no longer block behind writers.
 - **Incremental: 1.1–1.3× faster** (3.2–3.9k vs 2.8–3.0k) — same benefit.
+- **Single-core: zero overhead** — no lock on the base backend.
 
 ### Git backends
 
@@ -645,8 +648,8 @@ Throughput of commits, reads, and incremental scenarios with 12 domains and vary
 
 ### Key observations
 
-- **Irmini vs Irmin on commits (20B)**: Irmin leads at ~162k vs Irmini 145k. The gap has narrowed with inlining (was 3× with 100B values, now 1.1×).
-- **Irmini vs Irmin on incremental**: Irmini is **3.0–3.6× faster** (4.3k vs 1.2k–1.4k) thanks to inode structural sharing (O(log n) tree updates).
+- **Irmini vs Irmin on commits (20B)**: Irmin leads at ~162k vs Irmini 153k. The gap has narrowed with inlining (was 3× with 100B values, now 1.1×).
+- **Irmini vs Irmin on incremental**: Irmini is **3.0–3.7× faster** (4.3k vs 1.2k–1.4k) thanks to inode structural sharing (O(log n) tree updates).
 - **Git backend**: Irmini is **4× faster** than Irmin on git commits (8.5k vs 2.0k) while using **4× less memory** (49–131 MiB vs 482–524 MiB).
 - **10K values**: All three implementations converge (~16k commits/s) — I/O dominates and inlining cannot help.
 - **Irmin-Lwt vs Irmin-Eio**: Similar performance on most benchmarks. Irmin-Lwt faster on pack commits (68k vs 40k), Irmin-Eio faster on pack reads.

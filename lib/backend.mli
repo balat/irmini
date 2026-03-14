@@ -7,18 +7,18 @@
     potentially across domains.  The built-in backends have the following
     concurrency guarantees:
 
-    - {!Memory}: domain-safe with read-write lock (concurrent readers,
-      exclusive writer on persistent maps).  No wrapping needed for
-      multi-domain use.
+    - {!Memory}: {b not} thread-safe.  For multi-domain use, wrap with
+      {!thread_safe_rw}: [thread_safe_rw (Memory.create_sha1 ())].
     - {!Disk}: internally protected by [Eio.Mutex] — safe for concurrent
       access from multiple fibers {e and} domains within an Eio event loop.
-    - {!cached}: {b not} thread-safe.  Apply {e before} {!thread_safe} so
-      the outer mutex protects the cache:
-      [thread_safe (cached ~capacity:100_000 backend)].
-    - {!thread_safe}: wraps with [Stdlib.Mutex], safe for non-yielding
-      backends ({!Memory}).  Do {b not} use with backends that perform Eio I/O
-      ({!Disk}) — [Stdlib.Mutex.lock] blocks the OS thread, risking deadlock
-      if the backend yields.
+    - {!cached}: {b not} thread-safe.  Apply {e before} the thread-safety
+      wrapper so the outer lock protects the cache:
+      [thread_safe_rw (cached ~capacity:100_000 backend)].
+    - {!thread_safe}: wraps with [Stdlib.Mutex] (exclusive). Safe for
+      non-yielding backends. Do {b not} use with Eio I/O backends.
+    - {!thread_safe_rw}: wraps with a read-write lock (concurrent readers,
+      exclusive writer). Better than {!thread_safe} for read-heavy workloads.
+      Same restriction: non-yielding backends only.
     - {!layered}, {!readonly}: inherit the thread-safety of their delegates. *)
 
 (** {1 Backend Interface} *)
@@ -76,6 +76,12 @@ val cached : ?capacity:int -> 'h t -> 'h t
 val thread_safe : 'h t -> 'h t
 (** [thread_safe backend] wraps a backend with a [Mutex.t] so it can be
     safely shared across multiple domains. Each operation acquires the mutex. *)
+
+val thread_safe_rw : 'h t -> 'h t
+(** [thread_safe_rw backend] wraps a backend with a read-write lock.
+    Read operations ([read], [exists], [get_ref], [list_refs]) run
+    concurrently. Write operations are exclusive. Better than {!thread_safe}
+    for read-heavy workloads. Only use with non-yielding backends. *)
 
 val readonly : 'h t -> 'h t
 (** [readonly backend] makes a backend read-only. Write operations raise

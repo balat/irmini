@@ -120,8 +120,9 @@ let replay_chunk ~rows ~start_idx ~end_idx
 (** Run parallel trace replay by partitioning the trace across workers.
 
     All workers share a single store (and its underlying backend). The
-    backend must be domain-safe for cross-domain access (Memory is
-    natively lock-free, Disk uses Eio.Mutex, Lavyek is lock-free).
+    backend must be domain-safe for cross-domain access (use
+    [Backend.thread_safe_rw] for Memory, Disk uses Eio.Mutex,
+    Lavyek is natively lock-free).
 
     @param ndomains Number of OS domains (cores)
     @param fibers_per_domain Number of concurrent fibers per domain

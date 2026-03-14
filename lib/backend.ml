@@ -51,142 +51,62 @@ let cached ?(capacity = default_cache_capacity) (type h) (backend : h t) : h t =
     prevents interleaving within non-yielding operations).
 
     For multi-domain use, wrap with {!thread_safe}:
-    Memory is now lock-free and domain-safe (uses [Atomic.t] with CAS). *)
+    For multi-domain use, wrap with {!thread_safe_rw}:
+    {[let b = thread_safe_rw (Memory.create_sha1 ())]} *)
 module Memory = struct
   module String_map = Map.Make (String)
-
-  (** Domain-safe in-memory backend using a read-write lock on persistent
-      (functional) maps.
-
-      - Reads: concurrent (multiple readers allowed simultaneously).
-      - Writes: exclusive (one writer at a time, no wasted CAS retries).
-      - [test_and_set_ref]: atomic read-modify-write under write lock. *)
-
-  (** Simple read-write lock: multiple concurrent readers, exclusive writer. *)
-  module RWLock = struct
-    type t = {
-      mutex : Mutex.t;
-      cond : Condition.t;
-      mutable readers : int;
-      mutable writer : bool;
-    }
-
-    let create () =
-      {
-        mutex = Mutex.create ();
-        cond = Condition.create ();
-        readers = 0;
-        writer = false;
-      }
-
-    let read_lock t =
-      Mutex.lock t.mutex;
-      while t.writer do
-        Condition.wait t.cond t.mutex
-      done;
-      t.readers <- t.readers + 1;
-      Mutex.unlock t.mutex
-
-    let read_unlock t =
-      Mutex.lock t.mutex;
-      t.readers <- t.readers - 1;
-      if t.readers = 0 then Condition.broadcast t.cond;
-      Mutex.unlock t.mutex
-
-    let write_lock t =
-      Mutex.lock t.mutex;
-      while t.writer || t.readers > 0 do
-        Condition.wait t.cond t.mutex
-      done;
-      t.writer <- true;
-      Mutex.unlock t.mutex
-
-    let write_unlock t =
-      Mutex.lock t.mutex;
-      t.writer <- false;
-      Condition.broadcast t.cond;
-      Mutex.unlock t.mutex
-
-    let with_read t f =
-      read_lock t;
-      Fun.protect ~finally:(fun () -> read_unlock t) f
-
-    let with_write t f =
-      write_lock t;
-      Fun.protect ~finally:(fun () -> write_unlock t) f
-  end
 
   type 'hash state = {
     mutable objects : string String_map.t;
     mutable refs : 'hash String_map.t;
     to_hex : 'hash -> string;
     equal : 'hash -> 'hash -> bool;
-    rw : RWLock.t;
   }
 
   let create_with_hash (type h) (to_hex : h -> string) (equal : h -> h -> bool)
       : h t =
     let state =
-      {
-        objects = String_map.empty;
-        refs = String_map.empty;
-        to_hex;
-        equal;
-        rw = RWLock.create ();
-      }
+      { objects = String_map.empty; refs = String_map.empty; to_hex; equal }
     in
     {
       read =
         (fun h ->
           let key = state.to_hex h in
-          RWLock.with_read state.rw (fun () ->
-              String_map.find_opt key state.objects));
+          String_map.find_opt key state.objects);
       write =
         (fun h data ->
           let key = state.to_hex h in
-          RWLock.with_write state.rw (fun () ->
-              state.objects <- String_map.add key data state.objects));
+          state.objects <- String_map.add key data state.objects);
       exists =
         (fun h ->
           let key = state.to_hex h in
-          RWLock.with_read state.rw (fun () ->
-              String_map.mem key state.objects));
-      get_ref =
-        (fun name ->
-          RWLock.with_read state.rw (fun () ->
-              String_map.find_opt name state.refs));
+          String_map.mem key state.objects);
+      get_ref = (fun name -> String_map.find_opt name state.refs);
       set_ref =
-        (fun name hash ->
-          RWLock.with_write state.rw (fun () ->
-              state.refs <- String_map.add name hash state.refs));
+        (fun name hash -> state.refs <- String_map.add name hash state.refs);
       test_and_set_ref =
         (fun name ~test ~set ->
-          RWLock.with_write state.rw (fun () ->
-              let current = String_map.find_opt name state.refs in
-              let matches =
-                match (test, current) with
-                | None, None -> true
-                | Some t, Some c -> state.equal t c
-                | _ -> false
-              in
-              if matches then (
-                (match set with
-                | None -> state.refs <- String_map.remove name state.refs
-                | Some h -> state.refs <- String_map.add name h state.refs);
-                true)
-              else false));
-      list_refs =
-        (fun () ->
-          RWLock.with_read state.rw (fun () ->
-              String_map.bindings state.refs |> List.map fst));
+          let current = String_map.find_opt name state.refs in
+          let matches =
+            match (test, current) with
+            | None, None -> true
+            | Some t, Some c -> state.equal t c
+            | _ -> false
+          in
+          if matches then (
+            (match set with
+            | None -> state.refs <- String_map.remove name state.refs
+            | Some h -> state.refs <- String_map.add name h state.refs);
+            true)
+          else false);
+      list_refs = (fun () -> String_map.bindings state.refs |> List.map fst);
       write_batch =
         (fun objects ->
-          RWLock.with_write state.rw (fun () ->
-              List.iter
-                (fun (h, data) ->
-                  let key = state.to_hex h in
-                  state.objects <- String_map.add key data state.objects)
-                objects));
+          List.iter
+            (fun (h, data) ->
+              let key = state.to_hex h in
+              state.objects <- String_map.add key data state.objects)
+            objects);
       flush = (fun () -> ());
       close = (fun () -> ());
     }
@@ -271,6 +191,80 @@ let thread_safe (backend : 'h t) : 'h t =
       (fun objects -> with_lock (fun () -> backend.write_batch objects));
     flush = (fun () -> with_lock (fun () -> backend.flush ()));
     close = (fun () -> with_lock (fun () -> backend.close ()));
+  }
+
+(** Read-write lock: multiple concurrent readers, exclusive writer. *)
+module RWLock = struct
+  type t = {
+    mutex : Mutex.t;
+    cond : Condition.t;
+    mutable readers : int;
+    mutable writer : bool;
+  }
+
+  let create () =
+    {
+      mutex = Mutex.create ();
+      cond = Condition.create ();
+      readers = 0;
+      writer = false;
+    }
+
+  let with_read t f =
+    Mutex.lock t.mutex;
+    while t.writer do
+      Condition.wait t.cond t.mutex
+    done;
+    t.readers <- t.readers + 1;
+    Mutex.unlock t.mutex;
+    Fun.protect ~finally:(fun () ->
+        Mutex.lock t.mutex;
+        t.readers <- t.readers - 1;
+        if t.readers = 0 then Condition.broadcast t.cond;
+        Mutex.unlock t.mutex)
+      f
+
+  let with_write t f =
+    Mutex.lock t.mutex;
+    while t.writer || t.readers > 0 do
+      Condition.wait t.cond t.mutex
+    done;
+    t.writer <- true;
+    Mutex.unlock t.mutex;
+    Fun.protect ~finally:(fun () ->
+        Mutex.lock t.mutex;
+        t.writer <- false;
+        Condition.broadcast t.cond;
+        Mutex.unlock t.mutex)
+      f
+end
+
+(** [thread_safe_rw backend] wraps a backend with a read-write lock.
+    Read operations ([read], [exists], [get_ref], [list_refs]) run
+    concurrently. Write operations are exclusive.
+
+    Like {!thread_safe}, only use with non-yielding backends (e.g.
+    {!Memory}). Do NOT use with Eio I/O backends ({!Disk}). *)
+let thread_safe_rw (backend : 'h t) : 'h t =
+  let rw = RWLock.create () in
+  {
+    read = (fun h -> RWLock.with_read rw (fun () -> backend.read h));
+    write = (fun h data -> RWLock.with_write rw (fun () -> backend.write h data));
+    exists = (fun h -> RWLock.with_read rw (fun () -> backend.exists h));
+    get_ref = (fun name -> RWLock.with_read rw (fun () -> backend.get_ref name));
+    set_ref =
+      (fun name hash ->
+        RWLock.with_write rw (fun () -> backend.set_ref name hash));
+    test_and_set_ref =
+      (fun name ~test ~set ->
+        RWLock.with_write rw (fun () ->
+            backend.test_and_set_ref name ~test ~set));
+    list_refs = (fun () -> RWLock.with_read rw (fun () -> backend.list_refs ()));
+    write_batch =
+      (fun objects ->
+        RWLock.with_write rw (fun () -> backend.write_batch objects));
+    flush = (fun () -> RWLock.with_write rw (fun () -> backend.flush ()));
+    close = (fun () -> RWLock.with_write rw (fun () -> backend.close ()));
   }
 
 let stats _ = None
