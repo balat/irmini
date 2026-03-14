@@ -80,7 +80,6 @@ CHART_SOURCES = {
     "chart_disk_parallel.svg": [
         "par_disk.json", "par_lavyek.json",
         "trace_par_disk.json", "trace_par_lavyek.json",
-        "tezos_parallel.json",
         # Legacy
         "irmini_parallel.json",
     ],
@@ -106,7 +105,6 @@ README_SECTIONS = {
     "disk_parallel": [
         "par_disk.json", "par_lavyek.json",
         "trace_par_disk.json", "trace_par_lavyek.json",
-        "tezos_parallel.json",
         # Legacy
         "irmini_parallel.json",
     ],

@@ -384,7 +384,6 @@ at the end would bring lavyek+fsync performance in line with disk.
 ```
 Name                            Scenario                    ops/s   total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
-Irmin-Eio (pack) 12d×1f         tezos-10310commits         205337     19.500          0
 Irmini (disk) 12d×100f          commits-20B                 86210     13.920        491
 Irmini (disk) 12d×100f          reads-20B                 4445372      0.225        607
 Irmini (disk) 12d×100f          incremental-20B              1010      1.188        563
