@@ -1,53 +1,5 @@
 [
   {
-    "name": "Irmini (memory, mutex)",
-    "scenario": "incremental-10K",
-    "total_ops": 100,
-    "total_time": 0.019196,
-    "ops_per_sec": 5209.4,
-    "maxrss_kb": 495120
-  },
-  {
-    "name": "Irmini (memory, mutex)",
-    "scenario": "reads-10K",
-    "total_ops": 10000,
-    "total_time": 0.00691,
-    "ops_per_sec": 1447160.1,
-    "maxrss_kb": 336584
-  },
-  {
-    "name": "Irmini (memory, mutex)",
-    "scenario": "commits-10K",
-    "total_ops": 100000,
-    "total_time": 5.899684,
-    "ops_per_sec": 16950.1,
-    "maxrss_kb": 309552
-  },
-  {
-    "name": "Irmini (memory, mutex)",
-    "scenario": "incremental-20B",
-    "total_ops": 100,
-    "total_time": 0.012994,
-    "ops_per_sec": 7695.8,
-    "maxrss_kb": 309552
-  },
-  {
-    "name": "Irmini (memory, mutex)",
-    "scenario": "reads-20B",
-    "total_ops": 10000,
-    "total_time": 0.005927,
-    "ops_per_sec": 1687169.8,
-    "maxrss_kb": 310064
-  },
-  {
-    "name": "Irmini (memory, mutex)",
-    "scenario": "commits-20B",
-    "total_ops": 100000,
-    "total_time": 0.440618,
-    "ops_per_sec": 226953.9,
-    "maxrss_kb": 311088
-  },
-  {
     "name": "Irmini (lavyek, no fsync)",
     "scenario": "incremental-10K",
     "total_ops": 100,

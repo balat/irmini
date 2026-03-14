@@ -343,12 +343,6 @@ Irmin-Eio (memory)              incremental-20B              1440      0.069    
 Irmin-Eio (memory)              commits-10K                 16103      6.210        151
 Irmin-Eio (memory)              reads-10K                  552602      0.018         68
 Irmin-Eio (memory)              incremental-10K              1249      0.080         62
-Irmini (memory, mutex)          commits-20B                226954      0.441        304
-Irmini (memory, mutex)          reads-20B                 1687170      0.006        303
-Irmini (memory, mutex)          incremental-20B              7696      0.013        302
-Irmini (memory, mutex)          commits-10K                 16950      5.900        302
-Irmini (memory, mutex)          reads-10K                 1447160      0.007        329
-Irmini (memory, mutex)          incremental-10K              5209      0.019        484
 Irmini (memory)                 commits-20B                152669      0.655         44
 Irmini (memory)                 reads-20B                 3490707      0.286         44
 Irmini (memory)                 incremental-20B              4333      0.023         46
