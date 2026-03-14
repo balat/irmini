@@ -208,7 +208,7 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 
 ## Results
 
-Run on 2026-03-14, , 12-core, 100 commits x 1000 adds, depth 10, 10000 reads.
+Run on 2026-03-14, AMD 12-core, 100 commits × 1000 adds, depth 10, 10000 reads.
 Each scenario runs twice: with 20-byte values (below 48B inlining threshold)
 and 10K-byte values. All three implementations use the same parameters.
 
@@ -243,6 +243,7 @@ Irmin-Eio (fs)                  incremental-20B               136      0.733    
 Irmin-Eio (fs)                  commits-10K                 10767      9.287        525
 Irmin-Eio (fs)                  reads-10K                   91709      0.109        525
 Irmin-Eio (fs)                  incremental-10K               123      0.811        559
+Irmini (lavyek)                 tezos-sequential            54000     74.120        529
 Irmini (disk)                   commits-20B                 20324      4.920         40
 Irmini (disk)                   reads-20B                 3288144      0.304         46
 Irmini (disk)                   incremental-20B                69      1.445         45
@@ -275,29 +276,24 @@ Irmini (lavyek, no fsync)       tezos-10310commits         135035     29.622    
 - **Irmini (disk)**: WAL+bloom backend with crash safety. Reads at 3.3M (20B), 3.0M (10K). Writes bottlenecked by WAL fsync: commits at 20k. Trade-off: durability over raw speed.
 - **irmin-pack**: Reads at 719k–1.4M ops/s, commits at 40k–68k ops/s. Irmin-Lwt faster on commits (68k vs 40k).
 - **irmin-fs**: Slower across the board. Reads 106k–166k, commits 376–190k.
-- **trace-replay**: Irmini (lavyek) replays 10,310 real Tezos commits (4M operations) at **135k ops/sec**. Irmini (memory) at 142k ops/sec.
-
-#### Fsync impact
-
-Both disk and lavyek backends support `?use_fsync` (default: `true`). When
-enabled, each write is fsynced to the WAL for crash safety. The performance
-impact differs dramatically between the two backends:
-
-| Scenario | Disk (fsync) | Disk (no fsync) | Lavyek (fsync) | Lavyek (no fsync) |
-|---|---|---|---|---|
-| commits-20B | 20,324 | 39,843 | **376** | 136,840 |
-| commits-10K | 5,445 | 6,322 | **83** | 8,137 |
-| tezos-10310commits | 14,667 | 37,876 (2.6x) | — | 135,035 |
+- **trace-replay**: Irmini (lavyek) replays 10,310 real Tezos commits (4M operations) at **54k ops/sec**. Irmini (memory) at 142k ops/sec.
 
 **Why lavyek collapses with fsync**: The root cause is fsync granularity.
 The disk backend uses `write_batch`: it accumulates all objects in the WAL
 with `Wal.append` (no fsync), then calls **one `Wal.sync`** at the end of
 the batch. A commit writing 1,000 objects costs **1 fsync**.
 
-Lavyek calls `Lavyek.put ~sync:true` for **each object individually**.
-A commit writing 1,000 objects costs **1,000 fsyncs**. Each fsync forces
-the kernel to flush to storage, typically 0.1–1ms on SSD, making writes
-~100–1000× slower.
+Lavyek, by contrast, calls `Lavyek.put ~sync:true` for each individual
+key-value pair. Each `put` triggers its own fsync internally. A commit
+writing 1,000 objects costs **1,000 fsyncs**. At ~0.1–1ms per fsync on SSD,
+this means 100–1000ms per commit, which matches the observed 265s for 100
+commits of 1,000 entries (2.65s/commit).
+
+**Reads are unaffected** — fsync only impacts write paths. Lavyek with fsync
+still reads at 3.4–3.7M ops/s.
+
+**Fix**: Adding a `Lavyek.put_batch` that accumulates writes and fsyncs once
+at the end would bring lavyek+fsync performance in line with disk.
 
 ### Disk backends — multi-core (100 fibers, 12 domains)
 
@@ -360,6 +356,21 @@ Irmini (memory)                 tezos-10310commits         142217     28.126    
 - **Reads (20B)**: Irmin 1.3M–1.3M vs Irmini **1.7M** — Irmin keeps the full tree in memory; irmini navigates content-addressed structures.
 - **Incremental (20B)**: Irmini at **7.7k ops/s** is **5.3–6.6× faster** than Irmin (1.2k–1.4k) thanks to inode structural sharing.
 - **10K values**: All three converge on commits (~17k ops/s) — I/O dominates.
+
+### Memory backends — multi-core (100 fibers, 12 domains)
+
+![Memory parallel](results/chart_memory_parallel.svg)
+
+```
+Name                            Scenario                    ops/s   total(s)   RSS(MiB)
+----------------------------------------------------------------------------------
+Irmini (memory)                 commits-20B                143949      8.336        264
+Irmini (memory)                 reads-20B                 8211819      0.122        291
+Irmini (memory)                 incremental-20B              3037      0.395        305
+Irmini (memory)                 commits-10K                 24076     49.843        914
+Irmini (memory)                 reads-10K                 6936416      0.144        597
+Irmini (memory)                 incremental-10K              2792      0.430        594
+```
 
 ### Git backends
 
@@ -544,6 +555,7 @@ Backend                   Ops/sec   Wall time   RSS (MiB)
 Irmin-Lwt (pack)         ~135,000       29.6s         306
 Irmini (lavyek, no fsync)   ~135,000       29.6s         713
 Irmin-Eio (pack)           83,022       48.2s         746
+Irmini (lavyek)            54,000       74.1s         529
 Irmini (disk, no fsync)     37,876      105.6s         206
 Irmini (disk)              14,666      272.7s         178
 ```
@@ -554,6 +566,7 @@ Irmini (disk)              14,666      272.7s         178
 - **Irmin-Lwt (pack-mem)** at 131k ops/s (92% of Irmini (memory)).
 - **Irmin-Eio (pack-mem)** at 83k ops/s (58% of Irmini (memory)).
 - **Irmin-Eio (pack)** at 83k ops/s (58% of Irmini (memory)), 746 MiB RSS.
+- **Irmini (lavyek)** at 54k ops/s (38% of Irmini (memory)), 529 MiB RSS.
 - **Irmini (disk, no fsync)** at 38k ops/s (27% of Irmini (memory)), 206 MiB RSS.
 - **Irmini (disk)** at 15k ops/s (10% of Irmini (memory)), 178 MiB RSS.
 
@@ -582,4 +595,4 @@ Throughput of commits and reads scenarios with 12 domains and varying fiber coun
 - **Git backend**: Irmini is **4× faster** than Irmin on git commits (8.5k vs 2.0k) while using **4× less memory** (49–131 MiB vs 482–524 MiB).
 - **10K values**: All three implementations converge (~17k commits/s) — I/O dominates and inlining cannot help.
 - **Irmin-Lwt vs Irmin-Eio**: Similar performance on most benchmarks. Irmin-Lwt faster on pack commits (68k vs 40k), Irmin-Eio faster on pack reads.
-- **Tezos trace replay**: 142k ops/sec (memory), 135k ops/sec (lavyek, no fsync), 38k ops/sec (disk, no fsync), 15k ops/sec (disk) over 10K real Tezos commits validates that irmini handles realistic workloads.
+- **Tezos trace replay**: 142k ops/sec (memory), 135k ops/sec (lavyek, no fsync), 54k ops/sec (lavyek), 38k ops/sec (disk, no fsync), 15k ops/sec (disk) over 10K real Tezos commits validates that irmini handles realistic workloads.

@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from bench_utils import load_results, COLORS, fmt_ops_chart as fmt_ops, fmt_fibers
 
 # Only show these backends in scaling chart
-SCALING_BACKENDS = {"Irmini (lavyek)", "Irmini (memory)", "Irmini (disk)", "Irmin-Eio (pack)"}
+SCALING_BACKENDS = {"Irmini (lavyek)", "Irmini (lavyek, no fsync)", "Irmini (memory)", "Irmini (disk)", "Irmin-Eio (pack)"}
 
 # Dash patterns per base scenario
 DASHES = {
