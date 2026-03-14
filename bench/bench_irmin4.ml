@@ -417,7 +417,16 @@ let run_scenarios ?inline_threshold ?inode
     ?(ndomains = 0) ?(fibers_per_domain = 1)
     ?(scenarios = all_scenario_ids) ~name ?env
     (conf : Bench_common.config) =
-  let confs = [ conf; { conf with value_size = 10_000 } ] in
+  (* Scale down 10K workload to avoid swap: 100 commits × 1000 adds × 10KB
+     = 1GB raw data, which balloons to 10+ GB with index/WAL/bloom/GC.
+     Use 10× fewer commits and 5× fewer adds for 10K values to stay under 4GB. *)
+  let conf_10k = {
+    conf with
+    value_size = 10_000;
+    ncommits = max 10 (conf.ncommits / 10);
+    tree_add = max 200 (conf.tree_add / 5);
+  } in
+  let confs = [ conf; conf_10k ] in
   let with_close backend f =
     match close with
     | None -> f ~backend

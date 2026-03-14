@@ -133,6 +133,9 @@ let () =
     (match inline_threshold with
      | Some n -> Printf.sprintf ", inline_threshold=%d" n
      | None -> "");
+  (* Warn if system is already under memory pressure *)
+  ignore (Bench_common.check_memory ~scenario_name:"startup"
+    ~needed_kb:(4 * 1024 * 1024));
   Eio_main.run @@ fun env ->
   let cwd = Eio.Stdenv.cwd env in
   let results = ref [] in

@@ -40,6 +40,50 @@ let get_maxrss_kb () =
   in
   try scan () with _ -> 0
 
+(** Read a field from /proc/meminfo (in kB). *)
+let read_meminfo field =
+  try
+    let ic = open_in "/proc/meminfo" in
+    let rec scan () =
+      match input_line ic with
+      | line ->
+        if String.length line > String.length field
+           && String.sub line 0 (String.length field) = field then begin
+          close_in ic;
+          Scanf.sscanf line (Scanf.format_from_string (field ^ " %d kB") "%d") Fun.id
+        end else scan ()
+      | exception End_of_file -> close_in ic; 0
+    in
+    scan ()
+  with _ -> 0
+
+(** Available physical memory in kB (RAM not used or reclaimable). *)
+let get_available_mem_kb () = read_meminfo "MemAvailable:"
+
+(** Total swap currently used in kB. *)
+let get_swap_used_kb () =
+  let total = read_meminfo "SwapTotal:" in
+  let free = read_meminfo "SwapFree:" in
+  total - free
+
+(** Check memory before a benchmark. Prints a warning if available RAM
+    is below [needed_kb] and swap is active. Returns true if swap risk. *)
+let check_memory ~scenario_name ~needed_kb =
+  let avail = get_available_mem_kb () in
+  let swap_used = get_swap_used_kb () in
+  let avail_mb = avail / 1024 in
+  let needed_mb = needed_kb / 1024 in
+  if avail < needed_kb then begin
+    Format.eprintf
+      "@[<v>WARNING: %s needs ~%d MiB but only %d MiB available \
+       (swap used: %d MiB).@,\
+       Results may be biased by swap I/O. Consider closing other programs \
+       or reducing workload.@]@.@."
+      scenario_name needed_mb avail_mb (swap_used / 1024);
+    true
+  end else
+    false
+
 let path ~depth n =
   let rec aux acc = function
     | i when i = depth -> List.rev (string_of_int n :: acc)
