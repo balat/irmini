@@ -97,8 +97,7 @@ def generate_chart(title, results, backends, compact=False):
     lines.append(f'<rect width="{svg_w}" height="{svg_h}" fill="white"/>')
 
     # Define hatching patterns for parallel variants
-    # Standard parallel (100f): 45° diagonal lines
-    # Tezos parallel (other fiber counts): cross-hatch (45° + 135°)
+    # Simple diagonal lines for standard parallel, cross-hatch for tezos (50k fibers)
     lines.append('<defs>')
     for backend in backends:
         if is_parallel_variant(backend):
@@ -388,9 +387,9 @@ def main():
 
     # Parallel charts: remap scenario names, include sequential reference
     parallel_specs = [
-        ("disk_parallel", "disk", "Disk backends — multi-core (100 fibers, 12 domains)",
+        ("disk_parallel", "disk", "Disk backends — multi-core (12 domains)",
          "chart_disk_parallel.svg"),
-        ("memory_parallel", "memory", "Memory backends — multi-core (100 fibers, 12 domains)",
+        ("memory_parallel", "memory", "Memory backends — multi-core (12 domains)",
          "chart_memory_parallel.svg"),
     ]
 

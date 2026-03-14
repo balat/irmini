@@ -665,7 +665,7 @@ def generate_results_section(all_results, run_date, machine_info):
                      if not re.search(r'-\d+f/\d+d$', r["scenario"])
                      and not re.search(r'-\d+d[×x]\d+f$', r["scenario"])]
         disk_par_remapped.extend(tezos_par)
-        lines.append("### Disk backends — multi-core (100 fibers, 12 domains)")
+        lines.append("### Disk backends — multi-core (12 domains, 100 fibers)")
         lines.append("")
         lines.append("![Disk parallel](results/chart_disk_parallel.svg)")
         lines.append("")
@@ -697,12 +697,8 @@ def generate_results_section(all_results, run_date, machine_info):
 
     # --- Memory parallel ---
     if groups["memory_parallel"]:
-        # Only keep main parallel config (100f/12d)
-        main_mem_par = [r for r in groups["memory_parallel"]
-                        if re.search(r'-100f/\d+d$', r["scenario"])
-                        or not re.search(r'-\d+f/\d+d$', r["scenario"])]
-        mem_par_remapped = remap_parallel_scenarios(main_mem_par)
-        lines.append("### Memory backends — multi-core (100 fibers, 12 domains)")
+        mem_par_remapped = remap_parallel_scenarios(groups["memory_parallel"])
+        lines.append("### Memory backends — multi-core (12 domains)")
         lines.append("")
         lines.append("![Memory parallel](results/chart_memory_parallel.svg)")
         lines.append("")
@@ -712,18 +708,29 @@ def generate_results_section(all_results, run_date, machine_info):
         lines.append("```")
         lines.append("")
 
+    # --- Fiber count explanation (always generated) ---
+    lines.append("**Why 1 fiber per domain for Memory?** The Memory backend performs pure CPU")
+    lines.append("operations (`String_map` lookups and updates) that never yield to the Eio")
+    lines.append("scheduler. Extra fibers within a domain just add scheduling overhead without")
+    lines.append("any parallelism benefit \u2014 fibers only help when operations do I/O that")
+    lines.append("yields to other fibers. Benchmarks confirm that 1 fiber matches or beats")
+    lines.append("100 fibers (commits-10K is 37% faster with 1 fiber due to reduced")
+    lines.append("scheduling overhead).")
+    lines.append("")
+
     # --- RWLock vs mutex explanation (always generated) ---
     lines.append("**RWLock vs mutex**: The Memory backend is plain `mutable` fields (zero")
     lines.append("overhead single-core). For multi-domain use, it is wrapped with")
     lines.append("`thread_safe_rw` \u2014 a read-write lock allowing concurrent readers with")
-    lines.append("exclusive writers. Compared to the old global `Stdlib.Mutex` (shown as")
-    lines.append("\"mutex\" above):")
+    lines.append("exclusive writers. Both use 12 domains \u00d7 1 fiber. Compared to the global")
+    lines.append("`Stdlib.Mutex` (shown as \"mutex\" above):")
     lines.append("")
-    lines.append("- **Reads: 1.3\u20131.5\u00d7 faster** (10.7M vs 6.9\u20138.2M) \u2014 multiple readers")
+    lines.append("- **Reads: 1.2\u20131.4\u00d7 faster** (9.0\u20139.4M vs 6.5\u20137.6M) \u2014 multiple readers")
     lines.append("  proceed in parallel without blocking each other.")
-    lines.append("- **Commits: 1.1\u00d7 faster** (155k vs 144k on 20B) \u2014 writes are serialized")
-    lines.append("  like the mutex, but readers no longer block behind writers.")
-    lines.append("- **Incremental: 1.1\u20131.3\u00d7 faster** (3.2\u20133.9k vs 2.8\u20133.0k) \u2014 same benefit.")
+    lines.append("- **Commits-20B: 1.4\u00d7 faster** (144k vs 105k) \u2014 readers no longer")
+    lines.append("  block behind writers, reducing contention.")
+    lines.append("- **Commits-10K: 1.1\u00d7 faster** (35k vs 33k) \u2014 write-dominated,")
+    lines.append("  the advantage is smaller but still measurable.")
     lines.append("- **Single-core: zero overhead** \u2014 no lock on the base backend.")
     lines.append("")
 

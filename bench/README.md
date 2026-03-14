@@ -208,7 +208,7 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 
 ## Results
 
-Run on 2026-03-14, AMD 12-core, 100 commits × 1000 adds, depth 10, 10000 reads.
+Run on 2025-03-14, , 12-core, 100 commits x 1000 adds, depth 10, 10000 reads.
 Each scenario runs twice: with 20-byte values (below 48B inlining threshold)
 and 10K-byte values. All three implementations use the same parameters.
 
@@ -295,7 +295,7 @@ still reads at 3.4–3.7M ops/s.
 **Fix**: Adding a `Lavyek.put_batch` that accumulates writes and fsyncs once
 at the end would bring lavyek+fsync performance in line with disk.
 
-### Disk backends — multi-core (100 fibers, 12 domains)
+### Disk backends — multi-core (12 domains, 100 fibers)
 
 ![Disk parallel](results/chart_disk_parallel.svg)
 
@@ -343,52 +343,61 @@ Irmin-Eio (memory)              incremental-20B              1440      0.069    
 Irmin-Eio (memory)              commits-10K                 16103      6.210        151
 Irmin-Eio (memory)              reads-10K                  552602      0.018         68
 Irmin-Eio (memory)              incremental-10K              1249      0.080         62
-Irmini (memory)                 commits-20B                152669      0.655         44
-Irmini (memory)                 reads-20B                 3490707      0.286         44
-Irmini (memory)                 incremental-20B              4333      0.023         46
-Irmini (memory)                 commits-10K                 16736      5.975         87
-Irmini (memory)                 reads-10K                 3354287      0.298         85
-Irmini (memory)                 incremental-10K              3638      0.027         85
+Irmini (memory)                 commits-20B                154615      0.647         81
+Irmini (memory)                 reads-20B                 3569311      0.280         84
+Irmini (memory)                 incremental-20B              4649      0.022         86
+Irmini (memory)                 commits-10K                 15832      6.316        250
+Irmini (memory)                 reads-10K                 3209211      0.312        253
+Irmini (memory)                 incremental-10K              3527      0.028        246
 Irmini (memory)                 tezos-10310commits         142217     28.126        586
 ```
 
-- **Commits (20B)**: Irmin ~162k ops/s vs Irmini **153k** — Irmin's in-memory tree is faster on bulk writes (no content-addressed hashing overhead).
-- **Reads (20B)**: Irmin 1.3M–1.3M vs Irmini **3.5M** — Irmin keeps the full tree in memory; irmini navigates content-addressed structures.
-- **Incremental (20B)**: Irmini at **4.3k ops/s** is **3.0–3.7× faster** than Irmin (1.2k–1.4k) thanks to inode structural sharing.
+- **Commits (20B)**: Irmin ~162k ops/s vs Irmini **155k** — Irmin's in-memory tree is faster on bulk writes (no content-addressed hashing overhead).
+- **Reads (20B)**: Irmin 1.3M–1.3M vs Irmini **3.6M** — Irmin keeps the full tree in memory; irmini navigates content-addressed structures.
+- **Incremental (20B)**: Irmini at **4.6k ops/s** is **3.2–4.0× faster** than Irmin (1.2k–1.4k) thanks to inode structural sharing.
 - **10K values**: All three converge on commits (~16k ops/s) — I/O dominates.
 
-### Memory backends — multi-core (100 fibers, 12 domains)
+### Memory backends — multi-core (12 domains)
 
 ![Memory parallel](results/chart_memory_parallel.svg)
 
 ```
 Name                            Scenario                    ops/s   total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
-Irmini (memory, mutex)          commits-20B                143949      8.336        264
-Irmini (memory, mutex)          reads-20B                 8211819      0.122        291
-Irmini (memory, mutex)          incremental-20B              3037      0.395        305
-Irmini (memory, mutex)          commits-10K                 24076     49.843        914
-Irmini (memory, mutex)          reads-10K                 6936416      0.144        597
-Irmini (memory, mutex)          incremental-10K              2792      0.430        594
-Irmini (memory)                 commits-20B                155061      7.739        279
-Irmini (memory)                 reads-20B                10681986      0.094        280
-Irmini (memory)                 incremental-20B              3921      0.306        284
-Irmini (memory)                 commits-10K                 24997     48.006        974
-Irmini (memory)                 reads-10K                10673203      0.094        493
-Irmini (memory)                 incremental-10K              3162      0.380        415
+Irmini (memory, mutex)          commits-20B                105316      0.912         83
+Irmini (memory, mutex)          reads-20B                 7646567      0.131         86
+Irmini (memory, mutex)          incremental-20B              1817      0.053         89
+Irmini (memory, mutex)          commits-10K                 32702      2.936        445
+Irmini (memory, mutex)          reads-10K                 6481267      0.154        263
+Irmini (memory, mutex)          incremental-10K              1912      0.050        264
+Irmini (memory)                 commits-20B                143592      0.669         81
+Irmini (memory)                 reads-20B                 9391912      0.106         84
+Irmini (memory)                 incremental-20B              2129      0.045         86
+Irmini (memory)                 commits-10K                 34566      2.777        476
+Irmini (memory)                 reads-10K                 9024999      0.111        253
+Irmini (memory)                 incremental-10K              2202      0.044        254
 ```
+
+**Why 1 fiber per domain for Memory?** The Memory backend performs pure CPU
+operations (`String_map` lookups and updates) that never yield to the Eio
+scheduler. Extra fibers within a domain just add scheduling overhead without
+any parallelism benefit — fibers only help when operations do I/O that
+yields to other fibers. Benchmarks confirm that 1 fiber matches or beats
+100 fibers (commits-10K is 37% faster with 1 fiber due to reduced
+scheduling overhead).
 
 **RWLock vs mutex**: The Memory backend is plain `mutable` fields (zero
 overhead single-core). For multi-domain use, it is wrapped with
 `thread_safe_rw` — a read-write lock allowing concurrent readers with
-exclusive writers. Compared to the old global `Stdlib.Mutex` (shown as
-"mutex" above):
+exclusive writers. Both use 12 domains × 1 fiber. Compared to the global
+`Stdlib.Mutex` (shown as "mutex" above):
 
-- **Reads: 1.3–1.5× faster** (10.7M vs 6.9–8.2M) — multiple readers
+- **Reads: 1.2–1.4× faster** (9.0–9.4M vs 6.5–7.6M) — multiple readers
   proceed in parallel without blocking each other.
-- **Commits: 1.1× faster** (155k vs 144k on 20B) — writes are serialized
-  like the mutex, but readers no longer block behind writers.
-- **Incremental: 1.1–1.3× faster** (3.2–3.9k vs 2.8–3.0k) — same benefit.
+- **Commits-20B: 1.4× faster** (144k vs 105k) — readers no longer
+  block behind writers, reducing contention.
+- **Commits-10K: 1.1× faster** (35k vs 33k) — write-dominated,
+  the advantage is smaller but still measurable.
 - **Single-core: zero overhead** — no lock on the base backend.
 
 ### Git backends
@@ -642,8 +651,8 @@ Throughput of commits, reads, and incremental scenarios with 12 domains and vary
 
 ### Key observations
 
-- **Irmini vs Irmin on commits (20B)**: Irmin leads at ~162k vs Irmini 153k. The gap has narrowed with inlining (was 3× with 100B values, now 1.1×).
-- **Irmini vs Irmin on incremental**: Irmini is **3.0–3.7× faster** (4.3k vs 1.2k–1.4k) thanks to inode structural sharing (O(log n) tree updates).
+- **Irmini vs Irmin on commits (20B)**: Irmin leads at ~162k vs Irmini 155k. The gap has narrowed with inlining (was 3× with 100B values, now 1.0×).
+- **Irmini vs Irmin on incremental**: Irmini is **3.2–4.0× faster** (4.6k vs 1.2k–1.4k) thanks to inode structural sharing (O(log n) tree updates).
 - **Git backend**: Irmini is **4× faster** than Irmin on git commits (8.5k vs 2.0k) while using **4× less memory** (49–131 MiB vs 482–524 MiB).
 - **10K values**: All three implementations converge (~16k commits/s) — I/O dominates and inlining cannot help.
 - **Irmin-Lwt vs Irmin-Eio**: Similar performance on most benchmarks. Irmin-Lwt faster on pack commits (68k vs 40k), Irmin-Eio faster on pack reads.

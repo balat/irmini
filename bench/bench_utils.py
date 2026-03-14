@@ -60,8 +60,11 @@ def classify_backend(name, scenario=""):
     m_new = re.search(r'-(\d+)d[×x](\d+)f$', s)
     if m_old or m_new:
         fibers = int(m_old.group(1)) if m_old else int(m_new.group(2))
-        # Skip scaling sweep data (handled by gen_chart_scaling.py)
-        if fibers != 100:
+        # Skip scaling sweep data (handled by gen_chart_scaling.py).
+        # Memory backend uses 1 fiber/domain (fibers don't help on pure CPU ops),
+        # so accept fibers == 1 for memory as well as fibers == 100 for disk.
+        is_memory = "memory" in n or "mem" in n
+        if fibers != 100 and not (fibers == 1 and is_memory):
             return "skip"
         # Optimization variants: skip parallel (not run for optims)
         if any(x in n for x in ["baseline", "+inline", "+cache", "+inode", "+all"]):
@@ -286,11 +289,11 @@ def is_parallel_variant(name):
 
 
 def is_tezos_parallel(name):
-    """Check if a parallel variant uses non-standard (tezos) parameters.
-    Standard parallel uses 100f; tezos uses other counts like 50kf, 1f."""
+    """Check if a parallel variant is a tezos trace replay with many fibers.
+    These use counts like 50kf and get cross-hatching on charts."""
     if not is_parallel_variant(name):
         return False
-    return "×100f" not in name and "\u00d7100f" not in name
+    return "kf" in name
 
 
 def is_seq_reference(name):

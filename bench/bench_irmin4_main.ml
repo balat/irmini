@@ -165,7 +165,9 @@ let () =
   (* 2. Irmini memory *)
   if not !skip_memory && not !fsync_variants then begin
     let mem_name = match name with Some n -> n | None -> "Irmini (memory)" in
-    run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~env conf)
+    (* Memory backend: use 1 fiber/domain — fibers never yield on pure
+       CPU ops (String_map), so extra fibers only add scheduling overhead. *)
+    run mem_name (Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain:1 ?scenarios ?name ~env conf)
   end;
   (* 3. Irmini git *)
   if not !skip_git && not !fsync_variants then begin
@@ -258,7 +260,7 @@ let () =
           ~flatten_paths:(not !no_flatten)
           ~empty_blobs:!trace_empty_blobs
           ?inline_threshold ?inode
-          ~ndomains ~fibers_per_domain
+          ~ndomains ~fibers_per_domain:1
           ~backend
           ~backend_name:"Irmini-parallel (memory)"
           ~env ()
