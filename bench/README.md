@@ -243,7 +243,6 @@ Irmin-Eio (fs)                  incremental-20B               136      0.733    
 Irmin-Eio (fs)                  commits-10K                 10767      9.287        525
 Irmin-Eio (fs)                  reads-10K                   91709      0.109        525
 Irmin-Eio (fs)                  incremental-10K               123      0.811        559
-Irmini (lavyek)                 tezos-sequential            54000     74.120        529
 Irmini (disk)                   commits-20B                 24954      4.007         40
 Irmini (disk)                   reads-20B                 3160218      0.316         48
 Irmini (disk)                   incremental-20B                73      1.376         46
@@ -309,21 +308,18 @@ Irmini (disk) 12d×100f          incremental-20B              1010      1.188   
 Irmini (disk) 12d×100f          commits-10K                  1577    760.725      12147
 Irmini (disk) 12d×100f          reads-10K                 2604685      0.384      10048
 Irmini (disk) 12d×100f          incremental-10K               979      1.226       9957
-Irmini (disk) 12d×100f          tezos-10310commits         291283     13.732      10950
 Irmini (disk, no fsync) 12d×100f commits-20B                 98595     12.171        460
 Irmini (disk, no fsync) 12d×100f reads-20B                 4133978      0.242        560
 Irmini (disk, no fsync) 12d×100f incremental-20B              2237      0.537        508
 Irmini (disk, no fsync) 12d×100f commits-10K                  1560    769.052      12823
 Irmini (disk, no fsync) 12d×100f reads-10K                 1347898      0.742      11321
 Irmini (disk, no fsync) 12d×100f incremental-10K              2125      0.565      11323
-Irmini (disk, no fsync) 12d×100f tezos-10310commits         388921     10.285      11915
 Irmini (lavyek, no fsync) 12d×100f commits-20B                246195      4.874        511
 Irmini (lavyek, no fsync) 12d×100f reads-20B                11538873      0.087        512
 Irmini (lavyek, no fsync) 12d×100f incremental-20B              5557      0.216        532
 Irmini (lavyek, no fsync) 12d×100f commits-10K                  6459    185.796      11456
 Irmini (lavyek, no fsync) 12d×100f reads-10K                 6762508      0.148      11635
 Irmini (lavyek, no fsync) 12d×100f incremental-10K               899      1.335      11649
-Irmini (lavyek, no fsync) 12d×50kf tezos-10310commits        5063000      0.790       1815
 ```
 
 ### Memory backends — single-core
@@ -585,7 +581,6 @@ Backend                   Ops/sec   Wall time   RSS (MiB)
 Irmin-Lwt (pack)         ~135,000       29.6s         306
 Irmini (lavyek, no fsync)   ~135,000       29.6s         713
 Irmin-Eio (pack)           83,022       48.2s         746
-Irmini (lavyek)            54,000       74.1s         529
 Irmini (disk, no fsync)     32,783      122.0s        9751
 Irmini (disk)              13,410      298.3s        9751
 ```
@@ -596,42 +591,8 @@ Irmini (disk)              13,410      298.3s        9751
 - **Irmin-Lwt (pack-mem)** at 131k ops/s (92% of Irmini (memory)).
 - **Irmin-Eio (pack-mem)** at 83k ops/s (58% of Irmini (memory)).
 - **Irmin-Eio (pack)** at 83k ops/s (58% of Irmini (memory)), 746 MiB RSS.
-- **Irmini (lavyek)** at 54k ops/s (38% of Irmini (memory)), 529 MiB RSS.
 - **Irmini (disk, no fsync)** at 33k ops/s (23% of Irmini (memory)), 9751 MiB RSS.
 - **Irmini (disk)** at 13k ops/s (9% of Irmini (memory)), 9751 MiB RSS.
-
-### Parallel trace replay scaling
-
-![Parallel scaling](results/chart_parallel_scaling.svg)
-
-Parallel trace replay with 12 OS domains and varying fibers per domain,
-on a single shared Lavyek backend. The Tezos trace (4M ops, 10310 commits)
-is partitioned across all workers; each fiber processes a contiguous chunk.
-
-```
-Config                 ops/s    Speedup   RSS (MiB)
--------------------------------------------------
-Sequential           135,034         1x            
-12d ×      1f         84,000       0.6x           —
-12d ×     10f        236,000       1.7x           —
-12d ×    100f        647,000       4.8x           —
-12d ×  1,000f      1,300,000       9.6x           —
-12d × 10,000f      4,119,000        31x           —
-12d × 20,000f      3,992,000        30x           —
-12d × 30,000f      4,759,000        35x           —
-12d × 40,000f      4,512,000        33x           —
-12d × 45,000f      4,989,000        37x           —
-12d × 50,000f      5,063,000        37x           —
-12d × 55,000f      4,901,000        36x           —
-12d × 60,000f      4,360,000        32x           —
-12d × 70,000f      4,751,000        35x           —
-12d × 100,000f     2,961,000        22x           —
-```
-
-- Peak throughput at **50k fibers/domain**: **5.1M ops/s** (37x speedup).
-- Lavyek is natively thread-safe (lock-free LSM tree). Each write is an Eio I/O operation that yields to other fibers, enabling massive cooperative concurrency within each domain.
-- Scaling is super-linear up to ~10k fibers (31x on 12 cores) thanks to I/O overlap: while one fiber waits on disk, others make progress.
-- Beyond 50k fibers, scheduling overhead dominates and throughput drops.
 
 ### Parallel scaling per scenario
 
@@ -658,4 +619,4 @@ Throughput of commits, reads, and incremental scenarios with 12 domains and vary
 - **Git backend**: Irmini is **4× faster** than Irmin on git commits (8.5k vs 2.0k) while using **4× less memory** (49–131 MiB vs 482–524 MiB).
 - **10K values**: All three implementations converge (~16k commits/s) — I/O dominates and inlining cannot help.
 - **Irmin-Lwt vs Irmin-Eio**: Similar performance on most benchmarks. Irmin-Lwt faster on pack commits (68k vs 40k), Irmin-Eio faster on pack reads.
-- **Tezos trace replay**: 142k ops/sec (memory), 135k ops/sec (lavyek, no fsync), 54k ops/sec (lavyek), 33k ops/sec (disk, no fsync), 13k ops/sec (disk) over 10K real Tezos commits validates that irmini handles realistic workloads.
+- **Tezos trace replay**: 142k ops/sec (memory), 135k ops/sec (lavyek, no fsync), 33k ops/sec (disk, no fsync), 13k ops/sec (disk) over 10K real Tezos commits validates that irmini handles realistic workloads.

@@ -867,17 +867,8 @@ def generate_results_section(all_results, run_date, machine_info,
             lines.append(f"- {bullet}")
         lines.append("")
 
-    # --- Parallel trace replay scaling (always generated — never drop silently) ---
-    lines.append("### Parallel trace replay scaling")
-    lines.append("")
-    lines.append("![Parallel scaling](results/chart_parallel_scaling.svg)")
-    lines.append("")
-    lines.append("Parallel trace replay with 12 OS domains and varying fibers per domain,")
-    lines.append("on a single shared Lavyek backend. The Tezos trace (4M ops, 10310 commits)")
-    lines.append("is partitioned across all workers; each fiber processes a contiguous chunk.")
-    lines.append("")
-
-    if groups["parallel"]:
+    # --- Parallel trace replay scaling (only if data exists) ---
+    if groups.get("parallel"):
         # Find sequential baseline from trace results
         seq_baseline = None
         for r in groups.get("trace", []):

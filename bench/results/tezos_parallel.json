@@ -1,34 +1,10 @@
 [
   {
-    "name": "Irmini (lavyek, no fsync) 12d\u00d750kf",
-    "scenario": "tezos-10310commits",
-    "total_ops": 4002740,
-    "total_time": 0.79,
-    "ops_per_sec": 5063000,
-    "maxrss_kb": 1858560
-  },
-  {
     "name": "Irmin-Eio (pack) 12d\u00d71f",
     "scenario": "tezos-10310commits",
     "total_ops": 4002740,
     "total_time": 19.5,
     "ops_per_sec": 205337,
     "maxrss_kb": 0
-  },
-  {
-    "name": "Irmini (disk) 12d\u00d7100f",
-    "scenario": "tezos-10310commits",
-    "total_ops": 3999997,
-    "total_time": 13.732332,
-    "ops_per_sec": 291283.2,
-    "maxrss_kb": 11212972
-  },
-  {
-    "name": "Irmini (disk, no fsync) 12d\u00d7100f",
-    "scenario": "tezos-10310commits",
-    "total_ops": 3999997,
-    "total_time": 10.284864,
-    "ops_per_sec": 388920.7,
-    "maxrss_kb": 12200524
   }
 ]
