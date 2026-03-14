@@ -394,7 +394,7 @@ module Disk = struct
 
   let save_ref root name hash to_hex =
     let path = refs_path root in
-    if not (Eio.Path.is_directory path) then Eio.Path.mkdir ~perm:0o755 path;
+    Eio.Path.mkdirs ~exists_ok:true ~perm:0o755 path;
     let ref_path = Eio.Path.(path / name) in
     (* Handle nested paths like refs/heads/main *)
     let dir = Filename.dirname name in
