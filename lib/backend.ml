@@ -291,23 +291,31 @@ module Disk = struct
 
   type index_entry = { offset : int; length : int }
 
+  type wal_slot = { wal : Wal.t; mutex : Eio.Mutex.t }
+
+  (** Maximum number of WAL slots (one per domain). *)
+  let max_wal_slots = 128
+
   type 'hash state = {
     root : Eio.Fs.dir_ty Eio.Path.t;
-    mutable wal : Wal.t option;
     mutable data_file : Eio.File.rw_ty Eio.Resource.t option;
     data_offset : int Atomic.t;
     index : index_entry String_map.t Atomic.t;
     bloom : string Bloom.t;
+    bloom_mutex : Eio.Mutex.t;  (** Lightweight: protects bloom.add across domains *)
     refs : 'hash String_map.t Atomic.t;
     to_hex : 'hash -> string;
     equal : 'hash -> 'hash -> bool;
-    wal_mutex : Eio.Mutex.t;  (** Serializes WAL + bloom writes *)
+    wal_slots : wal_slot option array;  (** Per-domain WAL, indexed by domain ID *)
+    sw : Eio.Switch.t;
+    use_fsync : bool;
   }
 
   let data_path root = Eio.Path.(root / "objects.data")
   let index_path root = Eio.Path.(root / "objects.idx")
   let bloom_path root = Eio.Path.(root / "objects.bloom")
-  let wal_path root = Eio.Path.(root / "objects.wal")
+  let legacy_wal_path root = Eio.Path.(root / "objects.wal")
+  let wal_path root did = Eio.Path.(root / Printf.sprintf "wal-%d.log" did)
   let refs_path root = Eio.Path.(root / "refs")
 
   (* Expected number of objects for bloom filter sizing *)
@@ -425,30 +433,56 @@ module Disk = struct
         let data = String.sub record (i + 1) (String.length record - i - 1) in
         Some (hex, data)
 
+  (** Get or lazily create the WAL slot for the current domain. *)
+  let get_domain_wal state =
+    let did = (Domain.self () :> int) in
+    let did = did mod max_wal_slots in
+    match state.wal_slots.(did) with
+    | Some slot -> slot
+    | None ->
+        let wal = Wal.create ~sw:state.sw (wal_path state.root did) in
+        let slot = { wal; mutex = Eio.Mutex.create () } in
+        state.wal_slots.(did) <- Some slot;
+        slot
+
+  (** Collect all WAL file paths (wal-*.log + legacy objects.wal). *)
+  let collect_wal_paths root =
+    let paths = ref [] in
+    (* Legacy WAL *)
+    let legacy = legacy_wal_path root in
+    if Eio.Path.is_file legacy then paths := legacy :: !paths;
+    (* Per-domain WALs *)
+    for did = 0 to max_wal_slots - 1 do
+      let p = wal_path root did in
+      if Eio.Path.is_file p then paths := p :: !paths
+    done;
+    !paths
+
   (* Replay WAL entries that aren't in the index yet *)
   let replay_wal root index bloom data_file data_offset =
-    let wal_p = wal_path root in
-    if not (Eio.Path.is_file wal_p) then (index, bloom, data_offset)
-    else
-      let records = Wal.read_all wal_p in
-      List.fold_left
-        (fun (idx, blm, offset) record ->
-          match decode_wal_record record with
-          | None -> (idx, blm, offset)
-          | Some (hex, data) ->
-              if String_map.mem hex idx then (idx, blm, offset)
-              else begin
-                (* Write to data file *)
-                let len = String.length data in
-                Eio.File.pwrite_all data_file
-                  ~file_offset:(Optint.Int63.of_int offset)
-                  [ Cstruct.of_string data ];
-                let idx' = String_map.add hex { offset; length = len } idx in
-                Bloom.add blm hex;
-                (idx', blm, offset + len)
-              end)
-        (index, bloom, data_offset)
-        records
+    let wal_paths = collect_wal_paths root in
+    List.fold_left
+      (fun (idx, blm, offset) wal_p ->
+        let records = Wal.read_all wal_p in
+        List.fold_left
+          (fun (idx, blm, offset) record ->
+            match decode_wal_record record with
+            | None -> (idx, blm, offset)
+            | Some (hex, data) ->
+                if String_map.mem hex idx then (idx, blm, offset)
+                else begin
+                  let len = String.length data in
+                  Eio.File.pwrite_all data_file
+                    ~file_offset:(Optint.Int63.of_int offset)
+                    [ Cstruct.of_string data ];
+                  let idx' = String_map.add hex { offset; length = len } idx in
+                  Bloom.add blm hex;
+                  (idx', blm, offset + len)
+                end)
+          (idx, blm, offset)
+          records)
+      (index, bloom, data_offset)
+      wal_paths
 
   let create_with_hash (type h) ?(use_fsync = true) ~sw
       (root : Eio.Fs.dir_ty Eio.Path.t)
@@ -465,22 +499,22 @@ module Disk = struct
     let refs = load_refs root of_hex in
     let file, offset = open_data_file ~sw root in
     let data_file = (file :> Eio.File.rw_ty Eio.Resource.t) in
-    (* Replay any uncommitted WAL entries *)
+    (* Replay any uncommitted WAL entries from all WAL files *)
     let index, bloom, offset = replay_wal root index bloom data_file offset in
-    (* Open WAL for new writes *)
-    let wal = Wal.create ~sw (wal_path root) in
     let state =
       {
         root;
-        wal = Some wal;
         data_file = Some data_file;
         data_offset = Atomic.make offset;
         index = Atomic.make index;
         bloom;
+        bloom_mutex = Eio.Mutex.create ();
         refs = Atomic.make refs;
         to_hex;
         equal;
-        wal_mutex = Eio.Mutex.create ();
+        wal_slots = Array.make max_wal_slots None;
+        sw;
+        use_fsync;
       }
     in
     (* CAS helper: retry until the atomic update succeeds. *)
@@ -515,16 +549,19 @@ module Disk = struct
           (* Lock-free fast path: already present in index *)
           if String_map.mem key (Atomic.get state.index) then ()
           else
-            match (state.wal, state.data_file) with
-            | Some wal, Some file ->
-                (* WAL + bloom under mutex (serialized I/O) *)
-                Eio.Mutex.use_rw ~protect:true state.wal_mutex (fun () ->
-                    (* Re-check under lock: another writer may have added it *)
+            match state.data_file with
+            | Some file ->
+                (* Per-domain WAL: only fibers on this domain contend *)
+                let slot = get_domain_wal state in
+                Eio.Mutex.use_rw ~protect:true slot.mutex (fun () ->
+                    (* Re-check under lock: another fiber may have added it *)
                     if not (String_map.mem key (Atomic.get state.index)) then begin
-                      Wal.append wal (encode_wal_record key data);
-                      if use_fsync then Wal.sync wal;
-                      Bloom.add state.bloom key
+                      Wal.append slot.wal (encode_wal_record key data);
+                      if state.use_fsync then Wal.sync slot.wal
                     end);
+                (* Bloom under lightweight cross-domain mutex *)
+                Eio.Mutex.use_rw ~protect:true state.bloom_mutex (fun () ->
+                    Bloom.add state.bloom key);
                 (* Reserve space atomically, then pwrite in parallel *)
                 let len = String.length data in
                 let off = Atomic.fetch_and_add state.data_offset len in
@@ -534,7 +571,7 @@ module Disk = struct
                 (* Update index with CAS *)
                 cas_update state.index (fun idx ->
                     String_map.add key { offset = off; length = len } idx)
-            | _ -> ());
+            | None -> ());
       exists =
         (fun h ->
           (* Lock-free: just read the atomic index *)
@@ -582,8 +619,8 @@ module Disk = struct
           String_map.bindings (Atomic.get state.refs) |> List.map fst);
       write_batch =
         (fun objects ->
-          match (state.wal, state.data_file) with
-          | Some wal, Some file ->
+          match state.data_file with
+          | Some file ->
               (* Snapshot index to filter out already-present keys *)
               let idx = Atomic.get state.index in
               let new_objs =
@@ -594,15 +631,21 @@ module Disk = struct
               in
               if new_objs = [] then ()
               else begin
-                (* WAL + bloom under mutex *)
-                Eio.Mutex.use_rw ~protect:true state.wal_mutex (fun () ->
+                (* Per-domain WAL *)
+                let slot = get_domain_wal state in
+                Eio.Mutex.use_rw ~protect:true slot.mutex (fun () ->
                     List.iter
                       (fun (h, data) ->
                         let key = state.to_hex h in
-                        Wal.append wal (encode_wal_record key data);
-                        Bloom.add state.bloom key)
+                        Wal.append slot.wal (encode_wal_record key data))
                       new_objs;
-                    if use_fsync then Wal.sync wal);
+                    if state.use_fsync then Wal.sync slot.wal);
+                (* Bloom under lightweight cross-domain mutex *)
+                Eio.Mutex.use_rw ~protect:true state.bloom_mutex (fun () ->
+                    List.iter
+                      (fun (h, _data) ->
+                        Bloom.add state.bloom (state.to_hex h))
+                      new_objs);
                 (* Reserve total space atomically *)
                 let total_len =
                   List.fold_left
@@ -633,32 +676,51 @@ module Disk = struct
                       (fun acc (key, entry) -> String_map.add key entry acc)
                       idx entries)
               end
-          | _ -> ());
+          | None -> ());
       flush =
         (fun () ->
-          Eio.Mutex.use_rw ~protect:true state.wal_mutex (fun () ->
-              (match state.data_file with
-              | Some file -> Eio.File.sync file
-              | None -> ());
-              save_index state.root (Atomic.get state.index);
-              save_bloom state.root state.bloom;
-              let wal_p = wal_path state.root in
-              if Eio.Path.is_file wal_p then Eio.Path.unlink wal_p));
+          (match state.data_file with
+          | Some file -> Eio.File.sync file
+          | None -> ());
+          save_index state.root (Atomic.get state.index);
+          save_bloom state.root state.bloom;
+          (* Close and delete all per-domain WAL files *)
+          Array.iteri
+            (fun i slot_opt ->
+              match slot_opt with
+              | Some slot ->
+                  Wal.close slot.wal;
+                  state.wal_slots.(i) <- None;
+                  let wal_p = wal_path state.root i in
+                  if Eio.Path.is_file wal_p then Eio.Path.unlink wal_p
+              | None -> ())
+            state.wal_slots;
+          (* Also clean up legacy WAL *)
+          let legacy = legacy_wal_path state.root in
+          if Eio.Path.is_file legacy then Eio.Path.unlink legacy);
       close =
         (fun () ->
-          Eio.Mutex.use_rw ~protect:true state.wal_mutex (fun () ->
-              (match state.wal with Some wal -> Wal.close wal | None -> ());
-              (match state.data_file with
-              | Some file ->
-                  Eio.File.sync file;
-                  Eio.Resource.close file
-              | None -> ());
-              save_index state.root (Atomic.get state.index);
-              save_bloom state.root state.bloom;
-              let wal_p = wal_path state.root in
-              if Eio.Path.is_file wal_p then Eio.Path.unlink wal_p;
-              state.wal <- None;
-              state.data_file <- None));
+          (* Close all per-domain WALs *)
+          Array.iteri
+            (fun i slot_opt ->
+              match slot_opt with
+              | Some slot ->
+                  Wal.close slot.wal;
+                  state.wal_slots.(i) <- None
+              | None -> ())
+            state.wal_slots;
+          (match state.data_file with
+          | Some file ->
+              Eio.File.sync file;
+              Eio.Resource.close file
+          | None -> ());
+          save_index state.root (Atomic.get state.index);
+          save_bloom state.root state.bloom;
+          (* Delete all WAL files *)
+          List.iter
+            (fun p -> if Eio.Path.is_file p then Eio.Path.unlink p)
+            (collect_wal_paths state.root);
+          state.data_file <- None);
     }
 
   let create_sha1 ?cache ?(use_fsync = true) ~sw root =
