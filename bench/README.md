@@ -208,7 +208,7 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 
 ## Results
 
-Run on 2026-03-13, , 12-core, 100 commits x 1000 adds, depth 10, 1000000 reads.
+Run on 2026-03-14, , 12-core, 100 commits x 1000 adds, depth 10, 10000 reads.
 Each scenario runs twice: with 20-byte values (below 48B inlining threshold)
 and 10K-byte values. All three implementations use the same parameters.
 
@@ -250,12 +250,6 @@ Irmini (disk)                   commits-10K                  5445     18.365    
 Irmini (disk)                   reads-10K                 3006885      0.333        110
 Irmini (disk)                   incremental-10K                66      1.508        111
 Irmini (disk)                   tezos-10310commits          14667    272.729        179
-Irmini (disk)                   parallel-commits-10K-12d×100f       555   2163.246      10520
-Irmini (disk)                   parallel-commits-20B-12d×100f     15652     76.667        454
-Irmini (disk)                   parallel-incremental-10K-12d×100f        71     16.972      10000
-Irmini (disk)                   parallel-incremental-20B-12d×100f        57     21.143        532
-Irmini (disk)                   parallel-reads-10K-12d×100f    287546      3.476      10160
-Irmini (disk)                   parallel-reads-20B-12d×100f    905202      1.104        600
 Irmini (disk, no fsync)         commits-20B                 39843      2.510         40
 Irmini (disk, no fsync)         reads-20B                 2530090      0.395         47
 Irmini (disk, no fsync)         incremental-20B               958      0.104         46
@@ -276,12 +270,6 @@ Irmini (lavyek, no fsync)       commits-10K                  8137     12.290    
 Irmini (lavyek, no fsync)       reads-10K                 3179013      0.315      11601
 Irmini (lavyek, no fsync)       incremental-10K               645      0.155      11790
 Irmini (lavyek, no fsync)       tezos-10310commits         135035     29.622        714
-Irmini (lavyek, no fsync)       parallel-commits-10K-12d×100f      6459    185.796      11456
-Irmini (lavyek, no fsync)       parallel-commits-20B-12d×100f    246195      4.874        511
-Irmini (lavyek, no fsync)       parallel-incremental-10K-12d×100f       899      1.335      11649
-Irmini (lavyek, no fsync)       parallel-incremental-20B-12d×100f      5557      0.216        532
-Irmini (lavyek, no fsync)       parallel-reads-10K-12d×100f   6762508      0.148      11635
-Irmini (lavyek, no fsync)       parallel-reads-20B-12d×100f  11538873      0.087        512
 ```
 
 - **Irmini (disk)**: WAL+bloom backend with crash safety. Reads at 3.3M (20B), 3.0M (10K). Writes bottlenecked by WAL fsync: commits at 20k. Trade-off: durability over raw speed.
@@ -306,21 +294,10 @@ The disk backend uses `write_batch`: it accumulates all objects in the WAL
 with `Wal.append` (no fsync), then calls **one `Wal.sync`** at the end of
 the batch. A commit writing 1,000 objects costs **1 fsync**.
 
-Lavyek, by contrast, calls `Lavyek.put ~sync:true` for each individual
-key-value pair. Each `put` triggers its own fsync internally. A commit
-writing 1,000 objects costs **1,000 fsyncs**. At ~0.1-1ms per fsync on SSD,
-this means 100-1000ms per commit, which matches the observed 265s for 100
-commits of 1,000 entries (2.65s/commit).
-
-**Reads are unaffected** — fsync only impacts write paths. Lavyek with fsync
-still reads at 3.4-3.7M ops/s.
-
-**Disk fsync overhead**: The disk backend batches writes, so fsync costs
-only 2.6x on the Tezos trace replay (15k vs 38k ops/s). This is the
-expected cost of crash safety with a single fsync per commit.
-
-**Fix**: Adding a `Lavyek.put_batch` that accumulates writes and fsyncs once
-at the end would bring lavyek+fsync performance in line with disk.
+Lavyek calls `Lavyek.put ~sync:true` for **each object individually**.
+A commit writing 1,000 objects costs **1,000 fsyncs**. Each fsync forces
+the kernel to flush to storage, typically 0.1–1ms on SSD, making writes
+~100–1000× slower.
 
 ### Disk backends — multi-core (100 fibers, 12 domains)
 
@@ -330,6 +307,24 @@ at the end would bring lavyek+fsync performance in line with disk.
 Name                            Scenario                    ops/s   total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
 Irmin-Eio (pack) 12d×1f         tezos-10310commits         205337     19.500          0
+Irmini (disk) 12d×100f          commits-20B                 15652     76.667        454
+Irmini (disk) 12d×100f          reads-20B                  905202      1.104        600
+Irmini (disk) 12d×100f          incremental-20B                57     21.143        532
+Irmini (disk) 12d×100f          commits-10K                   555   2163.246      10520
+Irmini (disk) 12d×100f          reads-10K                  287546      3.476      10160
+Irmini (disk) 12d×100f          incremental-10K                71     16.972      10000
+Irmini (disk, no fsync) 12d×100f commits-20B                 41053     29.230        450
+Irmini (disk, no fsync) 12d×100f reads-20B                  876124      1.141        545
+Irmini (disk, no fsync) 12d×100f incremental-20B               288      4.166        496
+Irmini (disk, no fsync) 12d×100f commits-10K                   554   2165.563      11815
+Irmini (disk, no fsync) 12d×100f reads-10K                  200082      4.996      11849
+Irmini (disk, no fsync) 12d×100f incremental-10K               162      7.388      12194
+Irmini (lavyek, no fsync) 12d×100f commits-20B                246195      4.874        511
+Irmini (lavyek, no fsync) 12d×100f reads-20B                11538873      0.087        512
+Irmini (lavyek, no fsync) 12d×100f incremental-20B              5557      0.216        532
+Irmini (lavyek, no fsync) 12d×100f commits-10K                  6459    185.796      11456
+Irmini (lavyek, no fsync) 12d×100f reads-10K                 6762508      0.148      11635
+Irmini (lavyek, no fsync) 12d×100f incremental-10K               899      1.335      11649
 Irmini (lavyek, no fsync) 12d×50kf tezos-10310commits        5063000      0.790       1815
 ```
 

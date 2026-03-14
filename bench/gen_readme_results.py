@@ -629,14 +629,18 @@ def generate_results_section(all_results, run_date, machine_info):
 
     # --- Disk parallel ---
     if groups["disk_parallel"]:
-        # Only keep main parallel config (100f/12d) and tezos parallel entries
+        # Only keep main parallel config (100f) and tezos parallel entries
+        # Supports both old format (-100f/12d) and new format (-12d×100f)
         main_disk_par = [r for r in groups["disk_parallel"]
                          if re.search(r'-100f/\d+d$', r["scenario"])
-                         or not re.search(r'-\d+f/\d+d$', r["scenario"])]
-        disk_par_remapped = remap_parallel_scenarios(main_disk_par)
+                         or re.search(r'-\d+d[×x]100f$', r["scenario"])
+                         or (not re.search(r'-\d+f/\d+d$', r["scenario"])
+                             and not re.search(r'-\d+d[×x]\d+f$', r["scenario"]))]
+        disk_par_remapped = remap_parallel_scenarios(main_disk_par, rename_backends=True)
         # Include tezos parallel data (already has base scenario name)
         tezos_par = [r for r in main_disk_par
-                     if not re.search(r'-\d+f/\d+d$', r["scenario"])]
+                     if not re.search(r'-\d+f/\d+d$', r["scenario"])
+                     and not re.search(r'-\d+d[×x]\d+f$', r["scenario"])]
         disk_par_remapped.extend(tezos_par)
         lines.append("### Disk backends — multi-core (100 fibers, 12 domains)")
         lines.append("")

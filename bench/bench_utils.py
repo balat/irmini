@@ -117,8 +117,8 @@ def classify_for_readme(name, scenario):
             return "optims_lavyek"
         return "optims_memory"
 
-    # Parallel scenario results
-    if re.search(r'-\d+f/\d+d$', s):
+    # Parallel scenario results (old: -100f/12d, new: -12d×100f)
+    if re.search(r'-\d+f/\d+d$', s) or re.search(r'-\d+d[×x]\d+f$', s):
         if "memory" in n or "mem" in n:
             return "memory_parallel"
         elif "git" in n:
@@ -326,11 +326,10 @@ def get_color(name):
     """Get a color for a given backend name."""
     if name in COLORS:
         return COLORS[name]
-    # Sequential reference: lighter version of base color
+    # Sequential reference: same color as base (no lightening)
     if is_seq_reference(name):
         base = name.replace(" (seq)", "")
-        base_color = get_color(base)
-        return lighten_hex(base_color)
+        return get_color(base)
     # For parallel variants, first try exact base name, then keyword fallback
     if is_parallel_variant(name):
         base = re.sub(r'\s+\d+d[×x]\d+\w*f?$', '', name)
