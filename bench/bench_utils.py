@@ -117,6 +117,10 @@ def classify_for_readme(name, scenario):
             return "optims_lavyek"
         return "optims_memory"
 
+    # Parallel scaling (tezos fiber sweep) — must be checked before generic parallel
+    if "tezos-parallel" in s:
+        return "parallel"
+
     # Parallel scenario results (old: -100f/12d, new: -12d×100f)
     if re.search(r'-\d+f/\d+d$', s) or re.search(r'-\d+d[×x]\d+f$', s):
         if "memory" in n or "mem" in n:
@@ -132,10 +136,6 @@ def classify_for_readme(name, scenario):
             return "memory_parallel"
         else:
             return "disk_parallel"
-
-    # Parallel scaling
-    if "tezos-parallel" in s:
-        return "parallel"
 
     # Trace replay (sequential)
     if "tezos-" in s:

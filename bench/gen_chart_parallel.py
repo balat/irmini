@@ -62,8 +62,12 @@ def load_from_json(results_dir):
             domains = int(m.group(1))
             fibers = int(m.group(2))
             data.append((fibers, int(r["ops_per_sec"])))
-        # Sequential baseline: tezos-*commits from lavyek
-        elif "tezos-" in s and "parallel" not in s and "lavyek" in r["name"].lower():
+        # Sequential baseline: tezos-sequential from lavyek (or tezos-*commits
+        # from plain lavyek, not a parallel config like "12d×50kf")
+        elif "tezos-sequential" in s and "lavyek" in r["name"].lower():
+            sequential = int(r["ops_per_sec"])
+        elif ("tezos-" in s and "parallel" not in s and "lavyek" in r["name"].lower()
+              and "12d" not in r["name"] and sequential is None):
             sequential = int(r["ops_per_sec"])
 
     return data, sequential, domains

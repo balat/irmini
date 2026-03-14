@@ -570,6 +570,39 @@ Irmini (disk)              14,666      272.7s         178
 - **Irmini (disk, no fsync)** at 38k ops/s (27% of Irmini (memory)), 206 MiB RSS.
 - **Irmini (disk)** at 15k ops/s (10% of Irmini (memory)), 178 MiB RSS.
 
+### Parallel trace replay scaling
+
+![Parallel scaling](results/chart_parallel_scaling.svg)
+
+Parallel trace replay with 12 OS domains and varying fibers per domain,
+on a single shared Lavyek backend. The Tezos trace (4M ops, 10310 commits)
+is partitioned across all workers; each fiber processes a contiguous chunk.
+
+```
+Config                 ops/s    Speedup   RSS (MiB)
+-------------------------------------------------
+Sequential            54,000         1x            
+12d ×      1f         84,000       1.6x           —
+12d ×     10f        236,000       4.4x           —
+12d ×    100f        647,000        12x           —
+12d ×  1,000f      1,300,000        24x           —
+12d × 10,000f      4,119,000        76x           —
+12d × 20,000f      3,992,000        74x           —
+12d × 30,000f      4,759,000        88x           —
+12d × 40,000f      4,512,000        84x           —
+12d × 45,000f      4,989,000        92x           —
+12d × 50,000f      5,063,000        94x           —
+12d × 55,000f      4,901,000        91x           —
+12d × 60,000f      4,360,000        81x           —
+12d × 70,000f      4,751,000        88x           —
+12d × 100,000f     2,961,000        55x           —
+```
+
+- Peak throughput at **50k fibers/domain**: **5.1M ops/s** (94x speedup).
+- Lavyek is natively thread-safe (lock-free LSM tree). Each write is an Eio I/O operation that yields to other fibers, enabling massive cooperative concurrency within each domain.
+- Scaling is super-linear up to ~10k fibers (76x on 12 cores) thanks to I/O overlap: while one fiber waits on disk, others make progress.
+- Beyond 50k fibers, scheduling overhead dominates and throughput drops.
+
 ### Parallel scaling
 
 ![Parallel scaling](results/chart_scaling.svg)
