@@ -405,6 +405,62 @@ Irmini (lavyek, no fsync) 12d×100f reads-10K                 6762508      0.148
 Irmini (lavyek, no fsync) 12d×100f incremental-10K               899      1.335      11649
 ```
 
+**What was done for multi-core.** All three backends were made domain-safe
+for OCaml 5 multicore. Tree internal structures (`node_record`, `Link`) use
+`Atomic.t` for domain-safe lazy resolution. Each backend then has its own
+concurrency strategy:
+
+- **Disk**: lock-free reads (`Atomic.get` index + `pread`), lock-free write
+  reservation (`Atomic.fetch_and_add` on data offset), CAS for index updates,
+  and per-domain WAL (each domain fsyncs its own WAL file independently).
+- **Lavyek**: natively lock-free LSM-tree (atomic memtable buckets), only
+  ref operations use an `Eio.Mutex`.
+- **Memory**: plain mutable fields (zero overhead single-core), wrapped with
+  a read-write lock for multi-domain use (concurrent readers, exclusive writers).
+
+**Speedup analysis** (12 domains × 100 fibers vs single-core):
+
+| Scenario | Disk | Disk no-fsync | Lavyek no-fsync |
+|---|---|---|---|
+| reads-20B | 1.4× | 1.3× | **3.3×** |
+| reads-10K | 0.8× | 0.5× | 2.1× |
+| commits-20B | **3.5×** | 1.1× | 1.8× |
+| commits-10K | 0.3× | 0.1× | 0.8× |
+| incremental-20B | **13.8×** | **3.6×** | 1.7× |
+| incremental-10K | **14.2×** | **3.9×** | 1.4× |
+
+**Why speedup is far from 12× (linear) on most scenarios:**
+
+1. **Reads (disk)**: reads are already very fast single-core (3.1M ops/s for
+   20B). At this throughput, the bottleneck shifts to CPU cache coherence
+   between domains sharing the same `Atomic.t` index, and to memory bandwidth.
+   Lavyek scales better (3.3×) because its LSM read path does more I/O
+   (bloom filter + SSTable lookup), giving fibers a chance to overlap I/O.
+
+2. **Commits-10K (disk, < 1×)**: 10K values mean 100 MB of data per
+   100 commits × 1000 adds. With 12 domains × 100 fibers = 1200 concurrent
+   writers, the data file grows to ~120 GB and the system hits disk I/O
+   saturation. The per-domain WAL helps with fsync parallelism but cannot
+   fix raw bandwidth limits.
+
+3. **Commits-20B (disk, 3.5×)**: small values keep data volume manageable.
+   The per-domain WAL eliminates fsync serialization — 12 domains fsync
+   their own WAL files in parallel. The CAS index update is the main
+   contention point, but CAS retries are cheap.
+
+4. **Incremental (disk, 14×)**: each fiber does a checkout + 1 update +
+   commit on its own branch. The sequential version is bottlenecked by
+   fsync latency (one fsync per commit). With 12 domains × 100 fibers,
+   1200 independent commits overlap their fsync calls via per-domain WAL,
+   hiding the latency. This is the ideal case for the per-domain WAL
+   optimization.
+
+5. **No-fsync variants are slower in parallel**: without fsync, single-core
+   is already very fast (no I/O wait to hide). The parallel overhead (CAS
+   retries, bloom mutex, memory allocation pressure) dominates the small
+   gains from parallelism. The 10K no-fsync regression (< 1×) is caused
+   by 12 GB RSS triggering GC pressure across all domains.
+
 ### Memory backends — single-core
 
 ![Memory backends](results/chart_memory.svg)

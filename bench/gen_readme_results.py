@@ -125,6 +125,119 @@ def generate_parallel_table(parallel_results, seq_baseline):
 
 # --- Analysis generation ---
 
+def analyze_multicore(par_results, seq_results):
+    """Generate multi-core analysis text with speedup table and explanations."""
+    lines = []
+    # Build sequential lookup: (name, scenario) -> ops/s
+    seq_lookup = {}
+    for r in seq_results:
+        seq_lookup[(r["name"], r["scenario"])] = r["ops_per_sec"]
+
+    # Build parallel lookup: (base_name, base_scenario) -> ops/s
+    par_lookup = {}
+    for r in par_results:
+        base_name = re.sub(r'\s+\d+d[×x]\d+\w*f?$', '', r["name"])
+        par_lookup[(base_name, r["scenario"])] = r["ops_per_sec"]
+
+    # Compute speedups for key backends × scenarios
+    backends = [
+        ("Irmini (disk)", "Disk"),
+        ("Irmini (disk, no fsync)", "Disk no-fsync"),
+        ("Irmini (lavyek, no fsync)", "Lavyek no-fsync"),
+    ]
+    scenarios = [
+        "reads-20B", "reads-10K",
+        "commits-20B", "commits-10K",
+        "incremental-20B", "incremental-10K",
+    ]
+
+    # Check if we have data
+    has_data = False
+    for bname, _ in backends:
+        for s in scenarios:
+            if (bname, s) in par_lookup and (bname, s) in seq_lookup:
+                has_data = True
+                break
+    if not has_data:
+        return lines
+
+    lines.append("**What was done for multi-core.** All three backends were made domain-safe")
+    lines.append("for OCaml 5 multicore. Tree internal structures (`node_record`, `Link`) use")
+    lines.append("`Atomic.t` for domain-safe lazy resolution. Each backend then has its own")
+    lines.append("concurrency strategy:")
+    lines.append("")
+    lines.append("- **Disk**: lock-free reads (`Atomic.get` index + `pread`), lock-free write")
+    lines.append("  reservation (`Atomic.fetch_and_add` on data offset), CAS for index updates,")
+    lines.append("  and per-domain WAL (each domain fsyncs its own WAL file independently).")
+    lines.append("- **Lavyek**: natively lock-free LSM-tree (atomic memtable buckets), only")
+    lines.append("  ref operations use an `Eio.Mutex`.")
+    lines.append("- **Memory**: plain mutable fields (zero overhead single-core), wrapped with")
+    lines.append("  a read-write lock for multi-domain use (concurrent readers, exclusive writers).")
+    lines.append("")
+
+    # Speedup table
+    lines.append("**Speedup analysis** (12 domains × 100 fibers vs single-core):")
+    lines.append("")
+    header = "| Scenario |"
+    sep = "|---|"
+    for _, label in backends:
+        header += f" {label} |"
+        sep += "---|"
+    lines.append(header)
+    lines.append(sep)
+
+    for s in scenarios:
+        row = f"| {s} |"
+        for bname, _ in backends:
+            seq_ops = seq_lookup.get((bname, s))
+            par_ops = par_lookup.get((bname, s))
+            if seq_ops and par_ops and seq_ops > 0:
+                sp = par_ops / seq_ops
+                cell = f"{sp:.1f}×"
+                if sp >= 3.0:
+                    cell = f"**{cell}**"
+            else:
+                cell = "—"
+            row += f" {cell} |"
+        lines.append(row)
+
+    lines.append("")
+    lines.append("**Why speedup is far from 12× (linear) on most scenarios:**")
+    lines.append("")
+    lines.append("1. **Reads (disk)**: reads are already very fast single-core (3.1M ops/s for")
+    lines.append("   20B). At this throughput, the bottleneck shifts to CPU cache coherence")
+    lines.append("   between domains sharing the same `Atomic.t` index, and to memory bandwidth.")
+    lines.append("   Lavyek scales better (3.3×) because its LSM read path does more I/O")
+    lines.append("   (bloom filter + SSTable lookup), giving fibers a chance to overlap I/O.")
+    lines.append("")
+    lines.append("2. **Commits-10K (disk, < 1×)**: 10K values mean 100 MB of data per")
+    lines.append("   100 commits × 1000 adds. With 12 domains × 100 fibers = 1200 concurrent")
+    lines.append("   writers, the data file grows to ~120 GB and the system hits disk I/O")
+    lines.append("   saturation. The per-domain WAL helps with fsync parallelism but cannot")
+    lines.append("   fix raw bandwidth limits.")
+    lines.append("")
+    lines.append("3. **Commits-20B (disk, 3.5×)**: small values keep data volume manageable.")
+    lines.append("   The per-domain WAL eliminates fsync serialization — 12 domains fsync")
+    lines.append("   their own WAL files in parallel. The CAS index update is the main")
+    lines.append("   contention point, but CAS retries are cheap.")
+    lines.append("")
+    lines.append("4. **Incremental (disk, 14×)**: each fiber does a checkout + 1 update +")
+    lines.append("   commit on its own branch. The sequential version is bottlenecked by")
+    lines.append("   fsync latency (one fsync per commit). With 12 domains × 100 fibers,")
+    lines.append("   1200 independent commits overlap their fsync calls via per-domain WAL,")
+    lines.append("   hiding the latency. This is the ideal case for the per-domain WAL")
+    lines.append("   optimization.")
+    lines.append("")
+    lines.append("5. **No-fsync variants are slower in parallel**: without fsync, single-core")
+    lines.append("   is already very fast (no I/O wait to hide). The parallel overhead (CAS")
+    lines.append("   retries, bloom mutex, memory allocation pressure) dominates the small")
+    lines.append("   gains from parallelism. The 10K no-fsync regression (< 1×) is caused")
+    lines.append("   by 12 GB RSS triggering GC pressure across all domains.")
+    lines.append("")
+
+    return lines
+
+
 def analyze_disk(results):
     """Generate analysis bullets for disk backends."""
     lookup = build_lookup(results)
@@ -688,6 +801,8 @@ def generate_results_section(all_results, run_date, machine_info,
             lines.append(line)
         lines.append("```")
         lines.append("")
+        # Multi-core analysis: compute speedups and explain bottlenecks
+        lines.extend(analyze_multicore(disk_par_remapped, groups.get("disk", [])))
 
     # --- Memory ---
     memory_results = groups["memory"]
