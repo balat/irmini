@@ -251,12 +251,12 @@ Irmini (disk)                   commits-10K                  5445     18.365    
 Irmini (disk)                   reads-10K                 3006885      0.333        110
 Irmini (disk)                   incremental-10K                66      1.508        111
 Irmini (disk)                   tezos-10310commits          14667    272.729        179
-Irmini (disk, no fsync)         commits-20B                 39843      2.510         40
-Irmini (disk, no fsync)         reads-20B                 2530090      0.395         47
-Irmini (disk, no fsync)         incremental-20B               958      0.104         46
-Irmini (disk, no fsync)         commits-10K                  6322     15.818         97
-Irmini (disk, no fsync)         reads-10K                 2985225      0.335        110
-Irmini (disk, no fsync)         incremental-10K               886      0.113        111
+Irmini (disk, no fsync)         commits-20B                 93321      1.072        445
+Irmini (disk, no fsync)         reads-20B                 3155121      0.317        453
+Irmini (disk, no fsync)         incremental-20B               613      0.163        441
+Irmini (disk, no fsync)         commits-10K                 12436      8.041      10738
+Irmini (disk, no fsync)         reads-10K                 2680275      0.373      10012
+Irmini (disk, no fsync)         incremental-10K               544      0.184      10023
 Irmini (disk, no fsync)         tezos-10310commits          37876    105.606        206
 Irmini (lavyek, fsync)          commits-20B                   376    265.860        284
 Irmini (lavyek, fsync)          reads-20B                 3661705      0.273        284
@@ -309,12 +309,12 @@ Irmini (disk) 12d×100f          incremental-20B               101     11.912   
 Irmini (disk) 12d×100f          commits-10K                   648   1851.022      10565
 Irmini (disk) 12d×100f          reads-10K                 2920612      0.342      10732
 Irmini (disk) 12d×100f          incremental-10K                76     15.724      10345
-Irmini (disk, no fsync) 12d×100f commits-20B                 41053     29.230        450
-Irmini (disk, no fsync) 12d×100f reads-20B                  876124      1.141        545
-Irmini (disk, no fsync) 12d×100f incremental-20B               288      4.166        496
-Irmini (disk, no fsync) 12d×100f commits-10K                   554   2165.563      11815
-Irmini (disk, no fsync) 12d×100f reads-10K                  200082      4.996      11849
-Irmini (disk, no fsync) 12d×100f incremental-10K               162      7.388      12194
+Irmini (disk, no fsync) 12d×100f commits-20B                 65966     18.191        372
+Irmini (disk, no fsync) 12d×100f reads-20B                 4410556      0.227        472
+Irmini (disk, no fsync) 12d×100f incremental-20B              1573      0.763        420
+Irmini (disk, no fsync) 12d×100f commits-10K                   526   2281.190      11640
+Irmini (disk, no fsync) 12d×100f reads-10K                 2325906      0.430       9969
+Irmini (disk, no fsync) 12d×100f incremental-10K              1448      0.829       9981
 Irmini (lavyek, no fsync) 12d×100f commits-20B                246195      4.874        511
 Irmini (lavyek, no fsync) 12d×100f reads-20B                11538873      0.087        512
 Irmini (lavyek, no fsync) 12d×100f incremental-20B              5557      0.216        532

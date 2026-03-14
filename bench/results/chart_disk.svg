@@ -20,8 +20,8 @@
 <text x="72.5" y="282.3" text-anchor="middle" font-size="9" fill="#333">40k</text>
 <rect x="84.0" y="317.5" width="19" height="32.5" fill="#466680" rx="1"/>
 <text x="93.5" y="314.5" text-anchor="middle" font-size="9" fill="#333">20k</text>
-<rect x="105.0" y="286.2" width="19" height="63.8" fill="#6d9dc5" rx="1"/>
-<text x="114.5" y="283.2" text-anchor="middle" font-size="9" fill="#333">40k</text>
+<rect x="105.0" y="200.6" width="19" height="149.4" fill="#6d9dc5" rx="1"/>
+<text x="114.5" y="197.6" text-anchor="middle" font-size="9" fill="#333">93k</text>
 <rect x="126.0" y="349.4" width="19" height="0.6" fill="#2d6e2e" rx="1"/>
 <text x="135.5" y="346.4" text-anchor="middle" font-size="9" fill="#333">376</text>
 <rect x="147.0" y="131.0" width="19" height="219.0" fill="#59a14f" rx="1"/>
@@ -42,8 +42,8 @@
 <text x="288.5" y="231.2" text-anchor="middle" font-size="9" fill="#333">1.4M</text>
 <rect x="300.0" y="76.7" width="19" height="273.3" fill="#466680" rx="1"/>
 <text x="309.5" y="73.7" text-anchor="middle" font-size="9" fill="#333">3.3M</text>
-<rect x="321.0" y="139.7" width="19" height="210.3" fill="#6d9dc5" rx="1"/>
-<text x="330.5" y="136.7" text-anchor="middle" font-size="9" fill="#333">2.5M</text>
+<rect x="321.0" y="87.8" width="19" height="262.2" fill="#6d9dc5" rx="1"/>
+<text x="330.5" y="84.8" text-anchor="middle" font-size="9" fill="#333">3.2M</text>
 <rect x="342.0" y="45.7" width="19" height="304.3" fill="#2d6e2e" rx="1"/>
 <text x="351.5" y="42.7" text-anchor="middle" font-size="9" fill="#333">3.7M</text>
 <rect x="363.0" y="61.1" width="19" height="288.9" fill="#59a14f" rx="1"/>
@@ -64,8 +64,8 @@
 <text x="504.5" y="251.2" text-anchor="middle" font-size="9" fill="#333">2k</text>
 <rect x="516.0" y="346.5" width="19" height="3.5" fill="#466680" rx="1"/>
 <text x="525.5" y="343.5" text-anchor="middle" font-size="9" fill="#333">69</text>
-<rect x="537.0" y="301.0" width="19" height="49.0" fill="#6d9dc5" rx="1"/>
-<text x="546.5" y="298.0" text-anchor="middle" font-size="9" fill="#333">957</text>
+<rect x="537.0" y="318.6" width="19" height="31.4" fill="#6d9dc5" rx="1"/>
+<text x="546.5" y="315.6" text-anchor="middle" font-size="9" fill="#333">613</text>
 <rect x="558.0" y="349.5" width="19" height="0.5" fill="#2d6e2e" rx="1"/>
 <text x="567.5" y="346.5" text-anchor="middle" font-size="9" fill="#333">9</text>
 <rect x="579.0" y="177.9" width="19" height="172.1" fill="#59a14f" rx="1"/>
@@ -86,8 +86,8 @@
 <text x="720.5" y="94.9" text-anchor="middle" font-size="9" fill="#333">12k</text>
 <rect x="732.0" y="234.2" width="19" height="115.8" fill="#466680" rx="1"/>
 <text x="741.5" y="231.2" text-anchor="middle" font-size="9" fill="#333">5k</text>
-<rect x="753.0" y="215.5" width="19" height="134.5" fill="#6d9dc5" rx="1"/>
-<text x="762.5" y="212.5" text-anchor="middle" font-size="9" fill="#333">6k</text>
+<rect x="753.0" y="85.5" width="19" height="264.5" fill="#6d9dc5" rx="1"/>
+<text x="762.5" y="82.5" text-anchor="middle" font-size="9" fill="#333">12k</text>
 <rect x="774.0" y="348.2" width="19" height="1.8" fill="#2d6e2e" rx="1"/>
 <text x="783.5" y="345.2" text-anchor="middle" font-size="9" fill="#333">82</text>
 <rect x="795.0" y="176.9" width="19" height="173.1" fill="#59a14f" rx="1"/>
@@ -108,8 +108,8 @@
 <text x="936.5" y="221.6" text-anchor="middle" font-size="9" fill="#333">1.4M</text>
 <rect x="948.0" y="82.6" width="19" height="267.4" fill="#466680" rx="1"/>
 <text x="957.5" y="79.6" text-anchor="middle" font-size="9" fill="#333">3.0M</text>
-<rect x="969.0" y="84.6" width="19" height="265.4" fill="#6d9dc5" rx="1"/>
-<text x="978.5" y="81.6" text-anchor="middle" font-size="9" fill="#333">3.0M</text>
+<rect x="969.0" y="111.7" width="19" height="238.3" fill="#6d9dc5" rx="1"/>
+<text x="978.5" y="108.7" text-anchor="middle" font-size="9" fill="#333">2.7M</text>
 <rect x="990.0" y="45.7" width="19" height="304.3" fill="#2d6e2e" rx="1"/>
 <text x="999.5" y="42.7" text-anchor="middle" font-size="9" fill="#333">3.4M</text>
 <rect x="1011.0" y="67.3" width="19" height="282.7" fill="#59a14f" rx="1"/>
@@ -130,8 +130,8 @@
 <text x="1152.5" y="247.6" text-anchor="middle" font-size="9" fill="#333">1k</text>
 <rect x="1164.0" y="344.2" width="19" height="5.8" fill="#466680" rx="1"/>
 <text x="1173.5" y="341.2" text-anchor="middle" font-size="9" fill="#333">66</text>
-<rect x="1185.0" y="271.9" width="19" height="78.1" fill="#6d9dc5" rx="1"/>
-<text x="1194.5" y="268.9" text-anchor="middle" font-size="9" fill="#333">886</text>
+<rect x="1185.0" y="302.1" width="19" height="47.9" fill="#6d9dc5" rx="1"/>
+<text x="1194.5" y="299.1" text-anchor="middle" font-size="9" fill="#333">544</text>
 <rect x="1206.0" y="349.4" width="19" height="0.6" fill="#2d6e2e" rx="1"/>
 <text x="1215.5" y="346.4" text-anchor="middle" font-size="9" fill="#333">6</text>
 <rect x="1227.0" y="293.2" width="19" height="56.8" fill="#59a14f" rx="1"/>

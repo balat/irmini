@@ -404,7 +404,7 @@ module Disk = struct
   let open_data_file ~sw root =
     let path = data_path root in
     let file =
-      Eio.Path.open_out ~sw ~append:true ~create:(`If_missing 0o644) path
+      Eio.Path.open_out ~sw ~append:false ~create:(`If_missing 0o644) path
     in
     let offset =
       if Eio.Path.is_file path then
