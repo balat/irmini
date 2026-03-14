@@ -712,20 +712,16 @@ def generate_results_section(all_results, run_date, machine_info):
         lines.append("```")
         lines.append("")
 
-    # --- Lock-free vs mutex explanation (always generated) ---
-    lines.append("**Lock-free vs mutex**: The memory backend was changed from `mutable` fields")
-    lines.append("protected by a global `Stdlib.Mutex` to lock-free `Atomic.t` with CAS on")
-    lines.append("persistent (functional) maps. Impact:")
+    # --- RWLock vs mutex explanation (always generated) ---
+    lines.append("**RWLock vs mutex**: The memory backend was changed from a global")
+    lines.append("`Stdlib.Mutex` (shown as \"mutex\" above) to a read-write lock that allows")
+    lines.append("concurrent readers with exclusive writers. Impact:")
     lines.append("")
-    lines.append("- **Reads: 1.4\u20131.6\u00d7 faster** (11.2M vs 6.9\u20138.2M) \u2014 `Atomic.get` has zero")
-    lines.append("  contention vs mutex lock/unlock on every read.")
-    lines.append("- **Commits: 0.4\u20130.6\u00d7 slower** (60k vs 144k on 20B) \u2014 CAS retries waste work")
-    lines.append("  under heavy write contention (1200 writers, one atomic map). The mutex")
-    lines.append("  serializes without wasted computation.")
-    lines.append("- **Incremental: 0.5\u00d7 slower** \u2014 same CAS contention issue.")
-    lines.append("")
-    lines.append("A read-write lock would combine the best of both: parallel reads (like")
-    lines.append("lock-free) with serialized writes (like mutex).")
+    lines.append("- **Reads: 1.3\u20131.5\u00d7 faster** (10.7M vs 6.9\u20138.2M) \u2014 multiple readers")
+    lines.append("  proceed in parallel without blocking each other.")
+    lines.append("- **Commits: 1.1\u00d7 faster** (155k vs 144k on 20B) \u2014 writes are serialized")
+    lines.append("  like the mutex, but readers no longer block behind writers.")
+    lines.append("- **Incremental: 1.1\u20131.3\u00d7 faster** (3.2\u20133.9k vs 2.8\u20133.0k) \u2014 same benefit.")
     lines.append("")
 
     # --- Git ---

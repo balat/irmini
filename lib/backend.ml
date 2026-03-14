@@ -55,88 +55,138 @@ let cached ?(capacity = default_cache_capacity) (type h) (backend : h t) : h t =
 module Memory = struct
   module String_map = Map.Make (String)
 
-  (** Lock-free, domain-safe in-memory backend using [Atomic.t] with
-      compare-and-set on persistent (functional) maps.
+  (** Domain-safe in-memory backend using a read-write lock on persistent
+      (functional) maps.
 
-      - Reads: single [Atomic.get], zero contention.
-      - Writes: CAS retry loop — conflicts are rare because different keys
-        touch different parts of the map.
-      - [test_and_set_ref]: atomic read-modify-write via CAS. *)
+      - Reads: concurrent (multiple readers allowed simultaneously).
+      - Writes: exclusive (one writer at a time, no wasted CAS retries).
+      - [test_and_set_ref]: atomic read-modify-write under write lock. *)
+
+  (** Simple read-write lock: multiple concurrent readers, exclusive writer. *)
+  module RWLock = struct
+    type t = {
+      mutex : Mutex.t;
+      cond : Condition.t;
+      mutable readers : int;
+      mutable writer : bool;
+    }
+
+    let create () =
+      {
+        mutex = Mutex.create ();
+        cond = Condition.create ();
+        readers = 0;
+        writer = false;
+      }
+
+    let read_lock t =
+      Mutex.lock t.mutex;
+      while t.writer do
+        Condition.wait t.cond t.mutex
+      done;
+      t.readers <- t.readers + 1;
+      Mutex.unlock t.mutex
+
+    let read_unlock t =
+      Mutex.lock t.mutex;
+      t.readers <- t.readers - 1;
+      if t.readers = 0 then Condition.broadcast t.cond;
+      Mutex.unlock t.mutex
+
+    let write_lock t =
+      Mutex.lock t.mutex;
+      while t.writer || t.readers > 0 do
+        Condition.wait t.cond t.mutex
+      done;
+      t.writer <- true;
+      Mutex.unlock t.mutex
+
+    let write_unlock t =
+      Mutex.lock t.mutex;
+      t.writer <- false;
+      Condition.broadcast t.cond;
+      Mutex.unlock t.mutex
+
+    let with_read t f =
+      read_lock t;
+      Fun.protect ~finally:(fun () -> read_unlock t) f
+
+    let with_write t f =
+      write_lock t;
+      Fun.protect ~finally:(fun () -> write_unlock t) f
+  end
 
   type 'hash state = {
-    objects : string String_map.t Atomic.t;
-    refs : 'hash String_map.t Atomic.t;
+    mutable objects : string String_map.t;
+    mutable refs : 'hash String_map.t;
     to_hex : 'hash -> string;
     equal : 'hash -> 'hash -> bool;
+    rw : RWLock.t;
   }
-
-  let cas_update atomic f =
-    let rec loop () =
-      let old = Atomic.get atomic in
-      let new_ = f old in
-      if not (Atomic.compare_and_set atomic old new_) then loop ()
-    in
-    loop ()
 
   let create_with_hash (type h) (to_hex : h -> string) (equal : h -> h -> bool)
       : h t =
     let state =
       {
-        objects = Atomic.make String_map.empty;
-        refs = Atomic.make String_map.empty;
+        objects = String_map.empty;
+        refs = String_map.empty;
         to_hex;
         equal;
+        rw = RWLock.create ();
       }
     in
     {
       read =
         (fun h ->
           let key = state.to_hex h in
-          String_map.find_opt key (Atomic.get state.objects));
+          RWLock.with_read state.rw (fun () ->
+              String_map.find_opt key state.objects));
       write =
         (fun h data ->
           let key = state.to_hex h in
-          cas_update state.objects (String_map.add key data));
+          RWLock.with_write state.rw (fun () ->
+              state.objects <- String_map.add key data state.objects));
       exists =
         (fun h ->
           let key = state.to_hex h in
-          String_map.mem key (Atomic.get state.objects));
-      get_ref = (fun name -> String_map.find_opt name (Atomic.get state.refs));
+          RWLock.with_read state.rw (fun () ->
+              String_map.mem key state.objects));
+      get_ref =
+        (fun name ->
+          RWLock.with_read state.rw (fun () ->
+              String_map.find_opt name state.refs));
       set_ref =
         (fun name hash ->
-          cas_update state.refs (String_map.add name hash));
+          RWLock.with_write state.rw (fun () ->
+              state.refs <- String_map.add name hash state.refs));
       test_and_set_ref =
         (fun name ~test ~set ->
-          let rec loop () =
-            let old_refs = Atomic.get state.refs in
-            let current = String_map.find_opt name old_refs in
-            let matches =
-              match (test, current) with
-              | None, None -> true
-              | Some t, Some c -> state.equal t c
-              | _ -> false
-            in
-            if not matches then false
-            else
-              let new_refs =
-                match set with
-                | None -> String_map.remove name old_refs
-                | Some h -> String_map.add name h old_refs
+          RWLock.with_write state.rw (fun () ->
+              let current = String_map.find_opt name state.refs in
+              let matches =
+                match (test, current) with
+                | None, None -> true
+                | Some t, Some c -> state.equal t c
+                | _ -> false
               in
-              if Atomic.compare_and_set state.refs old_refs new_refs then true
-              else loop ()
-          in
-          loop ());
+              if matches then (
+                (match set with
+                | None -> state.refs <- String_map.remove name state.refs
+                | Some h -> state.refs <- String_map.add name h state.refs);
+                true)
+              else false));
       list_refs =
-        (fun () -> String_map.bindings (Atomic.get state.refs) |> List.map fst);
+        (fun () ->
+          RWLock.with_read state.rw (fun () ->
+              String_map.bindings state.refs |> List.map fst));
       write_batch =
         (fun objects ->
-          cas_update state.objects (fun m ->
-              List.fold_left
-                (fun acc (h, data) ->
+          RWLock.with_write state.rw (fun () ->
+              List.iter
+                (fun (h, data) ->
                   let key = state.to_hex h in
-                  String_map.add key data acc)
-                m objects));
+                  state.objects <- String_map.add key data state.objects)
+                objects));
       flush = (fun () -> ());
       close = (fun () -> ());
     }
