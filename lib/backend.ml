@@ -295,13 +295,13 @@ module Disk = struct
     root : Eio.Fs.dir_ty Eio.Path.t;
     mutable wal : Wal.t option;
     mutable data_file : Eio.File.rw_ty Eio.Resource.t option;
-    mutable data_offset : int;
-    mutable index : index_entry String_map.t;
+    data_offset : int Atomic.t;
+    index : index_entry String_map.t Atomic.t;
     bloom : string Bloom.t;
-    mutable refs : 'hash String_map.t;
+    refs : 'hash String_map.t Atomic.t;
     to_hex : 'hash -> string;
     equal : 'hash -> 'hash -> bool;
-    mutex : Eio.Mutex.t;
+    wal_mutex : Eio.Mutex.t;  (** Serializes WAL + bloom writes *)
   }
 
   let data_path root = Eio.Path.(root / "objects.data")
@@ -474,150 +474,187 @@ module Disk = struct
         root;
         wal = Some wal;
         data_file = Some data_file;
-        data_offset = offset;
-        index;
+        data_offset = Atomic.make offset;
+        index = Atomic.make index;
         bloom;
-        refs;
+        refs = Atomic.make refs;
         to_hex;
         equal;
-        mutex = Eio.Mutex.create ();
+        wal_mutex = Eio.Mutex.create ();
       }
+    in
+    (* CAS helper: retry until the atomic update succeeds. *)
+    let cas_update : type a. a Atomic.t -> (a -> a) -> unit =
+     fun atomic f ->
+      let rec loop () =
+        let old = Atomic.get atomic in
+        let v = f old in
+        if Atomic.compare_and_set atomic old v then () else loop ()
+      in
+      loop ()
     in
     {
       read =
         (fun h ->
-          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
-              let key = state.to_hex h in
-              match String_map.find_opt key state.index with
+          (* Lock-free: index is Atomic.t, pread is positional (thread-safe). *)
+          let key = state.to_hex h in
+          match String_map.find_opt key (Atomic.get state.index) with
+          | None -> None
+          | Some entry -> (
+              match state.data_file with
               | None -> None
-              | Some entry -> (
-                  match state.data_file with
-                  | None -> None
-                  | Some file ->
-                      let buf = Cstruct.create entry.length in
-                      Eio.File.pread_exact file
-                        ~file_offset:(Optint.Int63.of_int entry.offset)
-                        [ buf ];
-                      Some (Cstruct.to_string buf))));
+              | Some file ->
+                  let buf = Cstruct.create entry.length in
+                  Eio.File.pread_exact file
+                    ~file_offset:(Optint.Int63.of_int entry.offset)
+                    [ buf ];
+                  Some (Cstruct.to_string buf)));
       write =
         (fun h data ->
-          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
-              let key = state.to_hex h in
-              (* Fast path: bloom filter says "definitely not present" *)
-              if Bloom.mem state.bloom key && String_map.mem key state.index
-              then ()
-              else
-                match (state.wal, state.data_file) with
-                | Some wal, Some file ->
-                    (* Write to WAL first for crash safety *)
-                    Wal.append wal (encode_wal_record key data);
-                    if use_fsync then Wal.sync wal;
-                    (* Then write to data file *)
-                    let len = String.length data in
-                    let offset = state.data_offset in
-                    Eio.File.pwrite_all file
-                      ~file_offset:(Optint.Int63.of_int offset)
-                      [ Cstruct.of_string data ];
-                    state.data_offset <- offset + len;
-                    state.index <-
-                      String_map.add key { offset; length = len } state.index;
-                    Bloom.add state.bloom key
-                | _ -> ()));
+          let key = state.to_hex h in
+          (* Lock-free fast path: already present in index *)
+          if String_map.mem key (Atomic.get state.index) then ()
+          else
+            match (state.wal, state.data_file) with
+            | Some wal, Some file ->
+                (* WAL + bloom under mutex (serialized I/O) *)
+                Eio.Mutex.use_rw ~protect:true state.wal_mutex (fun () ->
+                    (* Re-check under lock: another writer may have added it *)
+                    if not (String_map.mem key (Atomic.get state.index)) then begin
+                      Wal.append wal (encode_wal_record key data);
+                      if use_fsync then Wal.sync wal;
+                      Bloom.add state.bloom key
+                    end);
+                (* Reserve space atomically, then pwrite in parallel *)
+                let len = String.length data in
+                let off = Atomic.fetch_and_add state.data_offset len in
+                Eio.File.pwrite_all file
+                  ~file_offset:(Optint.Int63.of_int off)
+                  [ Cstruct.of_string data ];
+                (* Update index with CAS *)
+                cas_update state.index (fun idx ->
+                    String_map.add key { offset = off; length = len } idx)
+            | _ -> ());
       exists =
         (fun h ->
-          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
-              let key = state.to_hex h in
-              Bloom.mem state.bloom key && String_map.mem key state.index));
+          (* Lock-free: just read the atomic index *)
+          let key = state.to_hex h in
+          String_map.mem key (Atomic.get state.index));
       get_ref =
         (fun name ->
-          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
-              String_map.find_opt name state.refs));
+          (* Lock-free *)
+          String_map.find_opt name (Atomic.get state.refs));
       set_ref =
         (fun name hash ->
-          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
-              state.refs <- String_map.add name hash state.refs;
-              save_ref state.root name hash state.to_hex));
+          cas_update state.refs (fun r -> String_map.add name hash r);
+          save_ref state.root name hash state.to_hex);
       test_and_set_ref =
         (fun name ~test ~set ->
-          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
-              let current = String_map.find_opt name state.refs in
-              let matches =
-                match (test, current) with
-                | None, None -> true
-                | Some t, Some c -> state.equal t c
-                | _ -> false
+          (* CAS loop on refs atomic *)
+          let rec cas () =
+            let old_refs = Atomic.get state.refs in
+            let current = String_map.find_opt name old_refs in
+            let matches =
+              match (test, current) with
+              | None, None -> true
+              | Some t, Some c -> state.equal t c
+              | _ -> false
+            in
+            if not matches then false
+            else
+              let new_refs =
+                match set with
+                | None -> String_map.remove name old_refs
+                | Some h -> String_map.add name h old_refs
               in
-              if matches then begin
+              if Atomic.compare_and_set state.refs old_refs new_refs then begin
                 (match set with
-                | None ->
-                    state.refs <- String_map.remove name state.refs;
-                    delete_ref state.root name
-                | Some h ->
-                    state.refs <- String_map.add name h state.refs;
-                    save_ref state.root name h state.to_hex);
+                | None -> delete_ref state.root name
+                | Some h -> save_ref state.root name h state.to_hex);
                 true
               end
-              else false));
+              else cas ()
+          in
+          cas ());
       list_refs =
         (fun () ->
-          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
-              String_map.bindings state.refs |> List.map fst));
+          (* Lock-free *)
+          String_map.bindings (Atomic.get state.refs) |> List.map fst);
       write_batch =
         (fun objects ->
-          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
-              match (state.wal, state.data_file) with
-              | Some wal, Some file ->
-                  (* Write all to WAL first *)
-                  List.iter
+          match (state.wal, state.data_file) with
+          | Some wal, Some file ->
+              (* Snapshot index to filter out already-present keys *)
+              let idx = Atomic.get state.index in
+              let new_objs =
+                List.filter
+                  (fun (h, _data) ->
+                    not (String_map.mem (state.to_hex h) idx))
+                  objects
+              in
+              if new_objs = [] then ()
+              else begin
+                (* WAL + bloom under mutex *)
+                Eio.Mutex.use_rw ~protect:true state.wal_mutex (fun () ->
+                    List.iter
+                      (fun (h, data) ->
+                        let key = state.to_hex h in
+                        Wal.append wal (encode_wal_record key data);
+                        Bloom.add state.bloom key)
+                      new_objs;
+                    if use_fsync then Wal.sync wal);
+                (* Reserve total space atomically *)
+                let total_len =
+                  List.fold_left
+                    (fun acc (_h, data) -> acc + String.length data)
+                    0 new_objs
+                in
+                let base_off =
+                  Atomic.fetch_and_add state.data_offset total_len
+                in
+                (* Write data at reserved offsets (no lock needed, non-overlapping) *)
+                let entries =
+                  let off = ref base_off in
+                  List.map
                     (fun (h, data) ->
                       let key = state.to_hex h in
-                      if not (String_map.mem key state.index) then
-                        Wal.append wal (encode_wal_record key data))
-                    objects;
-                  if use_fsync then Wal.sync wal;
-                  (* Then write to data file *)
-                  List.iter
-                    (fun (h, data) ->
-                      let key = state.to_hex h in
-                      if String_map.mem key state.index then ()
-                      else begin
-                        let len = String.length data in
-                        let offset = state.data_offset in
-                        Eio.File.pwrite_all file
-                          ~file_offset:(Optint.Int63.of_int offset)
-                          [ Cstruct.of_string data ];
-                        state.data_offset <- offset + len;
-                        state.index <-
-                          String_map.add key { offset; length = len }
-                            state.index;
-                        Bloom.add state.bloom key
-                      end)
-                    objects
-              | _ -> ()));
+                      let len = String.length data in
+                      let o = !off in
+                      Eio.File.pwrite_all file
+                        ~file_offset:(Optint.Int63.of_int o)
+                        [ Cstruct.of_string data ];
+                      off := o + len;
+                      (key, { offset = o; length = len }))
+                    new_objs
+                in
+                (* Update index with CAS (batch all entries at once) *)
+                cas_update state.index (fun idx ->
+                    List.fold_left
+                      (fun acc (key, entry) -> String_map.add key entry acc)
+                      idx entries)
+              end
+          | _ -> ());
       flush =
         (fun () ->
-          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+          Eio.Mutex.use_rw ~protect:true state.wal_mutex (fun () ->
               (match state.data_file with
               | Some file -> Eio.File.sync file
               | None -> ());
-              save_index state.root state.index;
+              save_index state.root (Atomic.get state.index);
               save_bloom state.root state.bloom;
-              (* Clear WAL after persisting index - entries are now recoverable
-                 from index + data file *)
               let wal_p = wal_path state.root in
               if Eio.Path.is_file wal_p then Eio.Path.unlink wal_p));
       close =
         (fun () ->
-          Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+          Eio.Mutex.use_rw ~protect:true state.wal_mutex (fun () ->
               (match state.wal with Some wal -> Wal.close wal | None -> ());
               (match state.data_file with
               | Some file ->
                   Eio.File.sync file;
                   Eio.Resource.close file
               | None -> ());
-              save_index state.root state.index;
+              save_index state.root (Atomic.get state.index);
               save_bloom state.root state.bloom;
-              (* Clear WAL *)
               let wal_p = wal_path state.root in
               if Eio.Path.is_file wal_p then Eio.Path.unlink wal_p;
               state.wal <- None;

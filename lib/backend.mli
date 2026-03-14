@@ -9,8 +9,10 @@
 
     - {!Memory}: {b not} thread-safe.  For multi-domain use, wrap with
       {!thread_safe_rw}: [thread_safe_rw (Memory.create_sha1 ())].
-    - {!Disk}: internally protected by [Eio.Mutex] — safe for concurrent
-      access from multiple fibers {e and} domains within an Eio event loop.
+    - {!Disk}: lock-free reads ([Atomic.t] index + positional [pread]),
+      writes serialized only on WAL append ([Eio.Mutex]) with parallel
+      [pwrite] and CAS index update. Safe for concurrent access from
+      multiple fibers and domains.
     - {!cached}: {b not} thread-safe.  Apply {e before} the thread-safety
       wrapper so the outer lock protects the cache:
       [thread_safe_rw (cached ~capacity:100_000 backend)].

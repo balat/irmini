@@ -208,7 +208,7 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 
 ## Results
 
-Run on 2025-03-14, , 12-core, 100 commits x 1000 adds, depth 10, 10000 reads.
+Run on 2026-03-14, AMD 12-core, 100 commits × 1000 adds, depth 10, 10000 reads.
 Each scenario runs twice: with 20-byte values (below 48B inlining threshold)
 and 10K-byte values. All three implementations use the same parameters.
 
@@ -303,12 +303,12 @@ at the end would bring lavyek+fsync performance in line with disk.
 Name                            Scenario                    ops/s   total(s)   RSS(MiB)
 ----------------------------------------------------------------------------------
 Irmin-Eio (pack) 12d×1f         tezos-10310commits         205337     19.500          0
-Irmini (disk) 12d×100f          commits-20B                 15652     76.667        454
-Irmini (disk) 12d×100f          reads-20B                  905202      1.104        600
-Irmini (disk) 12d×100f          incremental-20B                57     21.143        532
-Irmini (disk) 12d×100f          commits-10K                   555   2163.246      10520
-Irmini (disk) 12d×100f          reads-10K                  287546      3.476      10160
-Irmini (disk) 12d×100f          incremental-10K                71     16.972      10000
+Irmini (disk) 12d×100f          commits-20B                 26315     45.602        368
+Irmini (disk) 12d×100f          reads-20B                 4706015      0.212        464
+Irmini (disk) 12d×100f          incremental-20B               101     11.912        410
+Irmini (disk) 12d×100f          commits-10K                   648   1851.022      10565
+Irmini (disk) 12d×100f          reads-10K                 2920612      0.342      10732
+Irmini (disk) 12d×100f          incremental-10K                76     15.724      10345
 Irmini (disk, no fsync) 12d×100f commits-20B                 41053     29.230        450
 Irmini (disk, no fsync) 12d×100f reads-20B                  876124      1.141        545
 Irmini (disk, no fsync) 12d×100f incremental-20B               288      4.166        496
