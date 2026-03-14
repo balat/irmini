@@ -291,7 +291,7 @@ large values (10 KiB) tests raw I/O throughput where inlining cannot help.
 
 ## Results
 
-Run on 2025-03-14, AMD Ryzen 9 7950X, 32-core, 100 commits x 1000 adds, depth 10, 1000000 reads.
+Run on 2025-03-15, Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz, 12-thread, 100 commits x 1000 adds, depth 10, 1000000 reads.
 Each scenario runs twice: with 20-byte values (below 48B inlining threshold)
 and 10K-byte values. All three implementations use the same parameters.
 
