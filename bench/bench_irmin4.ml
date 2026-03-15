@@ -509,8 +509,16 @@ let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?use_fsync
       "Irmini" ^ suffix ^ " (disk)"
   in
   let cache = if cache > 0 then Some cache else None in
-  let mk_backend () = Backend.Disk.create_sha1 ?cache ?use_fsync ~sw root in
-  let mk_backend_ts () = mk_backend () in
+  (* Each scenario gets a fresh store in a separate subdirectory
+     to avoid data accumulation between scenarios. *)
+  let n = ref 0 in
+  let mk () =
+    incr n;
+    let subdir = Eio.Path.(root / Printf.sprintf "scenario_%d" !n) in
+    Backend.Disk.create_sha1 ?cache ?use_fsync ~sw subdir
+  in
+  let mk_backend () = mk () in
+  let mk_backend_ts () = mk () in
   let close (backend : Hash.sha1 Backend.t) = backend.close () in
   run_scenarios ?inline_threshold ?inode ?ndomains ?fibers_per_domain ?scenarios
     ~mk_backend ~mk_backend_ts ~close ~name ~env conf
