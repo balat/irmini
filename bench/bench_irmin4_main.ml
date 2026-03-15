@@ -250,17 +250,19 @@ let () =
       run_trace ~backend_name:"Irmini (memory)" ~backend
         ~trace_file_name:"trace_memory.json"
     end;
-    if not !skip_disk then begin
+    (* Disk trace (fsync) — only without --no-fsync *)
+    if not !skip_disk && not !no_fsync then begin
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_disk_trace") in
       rm_rf root;
-      let backend = Irmin.Backend.Disk.create_sha1 ?cache ~sw root in
+      let backend = Irmin.Backend.Disk.create_sha1 ?cache ~use_fsync:true ~sw root in
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () -> run_trace ~backend_name:"Irmini (disk)" ~backend
             ~trace_file_name:"trace_disk.json")
     end;
-    if not !skip_disk then begin
+    (* Disk trace (no fsync) — only with --no-fsync *)
+    if not !skip_disk && !no_fsync then begin
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_disk_nofsync_trace") in
       rm_rf root;
@@ -270,14 +272,26 @@ let () =
         (fun () -> run_trace ~backend_name:"Irmini (disk, no fsync)" ~backend
             ~trace_file_name:"trace_disk.json")
     end;
-    if not !skip_lavyek then begin
+    (* Lavyek trace (fsync) — only without --no-fsync *)
+    if not !skip_lavyek && not !no_fsync then begin
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_lavyek_trace") in
       rm_rf root;
-      let backend = Irmin_lavyek.create ?cache ~sw root in
+      let backend = Irmin_lavyek.create ?cache ~use_fsync:true ~sw root in
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () -> run_trace ~backend_name:"Irmini (lavyek)" ~backend
+            ~trace_file_name:"trace_lavyek.json")
+    end;
+    (* Lavyek trace (no fsync) — only with --no-fsync *)
+    if not !skip_lavyek && !no_fsync then begin
+      Eio.Switch.run @@ fun sw ->
+      let root = Eio.Path.(cwd / "_build/_bench_lavyek_nofsync_trace") in
+      rm_rf root;
+      let backend = Irmin_lavyek.create ?cache ~use_fsync:false ~sw root in
+      Fun.protect
+        ~finally:(fun () -> backend.Irmin.Backend.close ())
+        (fun () -> run_trace ~backend_name:"Irmini (lavyek, no fsync)" ~backend
             ~trace_file_name:"trace_lavyek.json")
     end
   end;
@@ -309,18 +323,20 @@ let () =
       run_par_trace ~backend ~backend_name:"Irmini-parallel (memory)"
         ~trace_file_name:"trace_par_memory.json" ~env
     end;
-    if not !skip_disk then begin
+    (* Disk parallel trace (fsync) — only without --no-fsync *)
+    if not !skip_disk && not !no_fsync then begin
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_disk_parallel") in
       rm_rf root;
-      let backend = Irmin.Backend.Disk.create_sha1 ?cache ~sw root in
+      let backend = Irmin.Backend.Disk.create_sha1 ?cache ~use_fsync:true ~sw root in
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () ->
           run_par_trace ~backend ~backend_name:"Irmini-parallel (disk)"
             ~trace_file_name:"trace_par_disk.json" ~env)
     end;
-    if not !skip_disk then begin
+    (* Disk parallel trace (no fsync) — only with --no-fsync *)
+    if not !skip_disk && !no_fsync then begin
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_disk_nofsync_parallel") in
       rm_rf root;
@@ -331,20 +347,22 @@ let () =
           run_par_trace ~backend ~backend_name:"Irmini-parallel (disk, no fsync)"
             ~trace_file_name:"trace_par_disk.json" ~env)
     end;
-    if not !skip_lavyek then begin
+    (* Lavyek parallel trace (fsync) — only without --no-fsync *)
+    if not !skip_lavyek && not !no_fsync then begin
       Eio.Switch.run @@ fun sw ->
       let root = Eio.Path.(cwd / "_build/_bench_lavyek_parallel") in
       rm_rf root;
-      let backend = Irmin_lavyek.create ?cache ~sw root in
+      let backend = Irmin_lavyek.create ?cache ~use_fsync:true ~sw root in
       run_par_trace ~backend ~backend_name:"Irmini-parallel (lavyek)"
         ~trace_file_name:"trace_par_lavyek.json" ~env
     end;
-    if not !skip_lavyek then begin
+    (* Lavyek parallel trace (no fsync) — only with --no-fsync *)
+    if not !skip_lavyek && !no_fsync then begin
       Eio.Switch.run @@ fun sw ->
-      let root = Eio.Path.(cwd / "_build/_bench_lavyek_fsync_parallel") in
+      let root = Eio.Path.(cwd / "_build/_bench_lavyek_nofsync_parallel") in
       rm_rf root;
-      let backend = Irmin_lavyek.create ?cache ~use_fsync:true ~sw root in
-      run_par_trace ~backend ~backend_name:"Irmini-parallel (lavyek, fsync)"
+      let backend = Irmin_lavyek.create ?cache ~use_fsync:false ~sw root in
+      run_par_trace ~backend ~backend_name:"Irmini-parallel (lavyek, no fsync)"
         ~trace_file_name:"trace_par_lavyek.json" ~env
     end
   end;
