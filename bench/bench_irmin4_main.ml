@@ -34,7 +34,7 @@ let () =
   let no_flatten = ref false in
   let parallel_domains = ref 0 in
   let parallel_fibers = ref 100 in
-  let fsync_variants = ref false in
+  let no_fsync = ref false in
   let only_backend = ref "" in
   let only_scenario = ref "" in
   Arg.parse
@@ -74,8 +74,8 @@ let () =
        "Number of domains for parallel scenarios and trace replay (0 = skip, default: 0)");
       ("--parallel-fibers", Arg.Set_int parallel_fibers,
        "Number of fibers per domain for parallel scenarios and trace replay (default: 100)");
-      ("--fsync-variants", Arg.Set fsync_variants,
-       "Run fsync variants: disk without fsync, lavyek with fsync");
+      ("--no-fsync", Arg.Set no_fsync,
+       "Run no-fsync variants: disk without fsync, lavyek without fsync");
       ("--only-backend", Arg.Set_string only_backend,
        "Run only this backend: memory|disk|lavyek|git");
       ("--only-scenario", Arg.Set_string only_scenario,
@@ -167,7 +167,7 @@ let () =
     results := [r] @ !results
   in
   (* 1. Irmini disk *)
-  if not !skip_disk && not !fsync_variants then begin
+  if not !skip_disk && not !no_fsync then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_disk") in
     rm_rf root;
@@ -177,8 +177,8 @@ let () =
     write_to "seq_disk.json" rr.sequential;
     write_to "par_disk.json" rr.parallel
   end;
-  (* 1b. Irmini disk without fsync *)
-  if !fsync_variants && not !skip_disk then begin
+  (* 1b. Irmini disk (no fsync) — only with --no-fsync *)
+  if !no_fsync && not !skip_disk then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_disk_nofsync") in
     rm_rf root;
@@ -188,7 +188,7 @@ let () =
     write_to "par_disk.json" rr.parallel
   end;
   (* 2. Irmini memory *)
-  if not !skip_memory && not !fsync_variants then begin
+  if not !skip_memory && not !no_fsync then begin
     let mem_name = match name with Some n -> n | None -> "Irmini (memory)" in
     (* Memory backend: use 1 fiber/domain — fibers never yield on pure
        CPU ops (String_map), so extra fibers only add scheduling overhead. *)
@@ -198,7 +198,7 @@ let () =
     write_to "par_memory.json" rr.parallel
   end;
   (* 3. Irmini git *)
-  if not !skip_git && not !fsync_variants then begin
+  if not !skip_git && not !no_fsync then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_git") in
     rm_rf root;
@@ -209,7 +209,7 @@ let () =
     write_to "par_git.json" rr.parallel
   end;
   (* 4. Irmini + Lavyek *)
-  if not !skip_lavyek && not !fsync_variants then begin
+  if not !skip_lavyek && not !no_fsync then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in
     rm_rf root;
@@ -218,8 +218,8 @@ let () =
     write_to "seq_lavyek.json" rr.sequential;
     write_to "par_lavyek.json" rr.parallel
   end;
-  (* 4b. Irmini + Lavyek without fsync *)
-  if !fsync_variants && not !skip_lavyek then begin
+  (* 4b. Irmini + Lavyek (no fsync) — only with --no-fsync *)
+  if !no_fsync && not !skip_lavyek then begin
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_lavyek_nofsync") in
     rm_rf root;
