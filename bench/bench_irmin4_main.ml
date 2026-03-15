@@ -175,7 +175,8 @@ let () =
     let rr = Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf in
     run_rr disk_name rr;
     write_to "seq_disk.json" rr.sequential;
-    write_to "par_disk.json" rr.parallel
+    write_to "par_disk.json" rr.parallel;
+    rm_rf root
   end;
   (* 1b. Irmini disk (no fsync) — only with --no-fsync *)
   if !no_fsync && not !skip_disk then begin
@@ -185,7 +186,8 @@ let () =
     let rr = Bench_irmin4.run_all_disk ?inline_threshold ?inode ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (disk, no fsync)" ~sw ~env root conf in
     run_rr "Irmini (disk, no fsync)" rr;
     write_to "seq_disk.json" rr.sequential;
-    write_to "par_disk.json" rr.parallel
+    write_to "par_disk.json" rr.parallel;
+    rm_rf root
   end;
   (* 2. Irmini memory *)
   if not !skip_memory && not !no_fsync then begin
@@ -206,7 +208,8 @@ let () =
     let rr = Bench_irmin4.run_all_git ~cache:cache_int ?scenarios ~sw ~fs:cwd root conf in
     run_rr "Irmini (git)" rr;
     write_to "seq_git.json" rr.sequential;
-    write_to "par_git.json" rr.parallel
+    write_to "par_git.json" rr.parallel;
+    rm_rf root
   end;
   (* 4. Irmini + Lavyek *)
   if not !skip_lavyek && not !no_fsync then begin
@@ -216,7 +219,8 @@ let () =
     let rr = Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf in
     run_rr "Irmini (lavyek)" rr;
     write_to "seq_lavyek.json" rr.sequential;
-    write_to "par_lavyek.json" rr.parallel
+    write_to "par_lavyek.json" rr.parallel;
+    rm_rf root
   end;
   (* 4b. Irmini + Lavyek (no fsync) — only with --no-fsync *)
   if !no_fsync && not !skip_lavyek then begin
@@ -226,7 +230,8 @@ let () =
     let rr = Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (lavyek, no fsync)" ~sw ~env root conf in
     run_rr "Irmini (lavyek, no fsync)" rr;
     write_to "seq_lavyek.json" rr.sequential;
-    write_to "par_lavyek.json" rr.parallel
+    write_to "par_lavyek.json" rr.parallel;
+    rm_rf root
   end;
   (* 5. Trace replay — runs on each active backend *)
   if !trace_file <> "" then begin
@@ -259,7 +264,8 @@ let () =
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () -> run_trace ~backend_name:"Irmini (disk)" ~backend
-            ~trace_file_name:"trace_disk.json")
+            ~trace_file_name:"trace_disk.json");
+      rm_rf root
     end;
     (* Disk trace (no fsync) — only with --no-fsync *)
     if not !skip_disk && !no_fsync then begin
@@ -270,7 +276,8 @@ let () =
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () -> run_trace ~backend_name:"Irmini (disk, no fsync)" ~backend
-            ~trace_file_name:"trace_disk.json")
+            ~trace_file_name:"trace_disk.json");
+      rm_rf root
     end;
     (* Lavyek trace (fsync) — only without --no-fsync *)
     if not !skip_lavyek && not !no_fsync then begin
@@ -281,7 +288,8 @@ let () =
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () -> run_trace ~backend_name:"Irmini (lavyek)" ~backend
-            ~trace_file_name:"trace_lavyek.json")
+            ~trace_file_name:"trace_lavyek.json");
+      rm_rf root
     end;
     (* Lavyek trace (no fsync) — only with --no-fsync *)
     if not !skip_lavyek && !no_fsync then begin
@@ -292,7 +300,8 @@ let () =
       Fun.protect
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () -> run_trace ~backend_name:"Irmini (lavyek, no fsync)" ~backend
-            ~trace_file_name:"trace_lavyek.json")
+            ~trace_file_name:"trace_lavyek.json");
+      rm_rf root
     end
   end;
   (* 6. Parallel trace replay — GC before to reclaim memory from steps 1-5 *)
@@ -333,7 +342,8 @@ let () =
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () ->
           run_par_trace ~backend ~backend_name:"Irmini-parallel (disk)"
-            ~trace_file_name:"trace_par_disk.json" ~env)
+            ~trace_file_name:"trace_par_disk.json" ~env);
+      rm_rf root
     end;
     (* Disk parallel trace (no fsync) — only with --no-fsync *)
     if not !skip_disk && !no_fsync then begin
@@ -345,7 +355,8 @@ let () =
         ~finally:(fun () -> backend.Irmin.Backend.close ())
         (fun () ->
           run_par_trace ~backend ~backend_name:"Irmini-parallel (disk, no fsync)"
-            ~trace_file_name:"trace_par_disk.json" ~env)
+            ~trace_file_name:"trace_par_disk.json" ~env);
+      rm_rf root
     end;
     (* Lavyek parallel trace (fsync) — only without --no-fsync *)
     if not !skip_lavyek && not !no_fsync then begin
@@ -354,7 +365,8 @@ let () =
       rm_rf root;
       let backend = Irmin_lavyek.create ?cache ~use_fsync:true ~sw root in
       run_par_trace ~backend ~backend_name:"Irmini-parallel (lavyek)"
-        ~trace_file_name:"trace_par_lavyek.json" ~env
+        ~trace_file_name:"trace_par_lavyek.json" ~env;
+      rm_rf root
     end;
     (* Lavyek parallel trace (no fsync) — only with --no-fsync *)
     if not !skip_lavyek && !no_fsync then begin
@@ -363,7 +375,8 @@ let () =
       rm_rf root;
       let backend = Irmin_lavyek.create ?cache ~use_fsync:false ~sw root in
       run_par_trace ~backend ~backend_name:"Irmini-parallel (lavyek, no fsync)"
-        ~trace_file_name:"trace_par_lavyek.json" ~env
+        ~trace_file_name:"trace_par_lavyek.json" ~env;
+      rm_rf root
     end
   end;
   (* Summary *)
