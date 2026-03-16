@@ -415,6 +415,7 @@ let scenario_name = function
 let run_scenarios ?inline_threshold ?inode
     ~mk_backend ?mk_backend_ts ?close
     ?(ndomains = 0) ?(fibers_per_domain = 1)
+    ?(parallel_only = false)
     ?(scenarios = all_scenario_ids) ~name ?env
     (conf : Bench_common.config) =
   (* Scale down 10K workload to avoid swap: 100 commits × 1000 adds × 10KB
@@ -459,9 +460,11 @@ let run_scenarios ?inline_threshold ?inode
     | _ -> []
   in
   let sequential =
-    List.concat_map (fun c ->
-        List.map (fun s -> run_seq s c) scenarios)
-      confs
+    if parallel_only then []
+    else
+      List.concat_map (fun c ->
+          List.map (fun s -> run_seq s c) scenarios)
+        confs
   in
   let parallel =
     List.concat_map (fun c ->
@@ -473,7 +476,7 @@ let run_scenarios ?inline_threshold ?inode
 (** {1 Backend runners} *)
 
 let run_all_memory ?inline_threshold ?inode ?(cache = 0)
-    ?ndomains ?fibers_per_domain ?scenarios ?name:custom_name ~env
+    ?ndomains ?fibers_per_domain ?parallel_only ?scenarios ?name:custom_name ~env
     (conf : Bench_common.config) =
   let name = match custom_name with
     | Some n -> n
@@ -484,8 +487,8 @@ let run_all_memory ?inline_threshold ?inode ?(cache = 0)
   let cache = if cache > 0 then Some cache else None in
   let mk_backend () = Backend.Memory.create_sha1 ?cache () in
   let mk_backend_ts () = Backend.thread_safe_rw (mk_backend ()) in
-  run_scenarios ?inline_threshold ?inode ?ndomains ?fibers_per_domain ?scenarios
-    ~mk_backend ~mk_backend_ts ~name ~env conf
+  run_scenarios ?inline_threshold ?inode ?ndomains ?fibers_per_domain ?parallel_only
+    ?scenarios ~mk_backend ~mk_backend_ts ~name ~env conf
 
 let run_all_git ?(cache = 0) ?scenarios ~sw ~fs root
     (conf : Bench_common.config) =
@@ -500,7 +503,7 @@ let run_all_git ?(cache = 0) ?scenarios ~sw ~fs root
     ~mk_backend ~name conf
 
 let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?use_fsync
-    ?ndomains ?fibers_per_domain ?scenarios ?name:custom_name
+    ?ndomains ?fibers_per_domain ?parallel_only ?scenarios ?name:custom_name
     ~sw ~env root (conf : Bench_common.config) =
   let name = match custom_name with
     | Some n -> n
@@ -520,5 +523,5 @@ let run_all_disk ?inline_threshold ?inode ?(cache = 0) ?use_fsync
   let mk_backend () = mk () in
   let mk_backend_ts () = mk () in
   let close (backend : Hash.sha1 Backend.t) = backend.close () in
-  run_scenarios ?inline_threshold ?inode ?ndomains ?fibers_per_domain ?scenarios
-    ~mk_backend ~mk_backend_ts ~close ~name ~env conf
+  run_scenarios ?inline_threshold ?inode ?ndomains ?fibers_per_domain ?parallel_only
+    ?scenarios ~mk_backend ~mk_backend_ts ~close ~name ~env conf

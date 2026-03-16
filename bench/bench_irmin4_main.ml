@@ -35,6 +35,7 @@ let () =
   let parallel_domains = ref 0 in
   let parallel_fibers = ref 100 in
   let no_fsync = ref false in
+  let parallel_only = ref false in
   let only_backend = ref "" in
   let only_scenario = ref "" in
   Arg.parse
@@ -76,6 +77,8 @@ let () =
        "Number of fibers per domain for parallel scenarios and trace replay (default: 100)");
       ("--no-fsync", Arg.Set no_fsync,
        "Run no-fsync variants: disk without fsync, lavyek without fsync");
+      ("--parallel-only", Arg.Set parallel_only,
+       "Skip sequential scenarios, only run parallel variants");
       ("--only-backend", Arg.Set_string only_backend,
        "Run only this backend: memory|disk|lavyek|git");
       ("--only-scenario", Arg.Set_string only_scenario,
@@ -124,6 +127,7 @@ let () =
   in
   let ndomains = !parallel_domains in
   let fibers_per_domain = !parallel_fibers in
+  let parallel_only = if !parallel_only then Some true else None in
   let odir = !output_dir in
   Format.printf
     "Configuration: %d commits, %d adds/commit, depth %d, %d reads, \
@@ -172,7 +176,7 @@ let () =
     let root = Eio.Path.(cwd / "_build/_bench_disk") in
     rm_rf root;
     let disk_name = match name with Some n -> n | None -> "Irmini (disk)" in
-    let rr = Bench_irmin4.run_all_disk ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf in
+    let rr = Bench_irmin4.run_all_disk ?inline_threshold ?inode ?parallel_only ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf in
     run_rr disk_name rr;
     write_to "seq_disk.json" rr.sequential;
     write_to "par_disk.json" rr.parallel;
@@ -183,7 +187,7 @@ let () =
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_disk_nofsync") in
     rm_rf root;
-    let rr = Bench_irmin4.run_all_disk ?inline_threshold ?inode ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (disk, no fsync)" ~sw ~env root conf in
+    let rr = Bench_irmin4.run_all_disk ?inline_threshold ?inode ?parallel_only ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (disk, no fsync)" ~sw ~env root conf in
     run_rr "Irmini (disk, no fsync)" rr;
     write_to "seq_disk.json" rr.sequential;
     write_to "par_disk.json" rr.parallel;
@@ -194,7 +198,7 @@ let () =
     let mem_name = match name with Some n -> n | None -> "Irmini (memory)" in
     (* Memory backend: use 1 fiber/domain — fibers never yield on pure
        CPU ops (String_map), so extra fibers only add scheduling overhead. *)
-    let rr = Bench_irmin4.run_all_memory ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain:1 ?scenarios ?name ~env conf in
+    let rr = Bench_irmin4.run_all_memory ?inline_threshold ?inode ?parallel_only ~cache:cache_int ~ndomains ~fibers_per_domain:1 ?scenarios ?name ~env conf in
     run_rr mem_name rr;
     write_to "seq_memory.json" rr.sequential;
     write_to "par_memory.json" rr.parallel
@@ -216,7 +220,7 @@ let () =
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_lavyek") in
     rm_rf root;
-    let rr = Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf in
+    let rr = Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ?parallel_only ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ?name ~sw ~env root conf in
     run_rr "Irmini (lavyek)" rr;
     write_to "seq_lavyek.json" rr.sequential;
     write_to "par_lavyek.json" rr.parallel;
@@ -227,7 +231,7 @@ let () =
     Eio.Switch.run @@ fun sw ->
     let root = Eio.Path.(cwd / "_build/_bench_lavyek_nofsync") in
     rm_rf root;
-    let rr = Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (lavyek, no fsync)" ~sw ~env root conf in
+    let rr = Bench_irmin4_lavyek.run_all ?inline_threshold ?inode ?parallel_only ~use_fsync:false ~cache:cache_int ~ndomains ~fibers_per_domain ?scenarios ~name:"Irmini (lavyek, no fsync)" ~sw ~env root conf in
     run_rr "Irmini (lavyek, no fsync)" rr;
     write_to "seq_lavyek.json" rr.sequential;
     write_to "par_lavyek.json" rr.parallel;
