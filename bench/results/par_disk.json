@@ -1,0 +1,14 @@
+[
+  {"name": "Irmini (disk)", "scenario": "parallel-commits-20B-12d×100f", "total_ops": 1200000, "total_time": 12.640042, "ops_per_sec": 94936.4, "maxrss_kb": 471632},
+  {"name": "Irmini (disk)", "scenario": "parallel-reads-20B-12d×100f", "total_ops": 999600, "total_time": 0.247192, "ops_per_sec": 4043821.7, "maxrss_kb": 523908},
+  {"name": "Irmini (disk)", "scenario": "parallel-incremental-20B-12d×100f", "total_ops": 1200, "total_time": 1.315593, "ops_per_sec": 912.1, "maxrss_kb": 559044},
+  {"name": "Irmini (disk)", "scenario": "parallel-commits-10K-12d×100f", "total_ops": 240000, "total_time": 28.624284, "ops_per_sec": 8384.5, "maxrss_kb": 7475560},
+  {"name": "Irmini (disk)", "scenario": "parallel-reads-10K-12d×100f", "total_ops": 999600, "total_time": 0.233577, "ops_per_sec": 4279530.7, "maxrss_kb": 7559736},
+  {"name": "Irmini (disk)", "scenario": "parallel-incremental-10K-12d×100f", "total_ops": 1200, "total_time": 1.491769, "ops_per_sec": 804.4, "maxrss_kb": 7695748},
+  {"name": "Irmini (disk, no fsync)", "scenario": "parallel-commits-20B-12d×100f", "total_ops": 1200000, "total_time": 12.237812, "ops_per_sec": 98056.7, "maxrss_kb": 488844},
+  {"name": "Irmini (disk, no fsync)", "scenario": "parallel-reads-20B-12d×100f", "total_ops": 999600, "total_time": 0.234220, "ops_per_sec": 4267781.9, "maxrss_kb": 545608},
+  {"name": "Irmini (disk, no fsync)", "scenario": "parallel-incremental-20B-12d×100f", "total_ops": 1200, "total_time": 0.547564, "ops_per_sec": 2191.5, "maxrss_kb": 599000},
+  {"name": "Irmini (disk, no fsync)", "scenario": "parallel-commits-10K-12d×100f", "total_ops": 240000, "total_time": 24.424723, "ops_per_sec": 9826.1, "maxrss_kb": 7876204},
+  {"name": "Irmini (disk, no fsync)", "scenario": "parallel-reads-10K-12d×100f", "total_ops": 999600, "total_time": 0.200520, "ops_per_sec": 4985043.9, "maxrss_kb": 7903784},
+  {"name": "Irmini (disk, no fsync)", "scenario": "parallel-incremental-10K-12d×100f", "total_ops": 1200, "total_time": 0.632557, "ops_per_sec": 1897.1, "maxrss_kb": 7981524}
+]

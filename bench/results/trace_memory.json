@@ -1,0 +1,3 @@
+[
+  {"name": "Irmini (memory)", "scenario": "tezos-10310commits", "total_ops": 3999997, "total_time": 49.147943, "ops_per_sec": 81386.9, "maxrss_kb": 426972}
+]

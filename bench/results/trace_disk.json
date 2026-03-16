@@ -1,0 +1,4 @@
+[
+  {"name": "Irmini (disk)", "scenario": "tezos-10310commits", "total_ops": 3999997, "total_time": 293.481062, "ops_per_sec": 13629.5, "maxrss_kb": 218676},
+  {"name": "Irmini (disk, no fsync)", "scenario": "tezos-10310commits", "total_ops": 3999997, "total_time": 123.344876, "ops_per_sec": 32429.4, "maxrss_kb": 218520}
+]

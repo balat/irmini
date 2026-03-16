@@ -1,0 +1,3 @@
+[
+  {"name": "Irmini (lavyek, no fsync)", "scenario": "tezos-10310commits", "total_ops": 3999997, "total_time": 51.226036, "ops_per_sec": 78085.2, "maxrss_kb": 466216}
+]
