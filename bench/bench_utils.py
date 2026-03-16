@@ -66,7 +66,7 @@ CHART_SOURCES = {
         "irmini_trace.json", "irmini_parallel_scaling.json",
     ],
     "chart_memory.svg": [
-        "seq_memory.json",
+        "seq_memory.json", "trace_memory.json",
         "irmin_lwt.json", "irmin_eio.json",
         # Legacy
         "irmini_inode.json",
@@ -109,7 +109,7 @@ README_SECTIONS = {
         "irmini_parallel.json",
     ],
     "memory": [
-        "seq_memory.json",
+        "seq_memory.json", "trace_memory.json",
         "irmin_lwt.json", "irmin_eio.json",
         # Legacy
         "irmini_inode.json",
