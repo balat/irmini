@@ -41,6 +41,9 @@ module Link = Link
 module Lru = Lru
 (** LRU cache with O(1) operations. *)
 
+module Inode = Inode
+(** Structural sharing for large tree nodes (32-way hash trie). *)
+
 module Hash = Hash
 (** Phantom-typed hashes (SHA-1, SHA-256). *)
 

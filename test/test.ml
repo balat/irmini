@@ -12,4 +12,5 @@ let () =
       Test_git_interop.suite;
       Test_subtree.suite;
       Test_lru.suite;
+      Test_inode.suite;
     ]
