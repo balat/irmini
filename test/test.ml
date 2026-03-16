@@ -11,4 +11,5 @@ let () =
       Test_commit.suite;
       Test_git_interop.suite;
       Test_subtree.suite;
+      Test_lru.suite;
     ]

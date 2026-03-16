@@ -38,6 +38,9 @@ module Link = Link
 
     Content-addressed storage with refs for mutable pointers. *)
 
+module Lru = Lru
+(** LRU cache with O(1) operations. *)
+
 module Hash = Hash
 (** Phantom-typed hashes (SHA-1, SHA-256). *)
 
