@@ -47,15 +47,23 @@ def load_scaling_series(results_dir):
     series = {}
     for r in all_results:
         s = r["scenario"]
-        m = re.match(r'^(.+)-(\d+)f/(\d+)d$', s)
-        if not m:
-            continue
         name = r["name"]
         if name not in SCALING_BACKENDS:
             continue
-        base = m.group(1)
-        fibers = int(m.group(2))
-        domains = int(m.group(3))
+        # Old format: commits-20B-100f/12d
+        m = re.match(r'^(.+)-(\d+)f/(\d+)d$', s)
+        if m:
+            base = m.group(1)
+            fibers = int(m.group(2))
+            domains = int(m.group(3))
+        else:
+            # New format: parallel-reads-20B-12d×100f
+            m = re.match(r'^parallel-(.+)-(\d+)d[×x](\d+)f$', s)
+            if not m:
+                continue
+            base = m.group(1)
+            domains = int(m.group(2))
+            fibers = int(m.group(3))
         key = (name, base)
         if key not in series:
             series[key] = []
