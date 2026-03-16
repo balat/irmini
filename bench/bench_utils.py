@@ -201,8 +201,8 @@ def classify_backend(name, scenario=""):
             return "optims_lavyek"
         return "optims_memory"
 
-    # By backend type
-    if "memory" in n or "mem" in n:
+    # By backend type ("pack-mem" is Irmin's pack store in memory mode → disk/trace, not memory)
+    if ("memory" in n or "mem" in n) and "pack" not in n:
         return "memory"
     if "git" in n:
         return "git"
@@ -254,8 +254,8 @@ def classify_for_readme(name, scenario):
     if "tezos-" in s:
         return "trace"
 
-    # By backend type
-    if "memory" in n or "mem" in n:
+    # By backend type ("pack-mem" is Irmin's pack store in memory mode → disk/trace, not memory)
+    if ("memory" in n or "mem" in n) and "pack" not in n:
         return "memory"
     if "git" in n:
         return "git"
