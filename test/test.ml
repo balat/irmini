@@ -13,4 +13,5 @@ let () =
       Test_subtree.suite;
       Test_lru.suite;
       Test_inode.suite;
+      Test_concurrency.suite;
     ]
