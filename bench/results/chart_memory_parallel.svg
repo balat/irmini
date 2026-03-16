@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="700" height="479" font-family="system-ui, sans-serif" font-size="14">
 <rect width="700" height="479" fill="white"/>
 <defs>
-<pattern id="hatch-6337" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#4e79a7"/><line x1="0" y1="0" x2="0" y2="6" stroke="white" stroke-width="2"/></pattern>
+<pattern id="hatch-2923" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#4e79a7"/><line x1="0" y1="0" x2="0" y2="6" stroke="white" stroke-width="2"/></pattern>
 </defs>
 <text x="350.0" y="32" text-anchor="middle" font-size="20" font-weight="bold">Memory backends — multi-core (12 domains)</text>
 <g transform="translate(100,50)">
@@ -13,7 +13,7 @@
 <text x="-4.0" y="4.0" text-anchor="end" font-size="10" fill="#999">172k</text>
 <rect x="0.0" y="45.7" width="22" height="304.3" fill="#4e79a7" rx="1"/>
 <text x="11.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">149k</text>
-<rect x="24.0" y="48.1" width="22" height="301.9" fill="url(#hatch-6337)" rx="1"/>
+<rect x="24.0" y="48.1" width="22" height="301.9" fill="url(#hatch-2923)" rx="1"/>
 <text x="35.0" y="45.1" text-anchor="middle" font-size="9" fill="#333">148k</text>
 <text x="23.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">commits-20B</text>
 <line x1="96" y1="262.5" x2="142" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -23,7 +23,7 @@
 <text x="92.0" y="4.0" text-anchor="end" font-size="10" fill="#999">11.2M</text>
 <rect x="96.0" y="248.0" width="22" height="102.0" fill="#4e79a7" rx="1"/>
 <text x="107.0" y="245.0" text-anchor="middle" font-size="9" fill="#333">3.3M</text>
-<rect x="120.0" y="45.7" width="22" height="304.3" fill="url(#hatch-6337)" rx="1"/>
+<rect x="120.0" y="45.7" width="22" height="304.3" fill="url(#hatch-2923)" rx="1"/>
 <text x="131.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">9.7M</text>
 <text x="119.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">reads-20B</text>
 <line x1="192" y1="262.5" x2="238" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -33,7 +33,7 @@
 <text x="188.0" y="4.0" text-anchor="end" font-size="10" fill="#999">5k</text>
 <rect x="192.0" y="45.7" width="22" height="304.3" fill="#4e79a7" rx="1"/>
 <text x="203.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">4k</text>
-<rect x="216.0" y="198.8" width="22" height="151.2" fill="url(#hatch-6337)" rx="1"/>
+<rect x="216.0" y="198.8" width="22" height="151.2" fill="url(#hatch-2923)" rx="1"/>
 <text x="227.0" y="195.8" text-anchor="middle" font-size="9" fill="#333">2k</text>
 <text x="215.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">incremental-20B</text>
 <line x1="288" y1="262.5" x2="334" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -43,7 +43,7 @@
 <text x="284.0" y="4.0" text-anchor="end" font-size="10" fill="#999">30k</text>
 <rect x="288.0" y="165.7" width="22" height="184.3" fill="#4e79a7" rx="1"/>
 <text x="299.0" y="162.7" text-anchor="middle" font-size="9" fill="#333">16k</text>
-<rect x="312.0" y="45.7" width="22" height="304.3" fill="url(#hatch-6337)" rx="1"/>
+<rect x="312.0" y="45.7" width="22" height="304.3" fill="url(#hatch-2923)" rx="1"/>
 <text x="323.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">26k</text>
 <text x="311.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">commits-10K</text>
 <line x1="384" y1="262.5" x2="430" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -53,7 +53,7 @@
 <text x="380.0" y="4.0" text-anchor="end" font-size="10" fill="#999">16.6M</text>
 <rect x="384.0" y="267.9" width="22" height="82.1" fill="#4e79a7" rx="1"/>
 <text x="395.0" y="264.9" text-anchor="middle" font-size="9" fill="#333">3.9M</text>
-<rect x="408.0" y="45.7" width="22" height="304.3" fill="url(#hatch-6337)" rx="1"/>
+<rect x="408.0" y="45.7" width="22" height="304.3" fill="url(#hatch-2923)" rx="1"/>
 <text x="419.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">14.4M</text>
 <text x="407.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">reads-10K</text>
 <line x1="480" y1="262.5" x2="526" y2="262.5" stroke="#e0e0e0" stroke-width="0.5"/>
@@ -63,7 +63,7 @@
 <text x="476.0" y="4.0" text-anchor="end" font-size="10" fill="#999">4k</text>
 <rect x="480.0" y="45.7" width="22" height="304.3" fill="#4e79a7" rx="1"/>
 <text x="491.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">3k</text>
-<rect x="504.0" y="269.7" width="22" height="80.3" fill="url(#hatch-6337)" rx="1"/>
+<rect x="504.0" y="269.7" width="22" height="80.3" fill="url(#hatch-2923)" rx="1"/>
 <text x="515.0" y="266.7" text-anchor="middle" font-size="9" fill="#333">834</text>
 <text x="503.0" y="368" text-anchor="middle" font-size="13" font-weight="bold" fill="#333">incremental-10K</text>
 <line x1="0" y1="350" x2="526" y2="350" stroke="#333" stroke-width="1"/>
@@ -71,7 +71,7 @@
 <g transform="translate(100,440)">
 <rect x="0" y="0" width="14" height="14" fill="#4e79a7" rx="2"/>
 <text x="18" y="12" font-size="13" fill="#333">Irmini (memory) (seq)</text>
-<rect x="200" y="0" width="14" height="14" fill="url(#hatch-6337)" rx="2"/>
+<rect x="200" y="0" width="14" height="14" fill="url(#hatch-2923)" rx="2"/>
 <text x="218" y="12" font-size="13" fill="#333">Irmini (memory) 12d×1f</text>
 </g>
 </svg>

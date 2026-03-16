@@ -1,36 +1,146 @@
 [
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-incremental-10K-12d×1f", "total_ops": 12, "total_time": 0.008276, "ops_per_sec": 1450.0, "maxrss_kb": 328104},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-10K-12d×1f", "total_ops": 999996, "total_time": 0.066560, "ops_per_sec": 15023971.6, "maxrss_kb": 334640},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-commits-10K-12d×1f", "total_ops": 2400, "total_time": 0.108015, "ops_per_sec": 22219.1, "maxrss_kb": 334208},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-incremental-20B-12d×1f", "total_ops": 96, "total_time": 0.018028, "ops_per_sec": 5325.0, "maxrss_kb": 276884},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-20B-12d×1f", "total_ops": 999996, "total_time": 0.099494, "ops_per_sec": 10050819.1, "maxrss_kb": 297000},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-commits-20B-12d×1f", "total_ops": 96000, "total_time": 0.327124, "ops_per_sec": 293466.8, "maxrss_kb": 294992},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-incremental-10K-12d×10f", "total_ops": 120, "total_time": 0.028675, "ops_per_sec": 4184.8, "maxrss_kb": 949108},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-10K-12d×10f", "total_ops": 999960, "total_time": 0.062731, "ops_per_sec": 15940497.7, "maxrss_kb": 787000},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-commits-10K-12d×10f", "total_ops": 24000, "total_time": 1.391795, "ops_per_sec": 17243.9, "maxrss_kb": 647820},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-incremental-20B-12d×10f", "total_ops": 120, "total_time": 0.027584, "ops_per_sec": 4350.3, "maxrss_kb": 299816},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-20B-12d×10f", "total_ops": 999960, "total_time": 0.099890, "ops_per_sec": 10010612.3, "maxrss_kb": 320000},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-commits-20B-12d×10f", "total_ops": 120000, "total_time": 0.432766, "ops_per_sec": 277286.1, "maxrss_kb": 319276},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-incremental-10K-12d×50f", "total_ops": 600, "total_time": 0.116243, "ops_per_sec": 5161.6, "maxrss_kb": 2456596},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-10K-12d×50f", "total_ops": 999600, "total_time": 0.075917, "ops_per_sec": 13167010.4, "maxrss_kb": 2256272},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-commits-10K-12d×50f", "total_ops": 120000, "total_time": 6.745070, "ops_per_sec": 17790.8, "maxrss_kb": 2097188},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-incremental-20B-12d×50f", "total_ops": 600, "total_time": 0.105847, "ops_per_sec": 5668.6, "maxrss_kb": 433656},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-20B-12d×50f", "total_ops": 999600, "total_time": 0.085882, "ops_per_sec": 11639232.9, "maxrss_kb": 564532},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-commits-20B-12d×50f", "total_ops": 600000, "total_time": 2.222775, "ops_per_sec": 269932.9, "maxrss_kb": 417124},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "incremental-10K", "total_ops": 10, "total_time": 0.003313, "ops_per_sec": 3018.6, "maxrss_kb": 251404},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "reads-10K", "total_ops": 1000000, "total_time": 0.250464, "ops_per_sec": 3992590.4, "maxrss_kb": 273416},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "commits-10K", "total_ops": 2000, "total_time": 0.202653, "ops_per_sec": 9869.1, "maxrss_kb": 273408},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "incremental-20B", "total_ops": 100, "total_time": 0.028036, "ops_per_sec": 3566.8, "maxrss_kb": 234796},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "reads-20B", "total_ops": 1000000, "total_time": 0.292283, "ops_per_sec": 3421341.0, "maxrss_kb": 235096},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "commits-20B", "total_ops": 100000, "total_time": 0.722582, "ops_per_sec": 138392.6, "maxrss_kb": 234856},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-10K-12d×100f", "total_ops": 999600, "total_time": 0.083923, "ops_per_sec": 11910937.8, "maxrss_kb": 246628},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-20B-12d×100f", "total_ops": 999600, "total_time": 0.078578, "ops_per_sec": 12721118.6, "maxrss_kb": 234232},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-10K-12d×500f", "total_ops": 996000, "total_time": 0.092944, "ops_per_sec": 10716140.9, "maxrss_kb": 255500},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-20B-12d×500f", "total_ops": 996000, "total_time": 0.165938, "ops_per_sec": 6002236.8, "maxrss_kb": 235468},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-10K-12d×1000f", "total_ops": 996000, "total_time": 0.094601, "ops_per_sec": 10528412.8, "maxrss_kb": 264200},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-20B-12d×1000f", "total_ops": 996000, "total_time": 0.176801, "ops_per_sec": 5633453.4, "maxrss_kb": 236200},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-10K-12d×5000f", "total_ops": 960000, "total_time": 0.108189, "ops_per_sec": 8873371.4, "maxrss_kb": 264276},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-20B-12d×5000f", "total_ops": 960000, "total_time": 0.193854, "ops_per_sec": 4952178.1, "maxrss_kb": 239260},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-10K-12d×10000f", "total_ops": 960000, "total_time": 0.104879, "ops_per_sec": 9153413.9, "maxrss_kb": 268088},
-  {"name": "Irmini (lavyek, no fsync)", "scenario": "parallel-reads-20B-12d×10000f", "total_ops": 960000, "total_time": 0.193444, "ops_per_sec": 4962676.2, "maxrss_kb": 243500}
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-10K-12d\u00d71f",
+    "total_ops": 999996,
+    "total_time": 0.06656,
+    "ops_per_sec": 15023971.6,
+    "maxrss_kb": 334640
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-20B-12d\u00d71f",
+    "total_ops": 999996,
+    "total_time": 0.099494,
+    "ops_per_sec": 10050819.1,
+    "maxrss_kb": 297000
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-10K-12d\u00d710f",
+    "total_ops": 999960,
+    "total_time": 0.062731,
+    "ops_per_sec": 15940497.7,
+    "maxrss_kb": 787000
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-20B-12d\u00d710f",
+    "total_ops": 999960,
+    "total_time": 0.09989,
+    "ops_per_sec": 10010612.3,
+    "maxrss_kb": 320000
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-10K-12d\u00d750f",
+    "total_ops": 999600,
+    "total_time": 0.075917,
+    "ops_per_sec": 13167010.4,
+    "maxrss_kb": 2256272
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-20B-12d\u00d750f",
+    "total_ops": 999600,
+    "total_time": 0.085882,
+    "ops_per_sec": 11639232.9,
+    "maxrss_kb": 564532
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "reads-10K",
+    "total_ops": 1000000,
+    "total_time": 0.250464,
+    "ops_per_sec": 3992590.4,
+    "maxrss_kb": 273416
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "reads-20B",
+    "total_ops": 1000000,
+    "total_time": 0.292283,
+    "ops_per_sec": 3421341.0,
+    "maxrss_kb": 235096
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-10K-12d\u00d7100f",
+    "total_ops": 999600,
+    "total_time": 0.083923,
+    "ops_per_sec": 11910937.8,
+    "maxrss_kb": 246628
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-20B-12d\u00d7100f",
+    "total_ops": 999600,
+    "total_time": 0.078578,
+    "ops_per_sec": 12721118.6,
+    "maxrss_kb": 234232
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-10K-12d\u00d7500f",
+    "total_ops": 996000,
+    "total_time": 0.092944,
+    "ops_per_sec": 10716140.9,
+    "maxrss_kb": 255500
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-20B-12d\u00d7500f",
+    "total_ops": 996000,
+    "total_time": 0.165938,
+    "ops_per_sec": 6002236.8,
+    "maxrss_kb": 235468
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-10K-12d\u00d71000f",
+    "total_ops": 996000,
+    "total_time": 0.094601,
+    "ops_per_sec": 10528412.8,
+    "maxrss_kb": 264200
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-20B-12d\u00d71000f",
+    "total_ops": 996000,
+    "total_time": 0.176801,
+    "ops_per_sec": 5633453.4,
+    "maxrss_kb": 236200
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-10K-12d\u00d75000f",
+    "total_ops": 960000,
+    "total_time": 0.108189,
+    "ops_per_sec": 8873371.4,
+    "maxrss_kb": 264276
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-20B-12d\u00d75000f",
+    "total_ops": 960000,
+    "total_time": 0.193854,
+    "ops_per_sec": 4952178.1,
+    "maxrss_kb": 239260
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-10K-12d\u00d710000f",
+    "total_ops": 960000,
+    "total_time": 0.104879,
+    "ops_per_sec": 9153413.9,
+    "maxrss_kb": 268088
+  },
+  {
+    "name": "Irmini (lavyek, no fsync)",
+    "scenario": "parallel-reads-20B-12d\u00d710000f",
+    "total_ops": 960000,
+    "total_time": 0.193444,
+    "ops_per_sec": 4962676.2,
+    "maxrss_kb": 243500
+  }
 ]
