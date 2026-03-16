@@ -1067,17 +1067,28 @@ def generate_results_section(all_results, run_date, machine_info,
                 lines.append("")
                 lines.append("![Parallel scaling per scenario](results/chart_scaling.svg)")
                 lines.append("")
-                lines.append("Throughput of commits, reads, and incremental scenarios with 12 domains and varying fiber count.")
+                lines.append("Throughput of reads scenarios with 12 domains and varying fiber count.")
+                lines.append("Commits and incremental scaling are not shown — with 1200+")
+                lines.append("concurrent writers, Lavyek's LSM-tree compaction saturates,")
+                lines.append("making the benchmark measure compaction throughput rather than")
+                lines.append("parallel scalability.")
                 lines.append("")
 
                 # Group by (backend, base_scenario)
                 scale_series = {}
                 for r in scale_data:
+                    # Old format: commits-20B-100f/12d
                     m = re.match(r'^(.+)-(\d+)f/(\d+)d$', r["scenario"])
-                    if not m:
-                        continue
-                    base = m.group(1)
-                    fibers = int(m.group(2))
+                    if m:
+                        base = m.group(1)
+                        fibers = int(m.group(2))
+                    else:
+                        # New format: parallel-reads-20B-12d×100f
+                        m = re.match(r'^parallel-(.+)-(\d+)d[×x](\d+)f$', r["scenario"])
+                        if not m:
+                            continue
+                        base = m.group(1)
+                        fibers = int(m.group(3))
                     key = (r["name"], base)
                     if key not in scale_series:
                         scale_series[key] = []

@@ -730,7 +730,15 @@ Irmini (disk)              13,629      293.5s         213
 
 ![Parallel scaling per scenario](results/chart_scaling.svg)
 
-Throughput of commits, reads, and incremental scenarios with 12 domains and varying fiber count.
+Throughput of reads scenarios with 12 domains and varying fiber count.
+Commits and incremental scaling are not shown — with 1200+
+concurrent writers, Lavyek's LSM-tree compaction saturates,
+making the benchmark measure compaction throughput rather than
+parallel scalability.
+
+**Irmini (lavyek, no fsync) — reads-10K** (peak: 15.9M at 10 fibers)
+
+**Irmini (lavyek, no fsync) — reads-20B** (peak: 12.7M at 100 fibers)
 
 ### Key observations
 
