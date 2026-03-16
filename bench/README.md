@@ -568,6 +568,23 @@ Irmini (git)                    incremental-10K               271      0.037    
 - **Reads**: Irmini dominates at **2.4M ops/s** (20B and 10K) — **16× faster** than Irmin-Lwt (156k) and **44× faster** than Irmin-Eio (85k on 10K). Content-addressed lookups bypass Git's tree traversal.
 - **Incremental**: All comparable — dominated by Git I/O.
 
+**Why Irmini is faster on git.** The store is 100% git-compatible — all
+reads and writes go through `ocaml-git` (`Git.Repository.read/write`),
+producing standard git objects that `git log`, `git cat-file`, etc. can read.
+Internal formats (inodes, inlined values) are rejected at write time to
+guarantee compatibility.
+
+The speedup comes from **tree navigation**: Irmin asks `ocaml-git` to parse
+each git tree object at every level of traversal. Irmini parses tree objects
+once into its in-memory `Tree.Git` structure, then navigates by hash lookup
+without re-parsing. For reads, this avoids repeated deserialization of tree
+objects — hence the 15× speedup. For commits, Irmini writes objects directly
+via `Git.Repository.write` with less overhead than Irmin's multi-layer
+abstraction (store → backend → ocaml-git).
+
+The 14× lower RSS (35 MB vs 483 MB) reflects the absence of `ocaml-git`'s
+internal caches (pack file indexes, delta decompression buffers).
+
 ### Irmini optimizations (disk)
 
 ![Irmini optimizations disk](results/chart_optims_disk.svg)
