@@ -556,8 +556,16 @@ Irmin-Eio (git)                 incremental-20B               122      0.817    
 Irmin-Eio (git)                 commits-10K                   948    105.424        515
 Irmin-Eio (git)                 reads-10K                   85357      0.117        509
 Irmin-Eio (git)                 incremental-10K               117      0.854        525
+Irmini (git)                    commits-20B                  8251     12.119         34
+Irmini (git)                    reads-20B                 2425954      0.412         35
+Irmini (git)                    incremental-20B               166      0.602         37
+Irmini (git)                    commits-10K                  4876      0.410         39
+Irmini (git)                    reads-10K                 3727836      0.268         39
+Irmini (git)                    incremental-10K               271      0.037         36
 ```
 
+- **Irmini (git)**: 100% git-compatible (inodes disabled, no inlining). Commits at **8.3k ops/s** — **4× faster** than Irmin (2.0k). Uses **34–39 MiB RSS** vs Irmin's 482–524 MiB.
+- **Reads**: Irmini dominates at **2.4M ops/s** (20B and 10K) — **16× faster** than Irmin-Lwt (156k) and **44× faster** than Irmin-Eio (85k on 10K). Content-addressed lookups bypass Git's tree traversal.
 - **Incremental**: All comparable — dominated by Git I/O.
 
 ### Irmini optimizations (disk)
@@ -744,6 +752,7 @@ parallel scalability.
 
 - **Irmini vs Irmin on commits (20B)**: Irmin leads at ~162k vs Irmini 149k. The gap has narrowed with inlining (was 3× with 100B values, now 1.1×).
 - **Irmini vs Irmin on incremental**: Irmini is **3.0–3.7× faster** (4.4k vs 1.2k–1.4k) thanks to inode structural sharing (O(log n) tree updates).
+- **Git backend**: Irmini is **4× faster** than Irmin on git commits (8.3k vs 2.0k) while using **12× less memory** (34–39 MiB vs 482–524 MiB).
 - **10K values**: All three implementations converge (~16k commits/s) — I/O dominates and inlining cannot help.
 - **Irmin-Lwt vs Irmin-Eio**: Similar performance on most benchmarks. Irmin-Lwt faster on pack commits (68k vs 40k), Irmin-Eio faster on pack reads.
 - **Tezos trace replay**: 81k ops/sec (memory), 78k ops/sec (lavyek, no fsync), 32k ops/sec (disk, no fsync), 14k ops/sec (disk) over 10K real Tezos commits validates that irmini handles realistic workloads.

@@ -1,0 +1,8 @@
+[
+  {"name": "Irmini (git)", "scenario": "commits-20B", "total_ops": 100000, "total_time": 12.119278, "ops_per_sec": 8251.3, "maxrss_kb": 35292},
+  {"name": "Irmini (git)", "scenario": "reads-20B", "total_ops": 1000000, "total_time": 0.412209, "ops_per_sec": 2425953.6, "maxrss_kb": 36196},
+  {"name": "Irmini (git)", "scenario": "incremental-20B", "total_ops": 100, "total_time": 0.602378, "ops_per_sec": 166.0, "maxrss_kb": 37488},
+  {"name": "Irmini (git)", "scenario": "commits-10K", "total_ops": 2000, "total_time": 0.410169, "ops_per_sec": 4876.0, "maxrss_kb": 39648},
+  {"name": "Irmini (git)", "scenario": "reads-10K", "total_ops": 1000000, "total_time": 0.268252, "ops_per_sec": 3727836.1, "maxrss_kb": 40028},
+  {"name": "Irmini (git)", "scenario": "incremental-10K", "total_ops": 10, "total_time": 0.036949, "ops_per_sec": 270.6, "maxrss_kb": 37344}
+]
