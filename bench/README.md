@@ -728,28 +728,28 @@ Trace: data4_10310commits.repr, 10310 commits, 4M operations
 Memory backends:
 Backend                   Ops/sec   Wall time   RSS (MiB)
 -----------------------------------------------------------------
-Irmin-Lwt (pack-mem)     ~130,000       30.6s           —
-Irmin-Eio (pack-mem)       83,160       48.1s           —
+Irmin-Eio (pack-mem)     ~181,000       22.0s           —
+Irmin-Lwt (pack-mem)     ~173,000       23.0s           —
 Irmini (memory)            81,386       49.1s         416
 
 Disk backends:
 Backend                   Ops/sec   Wall time   RSS (MiB)
 -----------------------------------------------------------------
-Irmin-Lwt (pack)         ~135,000       29.6s         306
-Irmin-Eio (pack)           83,022       48.2s         746
+Irmin-Lwt (pack)         ~137,000       29.0s         306
+Irmin-Eio (pack)           86,956       46.0s         746
 Irmini (lavyek, no fsync)     78,085       51.2s         455
 Irmini (disk, no fsync)     32,429      123.3s         213
 Irmini (disk)              13,629      293.5s         213
 ```
 
-- **Irmin-Lwt (pack)** is fastest at **135k ops/s**.
-- **Irmin-Lwt (pack-mem)** at 131k ops/s (97% of Irmin-Lwt (pack)).
-- **Irmin-Eio (pack-mem)** at 83k ops/s (62% of Irmin-Lwt (pack)).
-- **Irmin-Eio (pack)** at 83k ops/s (61% of Irmin-Lwt (pack)), 746 MiB RSS.
-- **Irmini (memory)** at 81k ops/s (60% of Irmin-Lwt (pack)), 416 MiB RSS.
-- **Irmini (lavyek, no fsync)** at 78k ops/s (58% of Irmin-Lwt (pack)), 455 MiB RSS.
-- **Irmini (disk, no fsync)** at 32k ops/s (24% of Irmin-Lwt (pack)), 213 MiB RSS.
-- **Irmini (disk)** at 14k ops/s (10% of Irmin-Lwt (pack)), 213 MiB RSS.
+- **Irmin-Eio (pack-mem)** is fastest at **182k ops/s**.
+- **Irmin-Lwt (pack-mem)** at 174k ops/s (96% of Irmin-Eio (pack-mem)).
+- **Irmin-Lwt (pack)** at 138k ops/s (76% of Irmin-Eio (pack-mem)), 306 MiB RSS.
+- **Irmin-Eio (pack)** at 87k ops/s (48% of Irmin-Eio (pack-mem)), 746 MiB RSS.
+- **Irmini (memory)** at 81k ops/s (45% of Irmin-Eio (pack-mem)), 416 MiB RSS.
+- **Irmini (lavyek, no fsync)** at 78k ops/s (43% of Irmin-Eio (pack-mem)), 455 MiB RSS.
+- **Irmini (disk, no fsync)** at 32k ops/s (18% of Irmin-Eio (pack-mem)), 213 MiB RSS.
+- **Irmini (disk)** at 14k ops/s (7% of Irmin-Eio (pack-mem)), 213 MiB RSS.
 
 ### Parallel scaling per scenario
 
