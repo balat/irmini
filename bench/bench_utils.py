@@ -369,8 +369,8 @@ COLORS = {
     "Irmini (lavyek, no fsync)": "#59a14f",
     "Irmini (git)":       "#8bc584",
     # Tezos trace replay
-    "Irmin-Lwt (pack-mem)": "#f28e2b",
-    "Irmin-Eio (pack-mem)": "#e15759",
+    "Irmin-Lwt (pack-mem)": "#f9c88e",
+    "Irmin-Eio (pack-mem)": "#f0a1a2",
     # Parallel variants (same color as base, rendered with hatching)
     "Irmini (lavyek, no fsync) 12d×50kf": "#59a14f",
     "Irmin-Eio (pack) 12d×1f":  "#e87c7e",

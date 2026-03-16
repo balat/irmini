@@ -82,9 +82,9 @@
 <line x1="1008" y1="87.5" x2="1126" y2="87.5" stroke="#e0e0e0" stroke-width="0.5"/>
 <line x1="1008" y1="0.0" x2="1126" y2="0.0" stroke="#e0e0e0" stroke-width="0.5"/>
 <text x="1004.0" y="4.0" text-anchor="end" font-size="10" fill="#999">209k</text>
-<rect x="1032.0" y="58.9" width="22" height="291.1" fill="#f28e2b" rx="1"/>
+<rect x="1032.0" y="58.9" width="22" height="291.1" fill="#f9c88e" rx="1"/>
 <text x="1043.0" y="55.9" text-anchor="middle" font-size="9" fill="#333">174k</text>
-<rect x="1080.0" y="45.7" width="22" height="304.3" fill="#e15759" rx="1"/>
+<rect x="1080.0" y="45.7" width="22" height="304.3" fill="#f0a1a2" rx="1"/>
 <text x="1091.0" y="42.7" text-anchor="middle" font-size="9" fill="#333">182k</text>
 <rect x="1104.0" y="213.8" width="22" height="136.2" fill="#4e79a7" rx="1"/>
 <text x="1115.0" y="210.8" text-anchor="middle" font-size="9" fill="#333">81k</text>
@@ -94,11 +94,11 @@
 <g transform="translate(100,440)">
 <rect x="0" y="0" width="14" height="14" fill="#f28e2b" rx="2"/>
 <text x="18" y="12" font-size="13" fill="#333">Irmin-Lwt (memory)</text>
-<rect x="200" y="0" width="14" height="14" fill="#f28e2b" rx="2"/>
+<rect x="200" y="0" width="14" height="14" fill="#f9c88e" rx="2"/>
 <text x="218" y="12" font-size="13" fill="#333">Irmin-Lwt (pack-mem)</text>
 <rect x="400" y="0" width="14" height="14" fill="#e15759" rx="2"/>
 <text x="418" y="12" font-size="13" fill="#333">Irmin-Eio (memory)</text>
-<rect x="600" y="0" width="14" height="14" fill="#e15759" rx="2"/>
+<rect x="600" y="0" width="14" height="14" fill="#f0a1a2" rx="2"/>
 <text x="618" y="12" font-size="13" fill="#333">Irmin-Eio (pack-mem)</text>
 <rect x="0" y="24" width="14" height="14" fill="#4e79a7" rx="2"/>
 <text x="18" y="36" font-size="13" fill="#333">Irmini (memory)</text>
