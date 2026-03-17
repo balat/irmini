@@ -5,7 +5,8 @@
 (test
  (name test_stm)
  (modules test_stm)
- (libraries irmin qcheck-core qcheck-stm.stm qcheck-stm.sequential qcheck-stm.domain))
+ (libraries irmin eio_main qcheck-core qcheck-stm.stm qcheck-stm.sequential
+            qcheck-stm.domain qcheck-stm-eio.domain))
 
 (executable
  (name mst_proof)
