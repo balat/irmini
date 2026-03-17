@@ -263,6 +263,91 @@ module Disk_seq = STM_sequential.Make (Disk_model)
 module Disk_eio = STM_domain_eio.Make (Disk_model)
 
 (* ================================================================== *)
+(* STM model for Lavyek backend (uses Eio for I/O)                     *)
+(* ================================================================== *)
+
+module Lavyek_model = struct
+  type sut = Hash.sha1 Backend.t
+
+  type state = (string * string) list
+
+  type cmd =
+    | Write of string
+    | Read of string
+    | Exists of string
+
+  let show_cmd = function
+    | Write d -> Printf.sprintf "Write(%s)" d
+    | Read d -> Printf.sprintf "Read(%s)" d
+    | Exists d -> Printf.sprintf "Exists(%s)" d
+
+  let hex_of d = Hash.to_hex (Hash.sha1 d)
+
+  let sw_ref : Eio.Switch.t option ref = ref None
+  let cwd_ref : Eio.Fs.dir_ty Eio.Path.t option ref = ref None
+  let counter = Atomic.make 0
+
+  let init_sut () =
+    let sw = Option.get !sw_ref in
+    let cwd = Option.get !cwd_ref in
+    let n = Atomic.fetch_and_add counter 1 in
+    let root = Eio.Path.(cwd / Printf.sprintf "_stm_lavyek_%d" n) in
+    (try rm_rf root with _ -> ());
+    Eio.Path.mkdirs ~exists_ok:true ~perm:0o755 root;
+    Irmin_lavyek.create ~use_fsync:false ~sw root
+
+  let init_state = []
+  let cleanup sut = sut.Backend.close ()
+
+  let arb_cmd _state =
+    let data_gen = Gen.map (fun i -> Printf.sprintf "v%d" i) (Gen.int_bound 15) in
+    make ~print:show_cmd
+      (Gen.oneof [
+         Gen.map (fun d -> Write d) data_gen;
+         Gen.map (fun d -> Read d) data_gen;
+         Gen.map (fun d -> Exists d) data_gen;
+       ])
+
+  let next_state cmd state =
+    match cmd with
+    | Write d ->
+        let key = hex_of d in
+        if List.mem_assoc key state then state
+        else (key, d) :: state
+    | Read _ | Exists _ -> state
+
+  let run cmd (sut : sut) =
+    match cmd with
+    | Write d ->
+        let h = Hash.sha1 d in
+        Res (unit, sut.write h d)
+    | Read d ->
+        let h = Hash.sha1 d in
+        let v = match sut.read h with None -> "" | Some s -> s in
+        Res (string, v)
+    | Exists d ->
+        let h = Hash.sha1 d in
+        Res (int, if sut.exists h then 1 else 0)
+
+  let precond _ _ = true
+
+  let postcond cmd state res =
+    match cmd, res with
+    | Write _, Res ((Unit, _), ()) -> true
+    | Read d, Res ((String, _), r) ->
+        let key = hex_of d in
+        let expected = match List.assoc_opt key state with None -> "" | Some s -> s in
+        String.equal r expected
+    | Exists d, Res ((Int, _), r) ->
+        let key = hex_of d in
+        Int.equal r (if List.mem_assoc key state then 1 else 0)
+    | _ -> false
+end
+
+module Lavyek_seq = STM_sequential.Make (Lavyek_model)
+module Lavyek_eio = STM_domain_eio.Make (Lavyek_model)
+
+(* ================================================================== *)
 (* Run all STM tests                                                   *)
 (* ================================================================== *)
 
@@ -274,6 +359,8 @@ let () =
   Eio.Switch.run @@ fun sw ->
   Disk_model.sw_ref := Some sw;
   Disk_model.cwd_ref := Some cwd;
+  Lavyek_model.sw_ref := Some sw;
+  Lavyek_model.cwd_ref := Some cwd;
   QCheck_base_runner.run_tests_main
     [
       Mem_seq.agree_test ~count ~name:"Memory backend STM sequential";
@@ -282,4 +369,7 @@ let () =
       Disk_seq.agree_test ~count:20 ~name:"Disk backend STM sequential";
       Disk_eio.agree_test_par ~domain_mgr ~count:5
         ~name:"Disk backend STM parallel (Eio)";
+      Lavyek_seq.agree_test ~count:20 ~name:"Lavyek backend STM sequential";
+      Lavyek_eio.agree_test_par ~domain_mgr ~count:5
+        ~name:"Lavyek backend STM parallel (Eio)";
     ]
