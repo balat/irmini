@@ -45,6 +45,20 @@ of the changes made to ensure domain-safety across all components:
   writer, for non-yielding backends).
 - **`Disk`**: already domain-safe, no wrapper needed.
 
+### Bug fixes for multicore correctness
+
+| Fix | Commit | Scope |
+|---|---|---|
+| **O_APPEND removal** — `pwrite` ignored offsets on Linux with `O_APPEND`; caused data corruption in no-fsync mode | `2e6d020` | Disk |
+| **Tree `node_record` domain-safe** — `Atomic.t` for mutable tree node fields | `3ef3eb1` | All backends |
+| **Link domain-safe** — `Atomic.t` for link resolution cache | `308110b` | All backends |
+| **Disk reads mutex** — initial mutex protection before lock-free rewrite | `5fc4f47` | Disk |
+| **Memory CAS** — domain-safe Memory backend with `Atomic.t` (later superseded by `thread_safe_rw`) | `344979d` | Memory |
+| **Lavyek ref mutex** — protect `test_and_set_ref` against TOCTOU race | `6d4a0bc` | Lavyek |
+| **save_ref mkdirs** — `mkdirs ~exists_ok:true` to handle concurrent `mkdir` | `e0e16bb` | Disk |
+| **Inode hash exhaustion** — fix stack overflow when hash bits run out in inode trie | `24347a9` | All backends |
+| **Proof inlined contents** — fix proof verification with inlined blobs | `1837522`, `17c409b` | All backends |
+
 ---
 
 ## Test Overview
