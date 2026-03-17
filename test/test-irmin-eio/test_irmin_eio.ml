@@ -623,6 +623,69 @@ let test_pack_concurrent_multi_commit () =
       (Pack_store.find br [ "file" ])
   done
 
+let test_pack_concurrent_same_key () =
+  (* Each domain writes the same key on its OWN branch to avoid CAS
+     retry exhaustion (Irmin's set_tree_exn retries are bounded). *)
+  with_pack_repo @@ fun env repo ->
+  let dm = Eio.Stdenv.domain_mgr env in
+  let ndomains = min 4 (Domain.recommended_domain_count ()) in
+  let writes_per_domain = 20 in
+  Eio.Fiber.all
+    (List.init ndomains (fun did () ->
+         Eio.Domain_manager.run dm (fun () ->
+             let br =
+               Pack_store.of_branch repo (Printf.sprintf "sk-%d" did)
+             in
+             for i = 1 to writes_per_domain do
+               let tree = Pack_store.get_tree br [] in
+               let tree =
+                 Pack_store.Tree.add tree [ "key" ]
+                   (Printf.sprintf "d%d-i%d" did i)
+               in
+               Pack_store.set_tree_exn br
+                 ~info:(fun () ->
+                   Pack_store.Info.v ~author:"test"
+                     ~message:(Printf.sprintf "d%d-i%d" did i) 0L)
+                 [] tree
+             done)));
+  (* Each branch should have the final value *)
+  for did = 0 to ndomains - 1 do
+    let br = Pack_store.of_branch repo (Printf.sprintf "sk-%d" did) in
+    Alcotest.(check (option string))
+      (Printf.sprintf "sk-%d final" did)
+      (Some (Printf.sprintf "d%d-i%d" did writes_per_domain))
+      (Pack_store.find br [ "key" ])
+  done
+
+let test_pack_concurrent_commits_simple () =
+  with_pack_repo @@ fun env repo ->
+  let dm = Eio.Stdenv.domain_mgr env in
+  let ndomains = min 4 (Domain.recommended_domain_count ()) in
+  (* Each domain: one commit on its own branch *)
+  Eio.Fiber.all
+    (List.init ndomains (fun did () ->
+         Eio.Domain_manager.run dm (fun () ->
+             let br =
+               Pack_store.of_branch repo (Printf.sprintf "br-%d" did)
+             in
+             let tree =
+               Pack_store.Tree.add (Pack_store.Tree.empty ())
+                 [ "file" ]
+                 (Printf.sprintf "value-%d" did)
+             in
+             Pack_store.set_tree_exn br
+               ~info:(fun () ->
+                 Pack_store.Info.v ~author:"test"
+                   ~message:(Printf.sprintf "d%d" did) 0L)
+               [] tree)));
+  for did = 0 to ndomains - 1 do
+    let br = Pack_store.of_branch repo (Printf.sprintf "br-%d" did) in
+    Alcotest.(check (option string))
+      (Printf.sprintf "br-%d" did)
+      (Some (Printf.sprintf "value-%d" did))
+      (Pack_store.find br [ "file" ])
+  done
+
 (* ================================================================== *)
 (* Suite                                                               *)
 (* ================================================================== *)
@@ -675,5 +738,9 @@ let suite =
         Alcotest.test_case "concurrent refs" `Quick test_pack_concurrent_refs;
         Alcotest.test_case "concurrent multi-commit" `Quick
           test_pack_concurrent_multi_commit;
+        Alcotest.test_case "concurrent same-key updates" `Quick
+          test_pack_concurrent_same_key;
+        Alcotest.test_case "concurrent commits (simple)" `Quick
+          test_pack_concurrent_commits_simple;
       ] );
   ]
