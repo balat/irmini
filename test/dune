@@ -2,6 +2,11 @@
  (name test)
  (libraries irmin alcotest eio_main))
 
+(test
+ (name test_stm)
+ (modules test_stm)
+ (libraries irmin qcheck-core qcheck-stm.stm qcheck-stm.sequential qcheck-stm.domain))
+
 (executable
  (name mst_proof)
  (modules mst_proof)
