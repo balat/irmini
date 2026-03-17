@@ -23,7 +23,16 @@ depends: [
   "atp" {>= "0.1"}
   "alcotest" {with-test}
   "crowbar" {with-test}
+  "qcheck-core" {with-test}
+  "qcheck-stm" {with-test}
+  "qcheck-stm-eio" {with-test}
+  "qcheck-multicoretests-util" {with-test}
   "odoc" {with-doc}
+]
+pin-depends: [
+  ["qcheck-stm.0.11" "git+https://github.com/lyrm/multicoretests.git#eio"]
+  ["qcheck-stm-eio.0.11" "git+https://github.com/lyrm/multicoretests.git#eio"]
+  ["qcheck-multicoretests-util.0.11" "git+https://github.com/lyrm/multicoretests.git#eio"]
 ]
 build: [
   ["dune" "subst"] {dev}
