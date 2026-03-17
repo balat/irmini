@@ -68,7 +68,7 @@ amortize the cost.
 | Optimization | Commit | Impact |
 |---|---|---|
 | **Value inlining** — small values (< 48 bytes) stored directly in tree nodes, avoiding content-addressable store lookups | `f4907ab` | commits-20B: **9×** (memory), **2.2×** (disk); reads-20B: **3×** (disk) |
-| **Inode structural sharing** — HAMT trie for large tree nodes, O(log n) updates instead of O(n) re-serialization | `9ae61ec`, `7d9997b` | incremental: **2.4×** (all); commits-20B: **4×** (memory) |
+| **Inode structural sharing** — HAMT trie for large tree nodes, O(log n) updates instead of O(n) re-serialization | `9ae61ec`, `7d9997b` | incremental-20B: **2.2×** (memory); commits-20B: **4×** (memory) |
 | **LRU cache** — O(1) doubly-linked-list cache at backend level, avoids repeated deserialization | `b6e855f`, `1421b0a`, `ebdbc1f`, `2f5f6ca`, `17622d1` | reads-20B: **1.4×** (disk) |
 | **Resolved-child cache** — Hashtbl cache in tree navigation, avoids re-traversing already-resolved subtrees | `cf1fda2`, `1a09cb4` | reads: measurable improvement on deep trees |
 | **Write batching** — `Store.commit` accumulates all objects in a pending list, writes them in a single `write_batch` call | `b1b2e73` | disk: **1 fsync per commit** instead of per object |
