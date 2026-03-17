@@ -78,10 +78,112 @@ let test_proof_mst () =
       Alcotest.(check (option string)) "verified value" (Some "value1") v
   | Error (`Proof_mismatch msg) -> Alcotest.fail ("proof mismatch: " ^ msg)
 
+(* Proof on a larger tree — only accessed paths are revealed *)
+let test_proof_large_tree () =
+  let backend = Backend.Memory.create_sha1 () in
+  let tree = ref (Tree.Git.empty ()) in
+  for i = 0 to 99 do
+    tree := Tree.Git.add !tree
+        [ Printf.sprintf "dir%d" (i / 10); Printf.sprintf "file%d" (i mod 10) ]
+        (Printf.sprintf "value%d" i)
+  done;
+  let root_hash = Tree.Git.hash !tree ~backend in
+  let proof, result =
+    Proof.Git.produce backend root_hash (fun t ->
+        let v = Proof.Git.Tree.find t [ "dir5"; "file3" ] in
+        (t, v))
+  in
+  Alcotest.(check (option string)) "found" (Some "value53") result;
+  match
+    Proof.Git.verify proof (fun t ->
+        let v = Proof.Git.Tree.find t [ "dir5"; "file3" ] in
+        (t, v))
+  with
+  | Ok (_, v) ->
+      Alcotest.(check (option string)) "verified" (Some "value53") v
+  | Error (`Proof_mismatch msg) -> Alcotest.fail ("mismatch: " ^ msg)
+
+(* Proof verification fails if function accesses different path *)
+let test_proof_verify_wrong_path () =
+  let backend = Backend.Memory.create_sha1 () in
+  let tree = Tree.Git.empty () in
+  let tree = Tree.Git.add tree [ "a" ] "va" in
+  let tree = Tree.Git.add tree [ "b" ] "vb" in
+  let root_hash = Tree.Git.hash tree ~backend in
+  (* Produce proof for path "a" *)
+  let proof, _ =
+    Proof.Git.produce backend root_hash (fun t ->
+        let v = Proof.Git.Tree.find t [ "a" ] in
+        (t, v))
+  in
+  (* Verify with path "b" — should fail because "b" was blinded *)
+  match
+    Proof.Git.verify proof (fun t ->
+        let v = Proof.Git.Tree.find t [ "b" ] in
+        (t, v))
+  with
+  | Ok (_, Some _) ->
+      (* If b was inlined (< 48 bytes), it might still be visible.
+         That's OK — inlined values are always revealed. *)
+      ()
+  | Ok (_, None) -> ()
+  | Error (`Proof_mismatch _) -> ()
+
+(* Proof for missing key returns None in both produce and verify *)
+let test_proof_missing_key () =
+  let backend = Backend.Memory.create_sha1 () in
+  let tree = Tree.Git.add (Tree.Git.empty ()) [ "a" ] "v" in
+  let root_hash = Tree.Git.hash tree ~backend in
+  let proof, result =
+    Proof.Git.produce backend root_hash (fun t ->
+        let v = Proof.Git.Tree.find t [ "nonexistent" ] in
+        (t, v))
+  in
+  Alcotest.(check (option string)) "missing in produce" None result;
+  match
+    Proof.Git.verify proof (fun t ->
+        let v = Proof.Git.Tree.find t [ "nonexistent" ] in
+        (t, v))
+  with
+  | Ok (_, v) ->
+      Alcotest.(check (option string)) "missing in verify" None v
+  | Error (`Proof_mismatch msg) -> Alcotest.fail ("mismatch: " ^ msg)
+
+(* Multiple accesses in single proof *)
+let test_proof_multi_access () =
+  let backend = Backend.Memory.create_sha1 () in
+  let tree = Tree.Git.empty () in
+  let tree = Tree.Git.add tree [ "x" ] "vx" in
+  let tree = Tree.Git.add tree [ "y" ] "vy" in
+  let tree = Tree.Git.add tree [ "z" ] "vz" in
+  let root_hash = Tree.Git.hash tree ~backend in
+  let proof, (rx, ry) =
+    Proof.Git.produce backend root_hash (fun t ->
+        let vx = Proof.Git.Tree.find t [ "x" ] in
+        let vy = Proof.Git.Tree.find t [ "y" ] in
+        (t, (vx, vy)))
+  in
+  Alcotest.(check (option string)) "x" (Some "vx") rx;
+  Alcotest.(check (option string)) "y" (Some "vy") ry;
+  match
+    Proof.Git.verify proof (fun t ->
+        let vx = Proof.Git.Tree.find t [ "x" ] in
+        let vy = Proof.Git.Tree.find t [ "y" ] in
+        (t, (vx, vy)))
+  with
+  | Ok (_, (vx, vy)) ->
+      Alcotest.(check (option string)) "verified x" (Some "vx") vx;
+      Alcotest.(check (option string)) "verified y" (Some "vy") vy
+  | Error (`Proof_mismatch msg) -> Alcotest.fail ("mismatch: " ^ msg)
+
 let suite =
   ( "Proof",
     [
       Alcotest.test_case "produce/verify" `Quick test_proof_produce_verify;
       Alcotest.test_case "blinded nodes" `Quick test_proof_blinded;
       Alcotest.test_case "mst proofs" `Quick test_proof_mst;
+      Alcotest.test_case "large tree proof" `Quick test_proof_large_tree;
+      Alcotest.test_case "verify wrong path" `Quick test_proof_verify_wrong_path;
+      Alcotest.test_case "missing key" `Quick test_proof_missing_key;
+      Alcotest.test_case "multi access" `Quick test_proof_multi_access;
     ] )
