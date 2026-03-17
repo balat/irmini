@@ -82,7 +82,8 @@ DUNE
     cat > "$dest/dune" <<'DUNE'
 (executable
  (name main)
- (libraries irmin irmin.mem alcotest eio_main unix)
+ (libraries irmin irmin.mem irmin-pack irmin-pack.unix
+            alcotest eio_main unix)
  (modules test_irmin_eio main))
 DUNE
   fi
