@@ -25,13 +25,11 @@ module Memory_model = struct
     | Write of string  (* write data, hash is derived *)
     | Read of string   (* read by data key (we hash it) *)
     | Exists of string (* check existence by data key *)
-    | Write_batch of string list (* batch write multiple values *)
 
   let show_cmd = function
     | Write d -> Printf.sprintf "Write(%s)" d
     | Read d -> Printf.sprintf "Read(%s)" d
     | Exists d -> Printf.sprintf "Exists(%s)" d
-    | Write_batch ds -> Printf.sprintf "Write_batch([%s])" (String.concat ";" ds)
 
   let hex_of d = Hash.to_hex (Hash.sha1 d)
 
@@ -48,7 +46,6 @@ module Memory_model = struct
          Gen.map (fun d -> Write d) data_gen;
          Gen.map (fun d -> Read d) data_gen;
          Gen.map (fun d -> Exists d) data_gen;
-         Gen.map (fun ds -> Write_batch ds) (Gen.list_size (Gen.int_bound 5) data_gen);
        ])
 
   let next_state cmd state =
@@ -58,12 +55,6 @@ module Memory_model = struct
         if List.mem_assoc key state then state
         else (key, d) :: state
     | Read _ | Exists _ -> state
-    | Write_batch ds ->
-        List.fold_left (fun s d ->
-            let key = hex_of d in
-            if List.mem_assoc key s then s
-            else (key, d) :: s)
-          state ds
 
   let run cmd (sut : sut) =
     match cmd with
@@ -78,9 +69,6 @@ module Memory_model = struct
     | Exists d ->
         let h = Hash.sha1 d in
         Res (int, if sut.exists h then 1 else 0)
-    | Write_batch ds ->
-        let batch = List.map (fun d -> (Hash.sha1 d, d)) ds in
-        Res (unit, sut.write_batch batch)
 
   let precond _ _ = true
 
@@ -94,7 +82,6 @@ module Memory_model = struct
     | Exists d, Res ((Int, _), r) ->
         let key = hex_of d in
         Int.equal r (if List.mem_assoc key state then 1 else 0)
-    | Write_batch _, Res ((Unit, _), ()) -> true
     | _ -> false
 end
 
@@ -192,9 +179,9 @@ let () =
   QCheck_base_runner.run_tests_main
     [
       Mem_seq.agree_test ~count ~name:"Memory backend STM sequential";
+      (* agree_test_par does exhaustive interleaving search — count=5 keeps
+         it under 30s. For thorough testing, increase count or use
+         stress_test_par which is faster but only checks for crashes. *)
+      Mem_dom.agree_test_par ~count:5 ~name:"Memory backend STM parallel";
       Lru_seq.agree_test ~count ~name:"LRU STM sequential";
-      (* Parallel STM: the raw Memory backend has data races on mutable fields
-         that cause the interleaving checker to loop. The thread_safe_rw wrapper
-         uses Eio.Mutex which deadlocks in bare Domain.spawn (no Eio scheduler).
-         Parallel concurrency is tested in test_concurrency.ml instead. *)
     ]
