@@ -1,0 +1,16 @@
+; Cross-implementation tests for Irmin-Lwt.
+;
+; Must be built from the Irmin workspace (main branch),
+; not from the irmini monorepo (library name conflict with "irmin").
+;
+; To build:
+;   1. Copy test-irmin-lwt/ into the Irmin workspace root
+;   2. Uncomment the executable stanza below
+;   3. dune exec test-irmin-lwt/main.exe
+;
+; Or use test/run_tests.sh which automates this.
+
+; (executable
+;  (name main)
+;  (libraries irmin irmin.mem alcotest lwt lwt.unix unix)
+;  (modules test_irmin_lwt main))
