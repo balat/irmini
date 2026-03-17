@@ -63,6 +63,7 @@ dune exec irmini/test/test.exe -- test -e 'Tree'
 dune exec irmini/test/test.exe -- test -e 'Concurrency'
 
 # STM tests (QCheck property-based)
+# Requires pinned packages — see "STM Tests" section below
 dune exec irmini/test/test_stm.exe
 
 # Cross-implementation tests (all three)
@@ -232,6 +233,16 @@ QCheck state-machine tests for:
 - Memory backend (sequential + parallel with domain manager)
 - Disk backend (sequential + parallel with Eio domain manager)
 - Lavyek backend (sequential + parallel with Eio domain manager)
+
+**Prerequisites**: STM tests require `qcheck-stm` and `qcheck-stm-eio` with
+Eio support, which are not yet released on opam. Pin them from the `eio`
+branch:
+
+```bash
+opam pin qcheck-stm.0.11 git+https://github.com/lyrm/multicoretests.git#eio
+opam pin qcheck-stm-eio.0.11 git+https://github.com/lyrm/multicoretests.git#eio
+opam pin qcheck-multicoretests-util.0.11 git+https://github.com/lyrm/multicoretests.git#eio
+```
 
 ---
 

@@ -28,7 +28,12 @@ bidirectional Git compatibility and first-class subtree operations.")
   (git (>= 0.1))
   (atp (>= 0.1))
   (alcotest :with-test)
-  (crowbar :with-test)))
+  (crowbar :with-test)
+  (qcheck-core :with-test)
+  (qcheck-stm :with-test)
+  (qcheck-stm-eio :with-test)
+  (qcheck-multicoretests-util :with-test)
+  (odoc :with-doc)))
 
 (package
  (name irmin-lavyek)

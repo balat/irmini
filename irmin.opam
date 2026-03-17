@@ -29,11 +29,6 @@ depends: [
   "qcheck-multicoretests-util" {with-test}
   "odoc" {with-doc}
 ]
-pin-depends: [
-  ["qcheck-stm.0.11" "git+https://github.com/lyrm/multicoretests.git#eio"]
-  ["qcheck-stm-eio.0.11" "git+https://github.com/lyrm/multicoretests.git#eio"]
-  ["qcheck-multicoretests-util.0.11" "git+https://github.com/lyrm/multicoretests.git#eio"]
-]
 build: [
   ["dune" "subst"] {dev}
   [
