@@ -43,50 +43,55 @@ let cached ?(capacity = default_cache_capacity) (type h) (backend : h t) : h t =
         List.iter (fun (h, data) -> Lru.add cache h data) objects);
   }
 
-(** In-memory backend using immutable maps.
+(** In-memory backend using Atomic.t immutable maps.
 
-    NOT thread-safe: concurrent access from multiple Eio domains will cause
-    data races on the mutable [objects] and [refs] fields. Safe for use
-    from multiple fibers on a single domain (Eio cooperative scheduling
-    prevents interleaving within non-yielding operations).
-
-    For multi-domain use, wrap with {!thread_safe}:
-    For multi-domain use, wrap with {!thread_safe_rw}:
-    {[let b = thread_safe_rw (Memory.create_sha1 ())]} *)
+    Domain-safe without any wrapper: reads use [Atomic.get] (lock-free),
+    writes use CAS loops on the atomic map references. Safe for concurrent
+    access from multiple OS domains. *)
 module Memory = struct
   module String_map = Map.Make (String)
 
   type 'hash state = {
-    mutable objects : string String_map.t;
-    mutable refs : 'hash String_map.t;
+    objects : string String_map.t Atomic.t;
+    refs : 'hash String_map.t Atomic.t;
     to_hex : 'hash -> string;
     equal : 'hash -> 'hash -> bool;
   }
 
+  (** CAS loop: retry [f] until the atomic update succeeds. *)
+  let rec cas_update atomic f =
+    let old = Atomic.get atomic in
+    let nv = f old in
+    if Atomic.compare_and_set atomic old nv then ()
+    else cas_update atomic f
+
   let create_with_hash (type h) (to_hex : h -> string) (equal : h -> h -> bool)
       : h t =
     let state =
-      { objects = String_map.empty; refs = String_map.empty; to_hex; equal }
+      { objects = Atomic.make String_map.empty;
+        refs = Atomic.make String_map.empty;
+        to_hex; equal }
     in
     {
       read =
         (fun h ->
           let key = state.to_hex h in
-          String_map.find_opt key state.objects);
+          String_map.find_opt key (Atomic.get state.objects));
       write =
         (fun h data ->
           let key = state.to_hex h in
-          state.objects <- String_map.add key data state.objects);
+          cas_update state.objects (String_map.add key data));
       exists =
         (fun h ->
           let key = state.to_hex h in
-          String_map.mem key state.objects);
-      get_ref = (fun name -> String_map.find_opt name state.refs);
+          String_map.mem key (Atomic.get state.objects));
+      get_ref = (fun name -> String_map.find_opt name (Atomic.get state.refs));
       set_ref =
-        (fun name hash -> state.refs <- String_map.add name hash state.refs);
+        (fun name hash ->
+          cas_update state.refs (String_map.add name hash));
       test_and_set_ref =
         (fun name ~test ~set ->
-          let current = String_map.find_opt name state.refs in
+          let current = String_map.find_opt name (Atomic.get state.refs) in
           let matches =
             match (test, current) with
             | None, None -> true
@@ -95,18 +100,20 @@ module Memory = struct
           in
           if matches then (
             (match set with
-            | None -> state.refs <- String_map.remove name state.refs
-            | Some h -> state.refs <- String_map.add name h state.refs);
+            | None -> cas_update state.refs (String_map.remove name)
+            | Some h -> cas_update state.refs (String_map.add name h));
             true)
           else false);
-      list_refs = (fun () -> String_map.bindings state.refs |> List.map fst);
+      list_refs =
+        (fun () -> String_map.bindings (Atomic.get state.refs) |> List.map fst);
       write_batch =
         (fun objects ->
-          List.iter
-            (fun (h, data) ->
-              let key = state.to_hex h in
-              state.objects <- String_map.add key data state.objects)
-            objects);
+          cas_update state.objects (fun m ->
+            List.fold_left
+              (fun acc (h, data) ->
+                let key = state.to_hex h in
+                String_map.add key data acc)
+              m objects));
       flush = (fun () -> ());
       close = (fun () -> ());
     }
