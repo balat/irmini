@@ -237,6 +237,126 @@ let test_store_concurrent_commits () =
     | None -> Alcotest.failf "branch %s not found" branch
   done
 
+(* ================================================================== *)
+(* Concurrent updates on the same key (different domains)              *)
+(* ================================================================== *)
+
+let test_concurrent_same_key_updates () =
+  let backend = Backend.thread_safe_rw (Backend.Memory.create_sha1 ()) in
+  let store = Store.Git.create ~backend () in
+  (* All domains write to the same branch, same key *)
+  let writes_per_domain = 20 in
+  run_parallel ~n:ndomains (fun did ->
+      for i = 1 to writes_per_domain do
+        let tree = Tree.Git.empty () in
+        let tree =
+          Tree.Git.add tree [ "key" ]
+            (Printf.sprintf "d%d-i%d" did i)
+        in
+        let parents =
+          match Store.Git.head store ~branch:"main" with
+          | Some h -> [ h ]
+          | None -> []
+        in
+        let h =
+          Store.Git.commit store ~tree ~parents
+            ~message:(Printf.sprintf "d%d-i%d" did i)
+            ~author:(Printf.sprintf "domain-%d" did)
+        in
+        Store.Git.set_head store ~branch:"main" h
+      done);
+  (* The key should have *some* value — last writer wins *)
+  match Store.Git.checkout store ~branch:"main" with
+  | Some tree ->
+      Alcotest.(check bool) "key has value" true
+        (Option.is_some (Tree.Git.find tree [ "key" ]))
+  | None -> Alcotest.fail "main branch missing"
+
+(* ================================================================== *)
+(* Concurrent head updates with CAS (test_and_set)                     *)
+(* ================================================================== *)
+
+let test_concurrent_cas_head () =
+  let backend = Backend.thread_safe_rw (Backend.Memory.create_sha1 ()) in
+  let store = Store.Git.create ~backend () in
+  (* Initial commit *)
+  let tree = Tree.Git.add (Tree.Git.empty ()) [ "init" ] "v0" in
+  let h0 =
+    Store.Git.commit store ~tree ~parents:[] ~message:"init" ~author:"test"
+  in
+  Store.Git.set_head store ~branch:"main" h0;
+  let successes = Atomic.make 0 in
+  let failures = Atomic.make 0 in
+  (* Each domain tries CAS from h0 to its own commit *)
+  run_parallel ~n:ndomains (fun did ->
+      let tree =
+        Tree.Git.add (Tree.Git.empty ()) [ "who" ]
+          (Printf.sprintf "domain-%d" did)
+      in
+      let h =
+        Store.Git.commit store ~tree ~parents:[ h0 ]
+          ~message:(Printf.sprintf "cas-%d" did)
+          ~author:(Printf.sprintf "domain-%d" did)
+      in
+      if Store.Git.update_branch store ~branch:"main" ~old:(Some h0) ~new_:h
+      then Atomic.incr successes
+      else Atomic.incr failures);
+  (* Exactly one CAS should succeed *)
+  Alcotest.(check int) "exactly one CAS wins" 1 (Atomic.get successes);
+  Alcotest.(check int) "rest fail" (ndomains - 1) (Atomic.get failures)
+
+(* ================================================================== *)
+(* Concurrent multi-commit per domain (store level)                    *)
+(* ================================================================== *)
+
+let test_store_concurrent_multi_commit () =
+  let backend = Backend.thread_safe_rw (Backend.Memory.create_sha1 ()) in
+  let store = Store.Git.create ~backend () in
+  let commits_per_domain = 10 in
+  run_parallel ~n:ndomains (fun did ->
+      let branch = Printf.sprintf "worker-%d" did in
+      for i = 1 to commits_per_domain do
+        let tree =
+          match Store.Git.checkout store ~branch with
+          | Some t -> t
+          | None -> Tree.Git.empty ()
+        in
+        let tree =
+          Tree.Git.add tree [ "counter" ] (string_of_int i)
+        in
+        let tree =
+          Tree.Git.add tree [ "file" ]
+            (Printf.sprintf "d%d-c%d" did i)
+        in
+        let parents =
+          match Store.Git.head store ~branch with
+          | Some h -> [ h ]
+          | None -> []
+        in
+        let h =
+          Store.Git.commit store ~tree ~parents
+            ~message:(Printf.sprintf "d%d-c%d" did i)
+            ~author:(Printf.sprintf "domain-%d" did)
+        in
+        Store.Git.set_head store ~branch h
+      done);
+  (* Verify final state *)
+  for did = 0 to ndomains - 1 do
+    let branch = Printf.sprintf "worker-%d" did in
+    match Store.Git.checkout store ~branch with
+    | Some tree ->
+        Alcotest.(check (option string))
+          (Printf.sprintf "worker-%d counter" did)
+          (Some (string_of_int commits_per_domain))
+          (Tree.Git.find tree [ "counter" ]);
+        Alcotest.(check (option string))
+          (Printf.sprintf "worker-%d file" did)
+          (Some (Printf.sprintf "d%d-c%d" did commits_per_domain))
+          (Tree.Git.find tree [ "file" ])
+    | None ->
+        Alcotest.failf "branch worker-%d not found" did
+  done
+
 let suite =
   ( "Concurrency",
     [
@@ -259,4 +379,10 @@ let suite =
       (* Store *)
       Alcotest.test_case "store: concurrent commits" `Quick
         test_store_concurrent_commits;
+      Alcotest.test_case "store: concurrent same-key updates" `Quick
+        test_concurrent_same_key_updates;
+      Alcotest.test_case "store: concurrent CAS head" `Quick
+        test_concurrent_cas_head;
+      Alcotest.test_case "store: concurrent multi-commit" `Quick
+        test_store_concurrent_multi_commit;
     ] )
