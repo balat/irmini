@@ -14,4 +14,5 @@ let () =
       Test_lru.suite;
       Test_inode.suite;
       Test_concurrency.suite;
+      Test_perf.suite;
     ]

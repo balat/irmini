@@ -1,6 +1,6 @@
 (test
  (name test)
- (libraries irmin alcotest eio_main))
+ (libraries irmin alcotest eio_main unix))
 
 (test
  (name test_stm)
